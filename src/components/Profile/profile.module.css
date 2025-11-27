@@ -1,0 +1,17 @@
+.profile {
+    display: flex;
+    
+}
+
+.name {
+    color: white;
+}
+
+.email {   
+    color: white;
+}
+
+.profile img {
+    width: 250px;
+    margin-right: 10px;
+}

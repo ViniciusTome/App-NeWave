@@ -1,0 +1,82 @@
+.boxCadaster {
+    /* background-color: #171D1F; */
+    background-color:  #006ff78a;
+    width: 446px;
+    /* height: 598px; */
+    margin: 100px auto;
+    border-radius: 32px;
+
+}
+
+.container {
+    padding: 20px;
+    margin-top: -10px;    
+}
+
+.title {
+    font-size: 31px;
+    margin-top: 10px;
+}
+
+.description {
+    font-size: 22px;
+    margin: 10px 0px;
+}
+
+.remember {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    margin-top: -15px;
+}
+
+.login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 20px;
+}
+
+.login p {
+    text-align: center;
+    /* margin-top: 30px; */
+    font-size: 14px;
+}
+
+.login a{
+    text-decoration: none;
+    color: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    /* margin-top: 10px; */
+    font-weight: 600;
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1400px) {
+    .boxCadaster {
+        margin: 30px auto;
+    }
+
+    .title {
+        font-size: 28px;
+        
+    }
+    .description {
+        font-size: 18px;
+    }
+
+    .remember {
+        margin-bottom: 20px;
+    }
+    .container button {
+        margin-bottom: 20px;
+    }
+
+    .cadaster p {
+        margin-top: 20px;
+    }
+
+}

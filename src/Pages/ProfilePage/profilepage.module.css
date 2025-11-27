@@ -1,0 +1,26 @@
+.division {
+    display: flex;
+    justify-content: center;
+}
+
+.profile {
+    width: 1000px;
+    margin-top: 10px;
+    
+}
+
+.profile h1 {
+    color: linear-gradient(180deg,rgba(130, 215, 255, 1) 25%, rgba(45, 112, 255, 1) 65%, rgba(0, 68, 102, 1) 100%);
+}
+.container {
+    /* width: 100%; */
+    background: linear-gradient(180deg,rgba(130, 215, 255, 1) 25%, rgba(45, 112, 255, 1) 65%, rgba(0, 68, 102, 1) 100%);
+    border-radius: 8px;
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1400px) {
+    .profile {
+        width: 800px;
+    }
+    
+}

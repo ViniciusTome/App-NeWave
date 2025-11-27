@@ -1,0 +1,46 @@
+.description {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.name {
+    width: 200px;
+    margin: 10px;
+}
+.name p {
+    margin: 0px;
+}
+
+.email{
+    width: 200px;
+    margin: 10px;
+}
+.email p{
+    margin: 0px;
+}
+
+.phone{
+    width: 200px;
+    margin: 10px;
+}
+.phone p {
+    margin: 0px;
+}
+
+.password{
+    width: 200px;
+    margin: 10px;
+}
+.password p {
+    margin: 0px;
+}
+
+.birth{
+    width: 200px;
+    margin: 10px;
+}
+.birth p {
+    margin: 0px;
+}

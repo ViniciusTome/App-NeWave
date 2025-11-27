@@ -1,0 +1,21 @@
+.img {
+    width: 150px;
+    border-radius: 100%;
+    margin-top: 20px;
+}
+
+.name {
+    color: #82d7ff;
+    margin-top: -10px;
+}
+
+.container a {
+    text-decoration: none;
+}
+
+
+@media screen and (min-width: 1024px) and (max-width: 1400px) {
+    .img {
+        width: 100px;
+    }
+}

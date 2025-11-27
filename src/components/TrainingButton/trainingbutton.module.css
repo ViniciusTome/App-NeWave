@@ -1,0 +1,30 @@
+.container {
+    margin-top: 46px;
+}
+
+.button {
+    border: 1px solid #2D70FF;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 22px;
+    line-height: 150%;
+    color: #2D70FF;
+    cursor: pointer;
+    background-color: transparent;
+    text-decoration: none;
+}
+
+.button:hover {
+    opacity: 80%;
+}
+
+
+@media screen and (min-width: 1024px) and (max-width: 1400px) {
+    .container {
+        margin-top: 23px;
+    }
+
+    .button {
+        font-size: 18px;
+    }
+}

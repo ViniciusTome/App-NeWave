@@ -1,0 +1,101 @@
+.container {
+    display: flex;
+    justify-content: center;
+}
+
+
+.feedback {
+    background: linear-gradient(180deg,rgba(130, 215, 255, 1) 25%, rgba(45, 112, 255, 1) 65%, rgba(0, 68, 102, 1) 100%);
+    margin-top: 20px;
+    width: 1000px;
+    height: 400px;
+    border-radius: 16px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+
+}
+
+.input {
+    margin: 10px;
+    padding: 8px;
+    border-radius: 4px;
+    background-color: #e2e2e2;
+    border: none;
+    width: 25%;
+    font-size: 16px;
+}
+
+.input::placeholder{
+    color: #727272;
+}
+
+.boxCards {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+.boxCardComplete {
+    margin: 5px;
+    background-color: rgb(25, 68, 97);
+    width: 170px;
+    height: 280px;
+    padding: 5px;
+    border: transparent;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.boxCardComplete div ul li{
+    list-style: none;
+    /* font-size: 12px; */
+    color: white;
+}
+
+/* .boxFeedback {
+    color: white;
+} */
+
+.boxCard {
+    margin: 5px;
+    border-radius: 4px;
+}
+
+.boxCardComplete:hover {
+    border: 1px solid black;
+}
+
+.boxCard a {
+    text-decoration: none;
+    color: black;
+}
+
+.SectionName {
+    margin-top: 10px;
+}
+
+.TestAndTimes,
+.EvolutionTimes {
+    background: linear-gradient(180deg,rgba(130, 215, 255, 1) 25%, rgba(45, 112, 255, 1) 65%, rgba(0, 68, 102, 1) 100%);
+    margin: 20px 0;
+    width: 1000px;
+    height: 300px;
+    border-radius: 16px;
+    padding: 10px;
+    font-size: 20px;
+}
+
+
+@media screen and (min-width: 1024px) and (max-width: 1400px) {
+    .feedback {
+        width: 800px;
+    }
+    
+    .TestAndTimes,
+    .EvolutionTimes {
+        width: 800px;
+    }
+
+}

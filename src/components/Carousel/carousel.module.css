@@ -1,0 +1,48 @@
+.carousel {
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    width: 1000px;
+}
+
+.carousel h2 {
+    margin-top: 15px;
+    position: sticky;
+    left: 0px;
+}
+
+.buttons {
+    width: 100%;
+    text-align: center;
+    
+}
+
+.buttons button {
+    background-color: transparent;
+    border: none;
+    width: 40px;
+    cursor: pointer;
+}
+
+.buttons button:hover {
+    scale: 1.1;
+}
+
+.buttons button:first-child img {
+    transform: rotate(180deg);
+}
+
+.carousel::-webkit-scrollbar {
+    display: none;
+}
+
+.cards {
+    margin: 20px 0;
+    display: flex;
+    width: 400px;
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1400px) {
+    .carousel {
+        width: 800px;
+    }
+}

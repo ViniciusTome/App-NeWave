@@ -1,0 +1,15 @@
+.scrollArea {
+  flex: 1;
+  margin-bottom: 20px;
+  /* margin-right: 5px; */
+
+  display: flex;
+  justify-content: center;
+
+  
+}
+
+
+@media screen and (min-width: 1024px) and (max-width: 1700px) {
+
+}

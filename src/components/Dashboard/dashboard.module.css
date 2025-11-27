@@ -1,0 +1,23 @@
+.container {
+    display: flex;
+    height: 400px;
+    text-align: center;
+}
+
+.box {
+    margin-right: 5px;
+    width: 330px;
+    color: white;
+    background-color: #888888;
+}
+
+.box:last-child {
+    margin-right: 0px;
+}
+
+
+@media screen and (min-width: 1024px) and (max-width: 1400px) {
+    .box {
+        width: 263px;
+    }
+}

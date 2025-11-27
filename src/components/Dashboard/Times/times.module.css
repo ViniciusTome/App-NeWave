@@ -1,0 +1,24 @@
+
+.divIntensityPercent {
+    font-size: 14px; 
+    display: flex; 
+    flex-wrap: wrap;
+    justify-content: space-between; 
+    margin: auto;
+}
+
+.divIntensities {
+    margin: 0px 10px;
+}
+
+.descriptionTest {
+    font-size: 14px; 
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.descriptionIntensity {
+    text-align: start; 
+    color: black; 
+    margin: 10px;
+}
+

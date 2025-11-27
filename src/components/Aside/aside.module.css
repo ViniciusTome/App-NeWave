@@ -1,0 +1,25 @@
+.container {
+    flex-shrink: 0;   /* impede de diminuir */
+    margin: 20px 20px 0 0;
+    border-radius: 8px;
+    text-align: center;
+    height: 100vh;
+    width: 177px;
+    background-color: #171D1F;
+    /* background-color: #193c47; */
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    position: sticky;
+    top: 0;
+
+}
+
+.link {
+    text-decoration: none;
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1400px) {
+    
+}

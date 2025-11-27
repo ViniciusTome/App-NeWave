@@ -1,0 +1,80 @@
+/* .background {
+
+    height: 100vh; 
+} */
+
+.boxLogin {
+    /* background-color: #171D1F; */
+    background-color:  #006ff78a;
+    width: 496px;
+    /* height: 548px; */
+    margin: 100px auto;
+    border-radius: 32px;
+
+}
+
+.container {
+    padding: 20px;
+    /* margin-top: -10px;     */
+}
+
+.title {
+    font-size: 31px;
+    margin: 10px 0;
+}
+
+.description {
+    font-size: 22px;
+    margin: 20px 0px;
+}
+
+.remember {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    margin-top: -15px;
+}
+
+.cadaster p {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 14px;
+}
+
+.cadaster a{
+    text-decoration: none;
+    color: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    font-weight: 600;
+}
+
+@media screen and (min-width: 1024px) and (max-width: 1700px) {
+    .boxLogin {
+        width: 396px;
+        margin: 50px auto;
+    }
+
+    .title {
+        font-size: 28px;
+        
+    }
+    .description {
+        font-size: 18px;
+    }
+
+    .remember {
+        margin-bottom: 20px;
+    }
+    .container button {
+        margin-bottom: 20px;
+    }
+
+    .cadaster p {
+        margin-top: 10px;
+    }
+
+}
