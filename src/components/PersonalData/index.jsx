@@ -16,7 +16,7 @@ export const PersonalData = () => {
                 </div>
                 <div className={styles.phone}>
                     <label>Telefone</label>
-                    <p className={styles.treinos}>(44) 99114-3522</p>
+                    <p className={styles.treinos}>(41) 99999-9999</p>
                 </div>
                 <div className={styles.password}>
                     <label>Senha</label>
