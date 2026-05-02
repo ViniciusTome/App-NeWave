@@ -16,6 +16,7 @@
 
 .container {
     padding: 20px;
+    box-sizing: border-box;
     /* margin-top: -10px;     */
 }
 
