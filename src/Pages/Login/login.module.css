@@ -10,6 +10,7 @@
     /* height: 548px; */
     margin: 100px auto;
     border-radius: 32px;
+    box-sizing: border-box;
 
 }
 
