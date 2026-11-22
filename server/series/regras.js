@@ -68,6 +68,11 @@ export function validateRules(rules) {
         })
     }
 
+    if (rules.segundaPrincipal !== undefined &&
+        typeof rules.segundaPrincipal?.alternarCrawlEEstilo !== 'boolean') {
+        problems.push('segundaPrincipal.alternarCrawlEEstilo precisa ser true ou false.')
+    }
+
     for (const [nome, pausa] of Object.entries(rules.pausas ?? {})) {
         const where = `pausas.${nome}`
         if (PARTS.includes(nome)) problems.push(`${where}: "${nome}" já é uma parte do treino; use outro nome.`)
@@ -321,4 +326,27 @@ export function intervalBetweenSets(rules, parte, serie, contexto) {
         if (vale) segundos = Math.max(segundos, excecao.segundos)
     }
     return segundos
+}
+
+// ---------- 2ª série principal ----------
+
+// A variação é de crawl ou de estilo? Medley conta como estilo (não é só crawl).
+// "livre" segue o nado escrito nos blocos: crawl/livre é crawl; o resto é estilo.
+export function strokeCategory(serie, variation) {
+    if (variation.nado !== 'livre') return 'estilo'
+    const nados = serie.blocos.flatMap((bloco) => [bloco.nado].flat())
+    return nados.every((n) => n === 'crawl' || n === 'livre') ? 'crawl' : 'estilo'
+}
+
+// Nos treinos com duas séries principais: se a 1ª foi de estilo, a 2ª é crawl,
+// e vice-versa. Quem não nada nenhum estilo (borboleta, costas, peito) faz as
+// duas em crawl, senão o treino ficaria impossível.
+// `first` e `second` são { serie, variation }; `athleteStrokes` vem da anamnese.
+export function allowedAsSecondMain(rules, first, second, athleteStrokes) {
+    if (!rules.segundaPrincipal?.alternarCrawlEEstilo) return true
+    const primeira = strokeCategory(first.serie, first.variation)
+    const segunda = strokeCategory(second.serie, second.variation)
+    if (primeira === 'estilo') return segunda === 'crawl'
+    const nadaEstilo = ESTILOS.some((s) => athleteStrokes.includes(s))
+    return nadaEstilo ? segunda === 'estilo' : true
 }

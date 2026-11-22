@@ -1,7 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadPart, validate } from './series/index.js'
-import { intervalBetweenSets, loadRules, partsForLevel, pauseOf, seriesVariations, validateRules } from './series/regras.js'
+import { describe, loadPart, validate } from './series/index.js'
+import {
+  allowedAsSecondMain, intervalBetweenSets, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
+} from './series/regras.js'
 
 const rules = loadRules()
 const velocidade = loadPart('velocidade')
@@ -185,6 +187,48 @@ test('intervalo entre séries: uma saída do 25; 1 minuto na Realização ou ent
   assert.equal(intervalBetweenSets(rules, 'velocidade', serie('vel-8x25-forte'), contexto), null)
 })
 
+// ---------- 2ª série principal ----------
+
+// Séries principais de exemplo (o principal.json ainda não existe)
+const principal = (id, nado, outrosNados) => describe({
+  id, texto: `5 x 200 ${nado} A2`, ...(outrosNados && { outrosNados }),
+  blocos: [{ repeticoes: 5, distancia: 200, nado, intensidade: 'A2' }],
+})
+const crawl = principal('p-crawl', 'crawl')
+const livre = principal('p-livre', 'livre', ['estilo', 'medley'])
+const costas = principal('p-costas', 'costas')
+const as = (serie, nado = 'livre') => ({ serie, variation: { nado } })
+
+test('crawl ou estilo: medley e estilos contam como estilo', () => {
+  assert.equal(strokeCategory(crawl, { nado: 'livre' }), 'crawl')
+  assert.equal(strokeCategory(livre, { nado: 'livre' }), 'crawl')
+  assert.equal(strokeCategory(costas, { nado: 'livre' }), 'estilo')
+  assert.equal(strokeCategory(livre, { nado: 'peito' }), 'estilo')
+  assert.equal(strokeCategory(livre, { nado: 'medley' }), 'estilo')
+  assert.equal(strokeCategory(livre, { nado: 'estilos_por_serie' }), 'estilo')
+})
+
+test('2ª série principal: depois de estilo vem crawl, e depois de crawl vem estilo', () => {
+  const nadaTudo = ['crawl', 'costas', 'peito', 'borboleta']
+  // 1ª de estilo -> 2ª só crawl
+  assert.equal(allowedAsSecondMain(rules, as(costas), as(crawl), nadaTudo), true)
+  assert.equal(allowedAsSecondMain(rules, as(costas), as(livre, 'peito'), nadaTudo), false)
+  assert.equal(allowedAsSecondMain(rules, as(livre, 'medley'), as(crawl), nadaTudo), true)
+  // 1ª de crawl -> 2ª só estilo
+  assert.equal(allowedAsSecondMain(rules, as(crawl), as(costas), nadaTudo), true)
+  assert.equal(allowedAsSecondMain(rules, as(crawl), as(livre), nadaTudo), false)
+  assert.equal(allowedAsSecondMain(rules, as(crawl), as(livre, 'medley'), nadaTudo), true)
+})
+
+test('2ª série principal: quem só nada crawl faz as duas em crawl', () => {
+  assert.equal(allowedAsSecondMain(rules, as(crawl), as(livre), ['crawl']), true)
+})
+
+test('a regra da 2ª série principal pode ser desligada', () => {
+  const semRegra = { ...rules, segundaPrincipal: { alternarCrawlEEstilo: false } }
+  assert.equal(allowedAsSecondMain(semRegra, as(crawl), as(crawl), ['crawl', 'costas']), true)
+})
+
 // ---------- Validação do arquivo de regras ----------
 
 test('a validação das regras aponta os erros', () => {
@@ -195,6 +239,7 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { delete r.niveis.avancado }, 'niveis.avancado.estruturas'],
     [(r) => { r.niveis.avancado.estruturas[2].ateMinutos = 120 }, 'a última estrutura não leva "ateMinutos"'],
     [(r) => { r.pausas.hidratacao.minutos = 0 }, 'pausas.hidratacao.minutos'],
+    [(r) => { r.segundaPrincipal.alternarCrawlEEstilo = 'sim' }, 'segundaPrincipal.alternarCrawlEEstilo'],
     [(r) => { r.pausas.hidratacao.texto = '' }, 'pausas.hidratacao.texto'],
     [(r) => { r.pausas.principal = { minutos: 5, texto: 'x' } }, 'já é uma parte do treino'],
     [(r) => { delete r.pausas }, 'niveis.avancado.estruturas, estrutura 3'],

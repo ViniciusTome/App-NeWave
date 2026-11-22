@@ -116,6 +116,17 @@ As séries ficam "brutas", sem material. As regras dizem como montar o treino co
 
 O iniciante faz aquecimento → principal → solto em qualquer tempo de aula.
 
+### 2ª série principal
+
+```json
+"segundaPrincipal": { "alternarCrawlEEstilo": true }
+```
+
+Nos treinos com duas séries principais, **se a 1ª for de estilo, a 2ª é obrigatoriamente de crawl, e vice-versa**. Fora isso, as duas seguem as mesmas regras.
+
+- Medley conta como estilo (não é só crawl).
+- Quem não nada nenhum estilo (borboleta, costas ou peito) faz as duas em crawl.
+
 ### Pausas
 
 ```json

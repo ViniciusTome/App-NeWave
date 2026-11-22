@@ -20,6 +20,9 @@
       ]
     }
   },
+  "segundaPrincipal": {
+    "alternarCrawlEEstilo": true
+  },
   "pausas": {
     "hidratacao": { "minutos": 5, "texto": "5 min de hidratação e reposição (comer uma fruta)" }
   },
