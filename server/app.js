@@ -11,6 +11,8 @@ import {
 import { createConsoleMailer, passwordResetMessage } from './mailer.js'
 import { createSwimmingRoutes } from './swimming.js'
 import { createAthleteRoutes } from './athlete.js'
+import { loadLibrary } from './series/index.js'
+import { loadRules } from './series/regras.js'
 import {
   createRateLimiter,
   generateToken,
@@ -304,7 +306,7 @@ export function createApp({
   }
 
   const swimming = createSwimmingRoutes({ db, requireUser })
-  const athlete = createAthleteRoutes({ db, requireUser })
+  const athlete = createAthleteRoutes({ db, requireUser, library: loadLibrary(), rules: loadRules() })
 
   // Rotas da API. Trechos como ":id" viram parâmetros (ex.: /api/tests/7).
   const routes = [
@@ -319,6 +321,7 @@ export function createApp({
     ['DELETE', '/api/tests/:id', swimming.removeTest],
     ['GET', '/api/trainings', swimming.getTrainings],
     ['GET', '/api/trainings/upcoming', swimming.getUpcomingTrainings],
+    ['POST', '/api/trainings/generate', athlete.generate],
     ['POST', '/api/trainings', swimming.createTraining],
     ['POST', '/api/trainings/:id/complete', swimming.completeTraining],
     ['GET', '/api/athlete-profile', athlete.getProfile],

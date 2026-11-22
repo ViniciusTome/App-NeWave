@@ -306,3 +306,15 @@
         grid-template-columns: 1fr;
     }
 }
+
+.generatedList {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    background-color: #eef6fd;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #0b2f57;
+    display: grid;
+    gap: 4px;
+}

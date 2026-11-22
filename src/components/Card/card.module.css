@@ -83,9 +83,13 @@
     }
 
 }
-/* Treino vindo do banco: um respiro nas bordas */
+/* Treino vindo do banco: um respiro nas bordas, e rola por dentro se for longo */
 .real {
     padding: 12px 10px;
+}
+
+.content.real {
+    overflow-y: auto;
 }
 
 /* No cartão pequeno (páginas de Treinos e Feedback) o texto acompanha o tamanho */

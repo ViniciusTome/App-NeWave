@@ -2,6 +2,7 @@
 // É a base do botão "Gerar treinos": as respostas ficam guardadas para o atleta
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
+import { generateTrainings, legacyFields } from './generator.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -214,7 +215,7 @@ function parseId(value) {
 
 // ---------- Rotas ----------
 
-export function createAthleteRoutes({ db, requireUser }) {
+export function createAthleteRoutes({ db, requireUser, library, rules }) {
   const findProfile = db.prepare('SELECT * FROM athlete_profiles WHERE user_id = ?')
   const upsertProfile = db.prepare(`
     INSERT INTO athlete_profiles (
@@ -251,6 +252,19 @@ export function createAthleteRoutes({ db, requireUser }) {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `)
   const setPriority = db.prepare('UPDATE competitions SET priority = ? WHERE id = ? AND user_id = ?')
+
+  // Gerar treinos: os agendados que ainda não foram feitos são substituídos
+  const deleteUpcoming = db.prepare(
+    'DELETE FROM trainings WHERE user_id = ? AND completed_at IS NULL AND date >= ?',
+  )
+  const completedDates = db.prepare(
+    'SELECT DISTINCT date FROM trainings WHERE user_id = ? AND completed_at IS NOT NULL AND date >= ?',
+  )
+  const insertGenerated = db.prepare(`
+    INSERT INTO trainings
+      (user_id, date, title, warm_up, speed, main_series, release, notes, created_at, completed_at, parts)
+    VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, NULL, ?)
+  `)
 
   const findCurrentPreparation = db.prepare(`
     SELECT * FROM preparations WHERE user_id = ? ORDER BY id DESC LIMIT 1
@@ -337,6 +351,41 @@ export function createAthleteRoutes({ db, requireUser }) {
         user.id, c.name, c.date, c.modality, c.event, c.priority, new Date().toISOString(),
       ).lastInsertRowid
       sendJson(res, 201, { competition: { id: Number(id), ...c } })
+    },
+
+    // POST /api/trainings/generate?today=AAAA-MM-DD -> gera os treinos dos próximos
+    // dias (primeira versão do gerador) e substitui os agendados que não foram feitos
+    async generate(req, res) {
+      const user = requireUser(req)
+      const { profile, time400, level } = profileResponse(user.id)
+      if (!profile) throw new HttpError(409, 'Responda a anamnese antes de gerar treinos.')
+      const today = readToday(req)
+
+      // Dia que já tem treino concluído não ganha outro
+      const jaFeitos = new Set(completedDates.all(user.id, today).map((r) => r.date))
+      const trainings = generateTrainings({
+        rules, library, today,
+        athlete: { ...profile, level: level.level, time400 },
+      }).filter((t) => !jaFeitos.has(t.date))
+
+      const now = new Date().toISOString()
+      let replaced = 0
+      db.exec('BEGIN')
+      try {
+        replaced = Number(deleteUpcoming.run(user.id, today).changes)
+        for (const t of trainings) {
+          const f = legacyFields(t.partes)
+          insertGenerated.run(
+            user.id, t.date, t.title, f.warmUp, f.speed, f.mainSeries, f.release, now,
+            JSON.stringify(t.partes),
+          )
+        }
+        db.exec('COMMIT')
+      } catch (err) {
+        db.exec('ROLLBACK')
+        throw err
+      }
+      sendJson(res, 201, { trainings, replaced })
     },
 
     // GET /api/preparations/current?today=AAAA-MM-DD -> preparação mais recente (ou null)
