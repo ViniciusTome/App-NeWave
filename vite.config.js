@@ -10,4 +10,10 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    // Repassa as chamadas /api para o backend (npm run server)
+    proxy: {
+      '/api': 'http://127.0.0.1:3001',
+    },
+  },
 })

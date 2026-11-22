@@ -18,7 +18,22 @@
 }
 .descriptionIntensity {
     text-align: start; 
-    color: black; 
+    color: #bfe9ff; 
     margin: 10px;
 }
 
+.times {
+    padding: 14px;
+}
+
+.times header h2 {
+    font-size: 17px;
+    margin-bottom: 4px;
+}
+
+.divIntensities p:first-child {
+    font-weight: 700;
+    color: #ffffff;
+    border-bottom: 1px solid rgba(158, 221, 255, 0.35);
+    padding-bottom: 2px;
+}

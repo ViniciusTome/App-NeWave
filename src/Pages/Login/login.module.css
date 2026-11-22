@@ -54,6 +54,23 @@
     font-weight: 600;
 }
 
+.error,
+.success {
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: #fff;
+    margin: 0 0 16px;
+}
+
+.error {
+    color: #b00020;
+}
+
+.success {
+    color: #0a6b2d;
+}
+
 @media screen and (min-width: 1024px) and (max-width: 1700px) {
     .boxLogin {
         width: 396px;

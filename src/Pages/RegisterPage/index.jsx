@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '../../components/Button'
 import { Fieldset } from '../../components/Fieldset'
@@ -15,20 +16,29 @@ export const Register = () => {
 
     const { register } = useAuth();
     const navigate = useNavigate();
+    const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const onSubmit = (formData) => {
-        const name = formData.get('name');
-        const email = formData.get('email');
-        const password = formData.get('password');
+    const onSubmit = async (event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
 
-        const response = register(name, email, password);
+        setError('');
+        setIsSubmitting(true);
+
+        const response = await register(
+            formData.get('name'),
+            formData.get('email'),
+            formData.get('password')
+        );
+
+        setIsSubmitting(false);
 
         if (response.success) {
-            navigate('/auth/login')
+            navigate('/auth/login', { state: { message: 'Conta criada! Agora é só entrar.' } })
         } else {
-            console.error(response.error)
+            setError(response.error)
         }
-
     }
 
     return (
@@ -36,7 +46,7 @@ export const Register = () => {
             <div className={styles.container}>
                 <h4 className={styles.title}>Cadastro</h4>
                 <p className={styles.description}>Olá! Preencha seus dados.</p>
-                <Form action={onSubmit}>
+                <Form onSubmit={onSubmit}>
                     <Fieldset>
                         <Label>Nome</Label>
                         <Input 
@@ -44,6 +54,9 @@ export const Register = () => {
                             name='name' 
                             id='name' 
                             placeholder='Nome completo' 
+                            required
+                            minLength={2}
+                            maxLength={100}
                         />
                     </Fieldset>
                     <Fieldset>
@@ -53,6 +66,7 @@ export const Register = () => {
                             name='email' 
                             id='email' 
                             placeholder='Usuario@gmail.com' 
+                            required
                         />
                     </Fieldset>
                     <Fieldset>
@@ -61,7 +75,10 @@ export const Register = () => {
                             type='password' 
                             name='password' 
                             id='password' 
-                            placeholder='Senha' 
+                            placeholder='Senha (mínimo de 8 caracteres)' 
+                            required
+                            minLength={8}
+                            maxLength={128}
                         />
                     </Fieldset>
                     <div className={styles.remember}>
@@ -70,7 +87,10 @@ export const Register = () => {
                             <label> Lembrar-me</label>
                         </div>
                     </div>
-                    <Button type='submit'>Cadastrar <IconArrowFoward /></Button>
+                    {error && <p className={styles.error} role='alert'>{error}</p>}
+                    <Button type='submit' disabled={isSubmitting}>
+                        {isSubmitting ? 'Cadastrando...' : <>Cadastrar <IconArrowFoward /></>}
+                    </Button>
                 </Form>
                 
                 <TextDivider text='ou entre com outras contas' />

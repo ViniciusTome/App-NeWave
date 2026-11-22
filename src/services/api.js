@@ -1,0 +1,35 @@
+export class ApiError extends Error {
+  constructor(message, status, code) {
+    super(message)
+    this.status = status
+    this.code = code // nome fixo do erro, quando o servidor envia (ex.: invalid_reset_link)
+  }
+}
+
+// Chama a API do backend (as rotas começam com /api e o Vite repassa para o servidor).
+export async function api(path, { method = 'GET', body } = {}) {
+  let response
+
+  try {
+    response = await fetch(`/api${path}`, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
+    })
+  } catch {
+    throw new ApiError('Não foi possível conectar ao servidor. Tente novamente.', 0)
+  }
+
+  const data = response.status === 204 ? null : await response.json().catch(() => null)
+
+  if (!response.ok) {
+    throw new ApiError(
+      data?.error ?? 'Algo deu errado. Tente novamente.',
+      response.status,
+      data?.code,
+    )
+  }
+
+  return data
+}

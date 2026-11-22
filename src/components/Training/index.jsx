@@ -4,7 +4,30 @@ import { Speed } from "./Speed"
 import { WarmUp } from "./WarmUp"
 import styles from './training.module.css'
 
-export const Training = () => {
+// As quatro partes de um treino, na ordem em que são nadadas
+const SECTIONS = [
+    ['warmUp', 'Aquecimento'],
+    ['speed', 'Velocidade'],
+    ['mainSeries', 'Série Principal'],
+    ['release', 'Soltura'],
+]
+
+// Sem `training`: mostra o treino de exemplo (usado nos cartões).
+// Com `training` (vindo do banco): mostra as partes preenchidas desse treino.
+export const Training = ({ training }) => {
+
+    if (training) {
+        return (
+            <div>
+                {SECTIONS.filter(([key]) => training[key]).map(([key, label]) => (
+                    <div key={key} className={styles.section}>
+                        <h3>{label}</h3>
+                        <p className={styles.text}>{training[key]}</p>
+                    </div>
+                ))}
+            </div>
+        )
+    }
 
     return (
         <div className={styles.gap}>

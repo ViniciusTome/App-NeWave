@@ -7,7 +7,8 @@ import { Label } from '../../components/Label'
 import { Input } from '../../components/Input'
 import { TextDivider } from '../../components/TextDivider'
 import { Button } from '../../components/Button'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
 
@@ -15,20 +16,30 @@ export const Login = () => {
 
     const { login } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const onSubmit = (formData) => {
+    const onSubmit = async (event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
 
-        const email = formData.get('email');
-        const password = formData.get('password');
+        setError('');
+        setIsSubmitting(true);
 
-        const response = login(email, password);
+        const response = await login(
+            formData.get('email'),
+            formData.get('password'),
+            formData.get('remember') === 'on'
+        );
+
+        setIsSubmitting(false);
 
         if (response.success) {
             navigate('/page/home')
         } else {
-            console.error(response.error)
+            setError(response.error)
         }
-
     }
 
     return (
@@ -37,23 +48,29 @@ export const Login = () => {
                 <div className={styles.container}>
                     <h4 className={styles.title}>Login</h4>
                     <p className={styles.description}>Boas-vindas! Faça seu login.</p>
-                    <Form action={onSubmit}>
+                    {location.state?.message && (
+                        <p className={styles.success} role='status'>{location.state.message}</p>
+                    )}
+                    <Form onSubmit={onSubmit}>
                         <Fieldset>
-                            <Label>Email ou usuário</Label>
-                            <Input type='text' name='email' id='email' placeholder='Usuario123' />
+                            <Label>Email</Label>
+                            <Input type='email' name='email' id='email' placeholder='usuario@gmail.com' required />
                         </Fieldset>
                         <Fieldset>
                             <Label>Senha</Label>
-                            <Input type='password' name='password' id='password' placeholder='Senha' />
+                            <Input type='password' name='password' id='password' placeholder='Senha' required />
                         </Fieldset>
                         <div className={styles.remember}>
                             <div className={styles.checkbox}>
-                                <input type='checkbox'></input>
-                                <label> Lembrar-me</label>
+                                <input type='checkbox' name='remember' id='remember'></input>
+                                <label htmlFor='remember'> Lembrar-me</label>
                             </div>
-                            <a href='#'>Esqueci a senha</a>
+                            <Link to='/auth/forgot-password'>Esqueci a senha</Link>
                         </div>
-                        <Button type='submit'>Login <IconArrowFoward /></Button>
+                        {error && <p className={styles.error} role='alert'>{error}</p>}
+                        <Button type='submit' disabled={isSubmitting}>
+                            {isSubmitting ? 'Entrando...' : <>Login <IconArrowFoward /></>}
+                        </Button>
                     </Form>
                     <TextDivider text='ou entre com outras contas' />
                     <footer className={styles.cadaster}>
