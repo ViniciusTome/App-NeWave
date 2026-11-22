@@ -98,6 +98,12 @@
       "recuperacaoHoras": [6, 24]
     }
   },
+  "tabelaDeTempos": {
+    "50": { "divisor": 8, "ajustes": { "A1": [-3, -2], "A2": [-5, -4], "A3": [-7, -6] } },
+    "100": { "divisor": 4, "ajustes": { "A1": [0, 0], "A2": [-2, -2], "A3": [-4, -4] } },
+    "200": { "divisor": 2, "ajustes": { "A1": [4, 6], "A2": [0, 0], "A3": [-6, -4] } },
+    "400": { "divisor": 1, "ajustes": { "AC": [30, 30] } }
+  },
   "descansoPorIntensidadePara": ["iniciante", "intermediarioInicio"],
   "descansos": {
     "iniciante": { "50": [25, 40], "100": [30, 40], "200": [40, 60], "400": [60, 60], "800": [120, 120] },

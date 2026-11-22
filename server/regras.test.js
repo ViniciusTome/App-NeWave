@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { describe, loadPart, validate } from './series/index.js'
 import {
-  allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, restFor, usesIntensityRest, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
+  allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, repSeconds, restFor, timeTable,
+  usesIntensityRest, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
 } from './series/regras.js'
 
 const rules = loadRules()
@@ -660,6 +661,39 @@ test('recuperação de cada intensidade fica guardada nas regras', () => {
   assert.deepEqual(rules.intensidades.AA.recuperacaoHoras, [6, 24])
 })
 
+// ---------- Tabela de tempos (método do treinador) ----------
+
+test('tabela de tempos a partir do teste de 400 m (ex.: 6\'00")', () => {
+  const t = timeTable(rules, 360)
+  // 100 m: A1 = 400 ÷ 4; A2 = A1 − 2"; A3 = A1 − 4"
+  assert.deepEqual(t['100'], { A1: [90, 90], A2: [88, 88], A3: [86, 86] })
+  // 200 m: A2 = 400 ÷ 2; A1 = A2 + 4 a 6"; A3 = A2 − 4 a 6"
+  assert.deepEqual(t['200'], { A1: [184, 186], A2: [180, 180], A3: [174, 176] })
+  // 50 m: (A1 do 100 ÷ 2) − 2 a 3"; A2 = A1 − 2"; A3 = A1 − 4"
+  assert.deepEqual(t['50'], { A1: [42, 43], A2: [40, 41], A3: [38, 39] })
+  // 400 m: 30" acima do melhor
+  assert.deepEqual(t['400'], { AC: [390, 390] })
+})
+
+test('tempo de nado de cada repetição pela tabela; outras distâncias estimadas', () => {
+  const t = timeTable(rules, 360)
+  assert.equal(repSeconds(rules, t, 100, 'A1'), 90)
+  assert.equal(repSeconds(rules, t, 200, 'A3'), 175) // meio de 2'54" a 2'56"
+  assert.equal(repSeconds(rules, t, 50, 'A2'), 40.5)
+  assert.equal(repSeconds(rules, t, 400, 'A2'), 390) // 400: 30" acima do melhor
+  // Sem intensidade: A2
+  assert.equal(repSeconds(rules, t, 100, undefined), 88)
+  // 150 m: ritmo entre o do 100 e o do 200
+  const r150 = repSeconds(rules, t, 150, 'A2')
+  assert.ok(r150 > 1.5 * 88 && r150 < 1.5 * 90, String(r150))
+  // 25 m: ritmo do 50; 800 m: ritmo do 400
+  assert.equal(repSeconds(rules, t, 25, 'A1'), 21.25)
+  assert.equal(repSeconds(rules, t, 800, 'A1'), 780)
+  // A tabela não cobre solto nem velocidade
+  assert.equal(repSeconds(rules, t, 100, 'solto'), null)
+  assert.equal(repSeconds(rules, t, 25, 'forte'), null)
+})
+
 // ---------- Validação do arquivo de regras ----------
 
 test('a validação das regras aponta os erros', () => {
@@ -680,6 +714,8 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
     [(r) => { r.descansos.iniciante['50'] = [40, 25] }, 'descansos.iniciante.50'],
     [(r) => { r.intensidades.A1.esforco.iniciante = [60, 120] }, 'intensidades.A1.esforco.iniciante'],
+    [(r) => { r.tabelaDeTempos['100'].divisor = 0 }, 'tabelaDeTempos.100.divisor'],
+    [(r) => { r.tabelaDeTempos['200'].ajustes.A1 = [6, 4] }, 'tabelaDeTempos.200.ajustes.A1'],
     [(r) => { r.intensidades.A3.material.semMaterialSo = ['junior'] }, 'intensidades.A3.material.semMaterialSo'],
     [(r) => { r.descansos.avancado = {} }, 'descansos.avancado'],
     [(r) => { r.descansos.avancado['cem'] = [20, 30] }, '"cem" precisa ser uma distância'],

@@ -103,7 +103,7 @@ test('antes de responder, a anamnese vem vazia', async () => {
   const cookie = await userFor('semAnamnese')
   const res = await api('/api/athlete-profile', { cookie })
   assert.equal(res.status, 200)
-  assert.deepEqual(res.body, { profile: null, time400: null, level: null })
+  assert.deepEqual(res.body, { profile: null, time400: null, level: null, tempos: null })
 })
 
 test('salva a anamnese, organiza as listas e calcula o nível', async () => {
@@ -181,6 +181,8 @@ test('o tempo nos 400 m vem do último teste; sem teste, do tempo informado', as
   const res = await api('/api/athlete-profile', { cookie })
   assert.equal(res.body.time400.source, 'teste')
   assert.equal(res.body.time400.hundredths, 33245)
+  // A tabela de tempos vem calculada pelo teste: A1 do 100 = teste ÷ 4
+  assert.deepEqual(res.body.tempos['100'].A1, [83.1125, 83.1125])
 })
 
 test('cálculo do nível', () => {

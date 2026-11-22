@@ -98,6 +98,19 @@ export function validateRules(rules) {
         }
     }
 
+    for (const [distancia, cfg] of Object.entries(rules.tabelaDeTempos ?? {})) {
+        const where = `tabelaDeTempos.${distancia}`
+        if (!(Number(distancia) > 0)) problems.push(`${where}: a chave precisa ser a distância em metros.`)
+        if (!(typeof cfg?.divisor === 'number' && cfg.divisor > 0)) problems.push(`${where}.divisor precisa ser um número (ex.: 4 = teste ÷ 4).`)
+        const ajustes = Object.entries(cfg?.ajustes ?? {})
+        if (ajustes.length === 0) problems.push(`${where}.ajustes precisa ter pelo menos uma intensidade.`)
+        for (const [nome, faixa] of ajustes) {
+            if (!(Array.isArray(faixa) && faixa.length === 2 && faixa.every((x) => typeof x === 'number') && faixa[0] <= faixa[1])) {
+                problems.push(`${where}.ajustes.${nome}: use [de, até] em segundos, ex.: [-3, -2].`)
+            }
+        }
+    }
+
     if (rules.misturaDeNados !== undefined) {
         const m = rules.misturaDeNados
         const where = 'misturaDeNados'
@@ -792,3 +805,49 @@ export function usesIntensityRest(rules, athlete) {
 // A série tem algum trecho na intensidade? (bloco ou trechos)
 const blockIntensities = (rules, bloco) =>
     (bloco.trechos ? bloco.trechos.map((t) => t.intensidade) : [bloco.intensidade]).map((i) => intensityName(rules, i))
+
+// ---------- Tabela de tempos (método do treinador) ----------
+
+// Tempos de cada distância e intensidade a partir do teste de 400 m (segundos):
+//   100 m: A1 = teste ÷ 4; A2 = A1 − 2"; A3 = A1 − 4"
+//   200 m: A2 = teste ÷ 2; A1 = A2 + 4 a 6"; A3 = A2 − 4 a 6"
+//   50 m:  (A1 do 100 ÷ 2) − 2 a 3" = A1; A2 = A1 − 2"; A3 = A1 − 4"
+//   400 m: 30" acima do melhor (AC)
+// Devolve { 50: { A1: [de, até], ... }, ..., 400: { AC: [de, até] } }.
+export function timeTable(rules, teste400Segundos) {
+    const tabela = {}
+    for (const [distancia, cfg] of Object.entries(rules.tabelaDeTempos ?? {})) {
+        const base = teste400Segundos / cfg.divisor
+        tabela[distancia] = Object.fromEntries(
+            Object.entries(cfg.ajustes).map(([nome, [de, ate]]) => [nome, [base + de, base + ate]]))
+    }
+    return tabela
+}
+
+// Tempo de nado de uma repetição (segundos), pela tabela de tempos. Usa o meio
+// da faixa. As distâncias fora da tabela (25, 75, 150, 250, 300, 800...) são
+// estimadas pelo ritmo das vizinhas. Sem intensidade, usa A2 (PROVISÓRIO).
+// Devolve null para o que a tabela não cobre (solto, velocidade).
+export function repSeconds(rules, tabela, distancia, intensidade) {
+    const nome = intensityName(rules, intensidade ?? 'A2') ?? intensidade
+    if (!['A1', 'A2', 'A3'].includes(nome)) return null
+    const meio = (f) => (f[0] + f[1]) / 2
+    // Ritmo por 100 m em cada distância da tabela, para essa intensidade
+    const ritmos = Object.entries(tabela)
+        .map(([d, valores]) => {
+            const faixa = valores[nome] ?? valores.AC ?? Object.values(valores)[0]
+            return [Number(d), (meio(faixa) / Number(d)) * 100]
+        })
+        .sort((a, b) => a[0] - b[0])
+    const exata = ritmos.find(([d]) => d === distancia)
+    if (exata) return (exata[1] * distancia) / 100
+    let ritmo
+    if (distancia < ritmos[0][0]) ritmo = ritmos[0][1]
+    else if (distancia > ritmos.at(-1)[0]) ritmo = ritmos.at(-1)[1]
+    else {
+        const i = ritmos.findIndex(([d]) => d > distancia)
+        const [[d0, r0], [d1, r1]] = [ritmos[i - 1], ritmos[i]]
+        ritmo = r0 + ((r1 - r0) * (distancia - d0)) / (d1 - d0)
+    }
+    return (ritmo * distancia) / 100
+}

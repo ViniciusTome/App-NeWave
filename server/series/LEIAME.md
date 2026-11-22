@@ -319,6 +319,29 @@ Se uma série tiver `material` escrito no próprio JSON, ela é fixa e o gerador
 - **A3 com equipamento:** séries em A3 saem com pé de pato ou pé de pato + palmar; sem material só para avançado e raramente (`pesoSemMaterial`). Sem pé de pato, quem não é avançado não recebe a série.
 - **Recuperação:** horas que o corpo leva para se recuperar. Vai ser usada para planejar a semana (olhando o treino inteiro, com mais peso na série principal) quando as séries principais tiverem intensidade.
 
+### Tabela de tempos (método do treinador)
+
+```json
+"tabelaDeTempos": {
+  "50":  { "divisor": 8, "ajustes": { "A1": [-3, -2], "A2": [-5, -4], "A3": [-7, -6] } },
+  "100": { "divisor": 4, "ajustes": { "A1": [0, 0], "A2": [-2, -2], "A3": [-4, -4] } },
+  "200": { "divisor": 2, "ajustes": { "A1": [4, 6], "A2": [0, 0], "A3": [-6, -4] } },
+  "400": { "divisor": 1, "ajustes": { "AC": [30, 30] } }
+}
+```
+
+A partir do teste de 400 m: **base = teste ÷ divisor**, e cada intensidade é a base + o ajuste, em segundos (`[de, até]`).
+
+| Distância | Regra |
+|---|---|
+| 100 m | A1 = teste ÷ 4; A2 = A1 − 2"; A3 = A1 − 4" |
+| 200 m | A2 = teste ÷ 2; A1 = A2 + 4 a 6"; A3 = A2 − 4 a 6" |
+| 50 m | (A1 do 100 ÷ 2) − 2 a 3" = A1; A2 = A1 − 2"; A3 = A1 − 4" |
+| 400 m | 30" acima do melhor (normalmente c/PÉ + PALM) |
+
+- É o que aparece no bloco **Tempos** do Dashboard, para cada atleta.
+- O gerador usa a tabela para o tempo de nado de cada repetição. As outras distâncias (25, 75, 150, 250, 300, 800) são estimadas pelo ritmo das vizinhas. Sem intensidade, vale o A2. Solto e velocidade, que a tabela não cobre, vão pelo % de esforço.
+
 ### Descanso entre as repetições
 
 ```json

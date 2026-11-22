@@ -12,7 +12,7 @@
 import { fitsSession } from './series/index.js'
 import {
     allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, intervalRangeFor,
-    partsForLevel, pauseOf, restFor, seriesVariations, usesIntensityRest,
+    partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
 } from './series/regras.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
@@ -80,7 +80,11 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
         const ritmo = bloco.trechos
             ? bloco.trechos.reduce((s, t) => s + t.metros * paceFactor(rules, t.intensidade, athlete), 0) / bloco.distancia
             : paceFactor(rules, bloco.intensidade, athlete)
-        const nado = (bloco.distancia / 100) * pace * ritmo * fator
+        // Tempo de nado: a tabela de tempos do treinador (pelo teste de 400 m);
+        // o que ela não cobre (solto, velocidade, trechos) vai pelo % de esforço
+        const daTabela = athlete.tabela && !bloco.trechos
+            ? repSeconds(rules, athlete.tabela, bloco.distancia, bloco.intensidade) : null
+        const nado = (daTabela ?? (bloco.distancia / 100) * pace * ritmo) * fator
         const descanso = blockRest(rules, bloco, athlete)
         const vezes = bloco.vezes ?? 1
         total += vezes * bloco.repeticoes * (nado + descanso)
@@ -373,6 +377,8 @@ function buildTraining({ rules, library, athlete, pace, random, recentes }) {
 export function generateTrainings({ rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
+    // Tabela de tempos do atleta (método do treinador)
+    athlete = { ...athlete, tabela: timeTable(rules, tempo400 / 100) }
     const recentes = new Set()
 
     return trainingDates(today, athlete.trainingDays, dias).map((date, i) => {

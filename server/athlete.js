@@ -3,6 +3,7 @@
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
 import { generateTrainings, legacyFields } from './generator.js'
+import { timeTable } from './series/regras.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -291,7 +292,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     const row = findProfile.get(userId)
     const profile = row ? publicProfile(row) : null
     const time400 = time400Of(userId, profile)
-    return { profile, time400, level: profile ? computeLevel(profile, time400) : null }
+    // Tabela de tempos (A1, A2, A3 de cada distância), pelo teste de 400 m
+    const tempos = time400 && rules ? timeTable(rules, time400.hundredths / 100) : null
+    return { profile, time400, level: profile ? computeLevel(profile, time400) : null, tempos }
   }
 
   function preparationResponse(userId, today) {
