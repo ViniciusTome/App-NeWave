@@ -14,16 +14,24 @@ export const PARTS = ['aquecimento', 'velocidade', 'principal', 'soltura']
 // "estilo": um estilo que não seja o crawl (o que o atleta nada melhor).
 // "medley": cada volta num estilo, na ordem borboleta, costas, peito, crawl.
 export const NADOS = ['livre', 'crawl', 'costas', 'peito', 'borboleta', 'estilo', 'medley']
-export const INTENSIDADES = ['A1', 'A2', 'A3']
+// "solto": nado leve, de recuperação. "forte": acima do A3 (velocidade).
+export const INTENSIDADES = ['solto', 'A1', 'A2', 'A3', 'forte']
 export const USOS = ['treino', 'teste']
 export const MATERIAIS = ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snorkel']
 export const PISCINAS = [25, 50]
 
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
 const SERIE_KEYS = ['id', 'texto', 'blocos', 'usos', 'porSensacao', 'duracaoMinutos']
-const BLOCO_KEYS = ['repeticoes', 'distancia', 'nado', 'intensidade', 'descanso', 'material']
+const BLOCO_KEYS = ['vezes', 'repeticoes', 'distancia', 'nado', 'intensidade', 'trechos', 'descanso', 'material']
+const TRECHO_KEYS = ['metros', 'intensidade']
 
 const isInt = (value, min, max) => Number.isInteger(value) && value >= min && value <= max
+
+// Distância de cada repetição: múltiplo de 25 m, ou um tiro curto
+// (5 a 20 m, ex.: 15 m) que não precisa fechar a piscina.
+const isShortSprint = (distancia) => isInt(distancia, 5, 20) && distancia % 5 === 0
+const isValidDistance = (distancia) =>
+    isShortSprint(distancia) || (isInt(distancia, 25, 3000) && distancia % 25 === 0)
 
 // ---------- Cálculos a partir dos blocos ----------
 
@@ -34,6 +42,7 @@ const isInt = (value, min, max) => Number.isInteger(value) && value >= min && va
 function poolsFor(blocos) {
     return PISCINAS.filter((pool) =>
         blocos.every((bloco) => {
+            if (isShortSprint(bloco.distancia)) return true
             if (bloco.distancia % pool !== 0) return false
             const piscinas = bloco.distancia / pool
             if (!Array.isArray(bloco.nado)) return true
@@ -67,8 +76,8 @@ export function describe(serie) {
     return {
         ...serie,
         usos: serie.usos ?? ['treino'],
-        // Metragem total da série
-        volume: blocos.reduce((sum, b) => sum + b.repeticoes * b.distancia, 0),
+        // Metragem total da série ("vezes" repete o bloco inteiro: (2x) 4 x 25 = 200 m)
+        volume: blocos.reduce((sum, b) => sum + (b.vezes ?? 1) * b.repeticoes * b.distancia, 0),
         // Maior distância nadada sem parar (o atleta precisa aguentar isso)
         maiorDistancia: blocos.reduce((max, b) => Math.max(max, b.distancia), 0),
         exige: { ...requiredStrokes(blocos), material: MATERIAIS.filter((m) => material.has(m)) },
@@ -141,9 +150,12 @@ export function validate(series) {
                     report(`${where}campo "${key}" não existe (campos: ${BLOCO_KEYS.join(', ')}).`)
                 }
             }
+            if (bloco.vezes !== undefined && !isInt(bloco.vezes, 1, 10)) {
+                report(`${where}"vezes" precisa ser um número de 1 a 10 (ex.: 2 para "(2x) 4 x 25").`)
+            }
             if (!isInt(bloco.repeticoes, 1, 50)) report(`${where}"repeticoes" precisa ser um número de 1 a 50.`)
-            if (!isInt(bloco.distancia, 25, 3000) || bloco.distancia % 25 !== 0) {
-                report(`${where}"distancia" precisa ser em metros, múltiplo de 25 (25 a 3000).`)
+            if (!isValidDistance(bloco.distancia)) {
+                report(`${where}"distancia" precisa ser em metros, múltiplo de 25 (25 a 3000), ou um tiro curto de 5 a 20 m.`)
             }
             const nados = [bloco.nado].flat()
             const nadoOk = Array.isArray(bloco.nado)
@@ -152,8 +164,14 @@ export function validate(series) {
             if (!nadoOk) {
                 report(`${where}"nado" precisa ser um de (${NADOS.join(', ')}) ou ida e volta: ["crawl", "estilo"].`)
             }
-            if (!INTENSIDADES.includes(bloco.intensidade)) {
-                report(`${where}"intensidade" precisa ser uma de: ${INTENSIDADES.join(', ')}.`)
+            // Ou uma intensidade para a repetição inteira, ou trechos (ex.: 15 m forte + 10 m solto)
+            if (bloco.trechos !== undefined) {
+                if (bloco.intensidade !== undefined) {
+                    report(`${where}use "intensidade" ou "trechos", não os dois.`)
+                }
+                validateTrechos(bloco, (message) => report(`${where}${message}`))
+            } else if (!INTENSIDADES.includes(bloco.intensidade)) {
+                report(`${where}"intensidade" precisa ser uma de: ${INTENSIDADES.join(', ')} (ou use "trechos").`)
             }
             if (bloco.descanso !== undefined && !isInt(bloco.descanso, 0, 600)) {
                 report(`${where}"descanso" é em segundos (0 a 600).`)
@@ -167,7 +185,7 @@ export function validate(series) {
 
         // Só confere as piscinas se os blocos estão certos (senão o erro fica confuso)
         const blocksOk = serie.blocos.every(
-            (b) => b && isInt(b.distancia, 25, 3000) && b.distancia % 25 === 0 && [b.nado].flat().every((n) => NADOS.includes(n)),
+            (b) => b && isValidDistance(b.distancia) && [b.nado].flat().every((n) => NADOS.includes(n)),
         )
         if (blocksOk && poolsFor(serie.blocos).length === 0) {
             report('não fecha em nenhuma piscina (25 ou 50 m). Confira a distância e as idas e voltas.')
@@ -175,6 +193,33 @@ export function validate(series) {
     })
 
     return problems
+}
+
+// Trechos de uma repetição: [{ "metros": 15, "intensidade": "forte" }, { "metros": 10, "intensidade": "solto" }]
+function validateTrechos(bloco, report) {
+    const trechos = bloco.trechos
+    if (!Array.isArray(trechos) || trechos.length < 2) {
+        return report('"trechos" precisa de pelo menos dois trechos, ex.: [{ "metros": 15, "intensidade": "forte" }, ...].')
+    }
+    let total = 0
+    trechos.forEach((trecho, t) => {
+        if (trecho === null || typeof trecho !== 'object' || Array.isArray(trecho)) {
+            return report(`trecho ${t + 1} precisa ser um objeto { "metros": ..., "intensidade": ... }.`)
+        }
+        for (const key of Object.keys(trecho)) {
+            if (!TRECHO_KEYS.includes(key)) report(`trecho ${t + 1}: campo "${key}" não existe (campos: metros, intensidade).`)
+        }
+        if (!isInt(trecho.metros, 5, 3000) || trecho.metros % 5 !== 0) {
+            report(`trecho ${t + 1}: "metros" precisa ser múltiplo de 5.`)
+        }
+        if (!INTENSIDADES.includes(trecho.intensidade)) {
+            report(`trecho ${t + 1}: "intensidade" precisa ser uma de: ${INTENSIDADES.join(', ')}.`)
+        }
+        total += Number.isInteger(trecho.metros) ? trecho.metros : 0
+    })
+    if (Number.isInteger(bloco.distancia) && total !== bloco.distancia) {
+        report(`os trechos somam ${total} m, mas a "distancia" é ${bloco.distancia} m.`)
+    }
 }
 
 // ---------- Leitura dos arquivos ----------

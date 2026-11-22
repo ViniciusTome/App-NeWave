@@ -47,8 +47,29 @@ test('aquecimento: a série por sensação é para dia de teste', () => {
   assert.deepEqual(sensacao.piscinas, [25, 50])
 })
 
+test('velocidade: "vezes" multiplica a metragem', () => {
+  const velocidade = loadPart('velocidade')
+  assert.equal(velocidade.length, 10)
+  assert.equal(byId(velocidade, 'vel-4x25-forte').volume, 100)
+  assert.equal(byId(velocidade, 'vel-2x4x25-forte').volume, 200)
+  assert.equal(byId(velocidade, 'vel-2x8x25-forte').volume, 400)
+  assert.equal(byId(velocidade, 'vel-16x25-forte').volume, 400)
+  assert.equal(byId(velocidade, 'vel-4x4x25-forte').volume, 400)
+  assert.equal(byId(velocidade, 'vel-8x25-15-forte-10-solto').volume, 200)
+  assert.equal(byId(velocidade, 'vel-8x15').volume, 120)
+})
+
+test('velocidade: tiros de 25 m só fecham na piscina de 25 m; tiros de 15 m em qualquer uma', () => {
+  const velocidade = loadPart('velocidade')
+  assert.deepEqual(byId(velocidade, 'vel-8x25-forte').piscinas, [25])
+  assert.deepEqual(byId(velocidade, 'vel-4x15').piscinas, [25, 50])
+  assert.equal(byId(velocidade, 'vel-4x15').maiorDistancia, 15)
+})
+
 // ---------- Validação (o que acontece quando alguém digita errado) ----------
 
+const trechos = (forte, solto) => [{ metros: forte, intensidade: 'forte' }, { metros: solto, intensidade: 'solto' }]
+const semIntensidade = { repeticoes: 4, nado: 'livre' }
 const ok = { id: 'x-1', texto: '4 x 50 crawl', blocos: [{ repeticoes: 4, distancia: 50, nado: 'crawl', intensidade: 'A2', descanso: 20 }] }
 
 test('uma série correta não tem problemas', () => {
@@ -73,6 +94,13 @@ test('a validação aponta cada erro, dizendo a série e o campo', () => {
     [{ ...ok, porSensacao: true }, 'não tem blocos'],
     // 75 m indo e voltando: 3 piscinas de 25, não fecha em pares
     [{ ...ok, blocos: [{ ...ok.blocos[0], distancia: 75, nado: ['crawl', 'estilo'] }] }, 'não fecha em nenhuma piscina'],
+    [{ ...ok, blocos: [{ ...ok.blocos[0], distancia: 17 }] }, 'tiro curto'],
+    [{ ...ok, blocos: [{ ...ok.blocos[0], vezes: 0 }] }, '"vezes"'],
+    [{ ...ok, blocos: [{ ...ok.blocos[0], intensidade: 'rapido' }] }, '"intensidade"'],
+    [{ ...ok, blocos: [{ ...ok.blocos[0], distancia: 25, trechos: trechos(15, 10) }] }, 'não os dois'],
+    [{ ...ok, blocos: [{ ...semIntensidade, distancia: 25, trechos: trechos(15, 5) }] }, 'os trechos somam 20 m, mas a "distancia" é 25 m'],
+    [{ ...ok, blocos: [{ ...semIntensidade, distancia: 25, trechos: [{ metros: 25, intensidade: 'forte' }] }] }, 'pelo menos dois trechos'],
+    [{ ...ok, blocos: [{ ...semIntensidade, distancia: 25, trechos: [{ metros: 15, intensidade: 'forte' }, { metros: 10, ritmo: 'solto' }] }] }, 'campo "ritmo" não existe'],
   ]
   for (const [serie, expected] of cases) {
     const problems = validate([serie])
