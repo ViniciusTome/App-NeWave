@@ -9,7 +9,7 @@
 // - quanto do tempo de aula vai para cada parte;
 // - intensidade e fase da temporada das séries principais (ainda ignoradas);
 // - o valor usado dentro das faixas de descanso (o meio da faixa).
-import { fitsSession } from './series/index.js'
+import { describe, fitsSession } from './series/index.js'
 import {
     allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, intervalRangeFor,
     partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
@@ -407,12 +407,42 @@ function pickForPart(args) {
     return (semRepetir && pickAmong(args, bloqueadas)) || pickAmong(args, null)
 }
 
+// Séries (2x), (3x), (4x)...: as opções de quantas séries o atleta faz (a escrita
+// primeiro). De `minimo` até o número escrito + `aumentarAte` do nível.
+export function setOptions(rules, parte, serie, level) {
+    const cfg = rules.seriesAjustaveis
+    const escrito = /^\((\d+)x\) /.exec(serie.texto)
+    if (!cfg || !cfg.partes.includes(parte) || !escrito) return [serie]
+    const n = Number(escrito[1])
+    const doGrupo = serie.vezes === n
+    const doBloco = !doGrupo && serie.blocos.length === 1 && serie.blocos[0].vezes === n
+    if (!doGrupo && !doBloco) return [serie]
+    const ate = Math.min(cfg.maximo, n + (cfg.aumentarAte?.[level] ?? 0))
+    const opcoes = [serie]
+    for (let vezes = Math.min(cfg.minimo, n); vezes <= ate; vezes++) {
+        if (vezes === n) continue
+        opcoes.push(describe({
+            ...serie,
+            texto: serie.texto.replace(escrito[0], `(${vezes}x) `),
+            ...(doGrupo ? { vezes } : { blocos: [{ ...serie.blocos[0], vezes }] }),
+        }))
+    }
+    return opcoes
+}
+
 function pickAmong({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal }, evitar) {
     const candidatas = []
-    for (const serie of library[parte] ?? []) {
-        if (!seriesFits(serie, athlete)) continue
-        if (evitar?.has(serie.id)) continue
-        if (primeiraPrincipal && serie.id === primeiraPrincipal.serie.id) continue
+    // Passar do tempo é pior que ficar um pouco abaixo (a aula tem hora para acabar)
+    const foraDoTempo = (segundos) => (segundos > budget ? 1.5 : 1) * Math.abs(segundos - budget)
+    for (const original of library[parte] ?? []) {
+        if (!seriesFits(original, athlete)) continue
+        if (evitar?.has(original.id)) continue
+        if (primeiraPrincipal && original.id === primeiraPrincipal.serie.id) continue
+        // (2x), (3x), (4x)...: o número de séries que melhor cabe no tempo da parte
+        const opcoes = setOptions(rules, parte, original, athlete.level)
+        const serie = opcoes.length === 1 ? original : opcoes
+            .map((s) => ({ s, fora: foraDoTempo(estimateSeconds(rules, parte, s, { material: [] }, athlete, pace)) }))
+            .reduce((melhor, o) => (o.fora < melhor.fora ? o : melhor)).s
         let variations = seriesVariations(rules, parte, serie, athlete).filter((v) => variationFits(v, athlete))
         const mistura = drawMixedStrokes(rules, parte, serie, athlete, random)
         if (mistura && variationFits(mistura, athlete)) variations.push(mistura)
@@ -428,10 +458,9 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     if (candidatas.length === 0) return null
 
     // As que mais se aproximam do tempo da parte; as usadas recentemente perdem prioridade
-    // Passar do tempo é pior que ficar um pouco abaixo (a aula tem hora para acabar)
     // Repetir uma série recente custa como passar 1 minuto do tempo: varia sem
     // estourar a aula nas partes com poucas séries (solto, soltura)
-    const distancia = (c) => (c.segundos > budget ? 1.5 : 1) * Math.abs(c.segundos - budget) +
+    const distancia = (c) => foraDoTempo(c.segundos) +
         (recentes.has(c.serie.id) ? 60 : 0)
     // Sorteia só entre as que ficam perto da melhor (até 1 min ou 15% do tempo da parte a mais)
     const ordenadas = candidatas.sort((a, b) => distancia(a) - distancia(b))

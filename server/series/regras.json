@@ -124,6 +124,13 @@
       "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
     }
   },
+  "seriesAjustaveis": {
+    "_comentario": "Nas séries (2x), (3x), (4x)... o gerador escolhe quantas séries o atleta faz, para caber no tempo da aula: de 'minimo' até o número escrito + 'aumentarAte' do nível (sem passar de 'maximo'). O iniciante só diminui.",
+    "partes": ["aquecimento", "velocidade", "principal", "perna"],
+    "minimo": 2,
+    "maximo": 6,
+    "aumentarAte": { "iniciante": 0, "intermediario": 1, "avancado": 1 }
+  },
   "naoRepetirNoTreinoSeguinte": {
     "_comentario": "A mesma série nunca aparece em dois treinos seguidos nessas partes (mesmo com outra intensidade). Só repete se não houver outra série que sirva.",
     "partes": ["aquecimento", "velocidade", "principal", "perna"]

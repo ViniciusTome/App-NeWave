@@ -156,6 +156,15 @@ Nos treinos com duas séries principais, **se a 1ª for de estilo, a 2ª é obri
 - Medley conta como estilo (não é só crawl).
 - Quem não nada nenhum estilo (borboleta, costas ou peito) faz as duas em crawl.
 
+### Número de séries (2x), (3x), (4x)...
+
+O número escrito é uma sugestão: o gerador escolhe **quantas séries** o atleta faz, para caber no tempo da aula. Vale para o aquecimento, a velocidade, a série principal e a perna (`seriesAjustaveis` no `regras.json`).
+
+- **Iniciante:** só **diminui** (ex.: (4x) 4 x 100 vira (3x) 4 x 100). Nunca menos de (2x).
+- **Intermediário e avançado:** podem fazer de (2x) até **1 série a mais** que o escrito (no máximo (6x)).
+- A metragem, as intensidades (A1/A2/A3...), o material e a mistura de estilos acompanham o número de séries.
+- Para a série ficar sempre como está escrita, tire a parte da lista `partes` ou mude `aumentarAte` e `minimo`.
+
 ### Não repetir a série no treino seguinte
 
 A mesma série **nunca aparece em dois treinos seguidos** no aquecimento, na velocidade, na série principal e na perna, mesmo com outra intensidade (ex.: 5 x 400 m A1/A2/A3 num dia e 5 x 400 m 30 AC no outro). O primeiro treino gerado também não repete as séries do último treino do atleta. Só repete quando não existe outra série que sirva para o atleta. As partes ficam em `naoRepetirNoTreinoSeguinte` no `regras.json`. O solto e a soltura podem repetir.

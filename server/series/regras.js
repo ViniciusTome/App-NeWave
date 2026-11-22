@@ -105,6 +105,17 @@ export function validateRules(rules) {
         }
     }
 
+    const ajustaveis = rules.seriesAjustaveis
+    if (ajustaveis !== undefined) {
+        const { partes, minimo, maximo, aumentarAte = {} } = ajustaveis
+        if (!Array.isArray(partes)) problems.push('seriesAjustaveis.partes precisa ser uma lista de partes.')
+        if (!(Number.isInteger(minimo) && Number.isInteger(maximo) && minimo >= 1 && maximo >= minimo)) {
+            problems.push('seriesAjustaveis: "minimo" e "maximo" precisam ser números inteiros, com o mínimo menor que o máximo.')
+        }
+        if (Object.entries(aumentarAte).some(([nivel, n]) => !NIVEIS.includes(nivel) || !(Number.isInteger(n) && n >= 0))) {
+            problems.push(`seriesAjustaveis.aumentarAte: use os níveis (${NIVEIS.join(', ')}) com um número inteiro, ex.: { "iniciante": 0 }.`)
+        }
+    }
     const naoRepetir = rules.naoRepetirNoTreinoSeguinte
     if (naoRepetir !== undefined && (!Array.isArray(naoRepetir.partes) || naoRepetir.partes.some((x) => typeof x !== 'string'))) {
         problems.push('naoRepetirNoTreinoSeguinte.partes precisa ser uma lista de partes, ex.: ["principal", "perna"].')

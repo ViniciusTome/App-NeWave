@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
   abbreviate, bestTimeFor, cardText, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
-  saidaVelocidade, trainingDates, withMeters,
+  saidaVelocidade, setOptions, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
 import {
@@ -645,4 +645,38 @@ test('iniciante nada no máximo 50 minutos, mesmo em aulas mais longas', () => {
   for (const seed of [1, 2, 3]) {
     for (const t of gerar(iniciante, seed)) assert.ok(t.minutos <= 55, `${t.date}: ${t.minutos} min`)
   }
+})
+
+test('séries (2x), (3x), (4x): o gerador escolhe quantas séries o atleta faz', () => {
+  const vezes = (opcoes) => opcoes.map((s) => /^\((\d+)x\)/.exec(s.texto)[1]).map(Number)
+  // (3x) 3 x 200: avançado de 2 a 4; iniciante só diminui (2 ou 3)
+  assert.deepEqual(vezes(setOptions(rules, 'principal', serieById('pri-3x3x200'), 'avancado')), [3, 2, 4])
+  assert.deepEqual(vezes(setOptions(rules, 'principal', serieById('pri-3x3x200'), 'iniciante')), [3, 2])
+  // A metragem acompanha: (2x) 3 x 200 = 1.200 m
+  const duas = setOptions(rules, 'principal', serieById('pri-3x3x200'), 'iniciante')[1]
+  assert.equal(duas.volume, 1200)
+  assert.equal(duas.texto, '(2x) 3 x 200')
+  // Grupos: (3x) 1 x 100, 2 x 75, 3 x 50, 4 x 25 -> (2x) = 1.000 m
+  const grupo = setOptions(rules, 'principal', serieById('pri-3x-100-75-50-25'), 'iniciante')[1]
+  assert.equal(grupo.vezes, 2)
+  assert.equal(grupo.volume, 1000)
+  // Sem (Nx) não muda
+  assert.equal(setOptions(rules, 'principal', serieById('pri-2x10x100'), 'iniciante').length, 1)
+  assert.equal(setOptions(rules, 'solto', { texto: '(2x) 100 solto', blocos: [] }, 'avancado').length, 1)
+})
+
+test('iniciante: menos séries para caber no tempo', () => {
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 40, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '200_400',
+    strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar', 'pull_buoy'], time400: { hundredths: 54000 },
+  }
+  const treinos = [1, 2, 3, 4, 5, 6].flatMap((seed) => gerar(iniciante, seed))
+  for (const t of treinos) assert.ok(t.minutos <= 45, `${t.date}: ${t.minutos} min`)
+  const principais = treinos.map((t) => t.partes.find((p) => p.parte === 'principal'))
+  const reduzida = principais.find((p) => {
+    const escrito = /^\((\d+)x\)/.exec(serieById(p.serieId).texto)
+    const feito = /^\((\d+)x\)/.exec(p.texto)
+    return escrito && feito && Number(feito[1]) < Number(escrito[1])
+  })
+  assert.ok(reduzida, 'nenhuma série com menos séries')
 })
