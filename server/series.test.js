@@ -78,7 +78,7 @@ test('solto: 100 e 200 solto (e as curtas para quem nada pouco), com a observaç
 
 test('principal: as séries, com a metragem calculada', () => {
   const principal = loadPart('principal')
-  assert.equal(principal.length, 34)
+  assert.equal(principal.length, 44)
   const volume = (id) => byId(principal, id).volume
   assert.equal(volume('pri-2x10x100'), 2000)
   assert.equal(volume('pri-3x800'), 2400)

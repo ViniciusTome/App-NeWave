@@ -265,6 +265,14 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   const completedDates = db.prepare(
     'SELECT DISTINCT date FROM trainings WHERE user_id = ? AND completed_at IS NOT NULL AND date >= ?',
   )
+  // Últimos treinos feitos com o feedback e o plano interno (para ajustar os próximos)
+  const feedbackHistory = db.prepare(`
+    SELECT difficulty, difficulty_reason, plan FROM (
+      SELECT date, id, difficulty, difficulty_reason, plan FROM trainings
+      WHERE user_id = ? AND completed_at IS NOT NULL AND plan IS NOT NULL
+      ORDER BY date DESC, id DESC LIMIT 10
+    ) ORDER BY date, id
+  `)
   // Data do primeiro treino do atleta (o teste de quem não tem tempo vem depois de 1 mês)
   const firstTrainingDate = db.prepare('SELECT MIN(date) AS date FROM trainings WHERE user_id = ?')
   // Último treino antes de hoje (para não repetir as séries dele no primeiro treino novo)
@@ -273,8 +281,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   )
   const insertGenerated = db.prepare(`
     INSERT INTO trainings
-      (user_id, date, title, warm_up, speed, main_series, release, notes, created_at, completed_at, parts)
-    VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, NULL, ?)
+      (user_id, date, title, warm_up, speed, main_series, release, notes, created_at, completed_at, parts, plan)
+    VALUES (?, ?, ?, ?, ?, ?, ?, '', ?, NULL, ?, ?)
   `)
 
   const findCurrentPreparation = db.prepare(`
@@ -388,6 +396,13 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       }
       const trainings = generateTrainings({
         rules, library, today, seriesAnteriores,
+        historico: feedbackHistory.all(user.id).map((r) => {
+          try {
+            return { difficulty: r.difficulty, reason: r.difficulty_reason, plan: JSON.parse(r.plan) }
+          } catch {
+            return { difficulty: r.difficulty, reason: r.difficulty_reason, plan: null }
+          }
+        }),
         inicioDosTreinos: [firstTrainingDate.get(user.id)?.date ?? today, today].sort()[0],
         athlete: {
           ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
@@ -403,7 +418,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
           const f = legacyFields(t.partes)
           insertGenerated.run(
             user.id, t.date, t.title, f.warmUp, f.speed, f.mainSeries, f.release, now,
-            JSON.stringify(t.partes),
+            JSON.stringify(t.partes), JSON.stringify(t.plano),
           )
         }
         db.exec('COMMIT')
@@ -411,7 +426,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
         db.exec('ROLLBACK')
         throw err
       }
-      sendJson(res, 201, { trainings, replaced })
+      // O plano interno fica só no banco: o atleta não recebe
+      const semPlano = (t) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'plano'))
+      sendJson(res, 201, { trainings: trainings.map(semPlano), replaced })
     },
 
     // GET /api/preparations/current?today=AAAA-MM-DD -> preparação mais recente (ou null)

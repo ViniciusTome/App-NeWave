@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, adaptToDistance, bestTimeFor, cardText, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -728,12 +728,14 @@ test('sem tempos de referência: o teste de 400 m só depois de 1 mês de treino
   assert.ok(recuperar.length > 0)
   for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · ritmo leve/)
   assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
-  // Quem não nada 400 sem parar pode parar na borda
-  const iniciante = { ...semTempo, level: 'iniciante', continuousDistance: '100_200', strokes: ['crawl'] }
-  const doIniciante = generateTrainings({
-    rules, library, athlete: iniciante, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-10-01',
-  })[0]
-  assert.match(doIniciante.partes.find((p) => p.parte === 'teste').texto, /pode parar na borda/)
+  // Quem não nada 400 m sem parar não faz o teste (condicionamento)
+  for (const continuousDistance of ['ate_50', '100_200', '200_400']) {
+    const iniciante = { ...semTempo, level: 'iniciante', continuousDistance, strokes: ['crawl'] }
+    const treinosIniciante = generateTrainings({
+      rules, library, athlete: iniciante, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-01-01',
+    })
+    assert.ok(!treinosIniciante.some((t) => t.partes.some((p) => p.parte === 'teste')), continuousDistance)
+  }
   // Com o tempo, não há teste
   const comTempo = generateTrainings({
     rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-01-01',
@@ -815,4 +817,74 @@ test('quem nada até 100 m sem parar: só ritmo leve e sem velocidade; mais vari
     assert.ok(treinos.every((t) => !t.partes.some((p) => p.parte === 'velocidade')))
     assert.ok(new Set(principais.map((p) => p.serieTexto)).size >= 4, `${continuousDistance}: pouca variedade`)
   }
+})
+
+// ---------- Condicionamento e feedback ----------
+
+const condicionando = {
+  level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '200_400',
+  strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar', 'pull_buoy'], time400: null,
+}
+const fatores = (treinos) => treinos.map((t) => t.plano.fatorPrincipal)
+
+test('condicionamento: a metragem da principal aumenta devagar, treino a treino', () => {
+  const treinos = gerar(condicionando)
+  const f = fatores(treinos)
+  assert.equal(f[0], rules.condicionamento.fatorInicial)
+  for (let i = 1; i < f.length; i++) assert.ok(f[i] >= f[i - 1] && f[i] <= rules.condicionamento.fatorMaximo)
+  assert.ok(treinos.every((t) => t.plano.condicionamento))
+  // Quem nada 400 m sem parar não está no condicionamento
+  assert.ok(gerar(avancado).every((t) => !t.plano.condicionamento && t.plano.fatorPrincipal === 1))
+})
+
+test('plano interno: esforço esperado de cada treino (o atleta não vê no card)', () => {
+  for (const t of gerar(avancado)) {
+    assert.ok([4, 6, 8].includes(t.plano.esforcoEsperado), `${t.plano.esforcoEsperado}`)
+    assert.ok(t.partes.every((p) => !JSON.stringify(p).includes('esforcoEsperado')))
+  }
+  // Condicionamento: só ritmo leve
+  assert.ok(gerar({ ...condicionando, continuousDistance: '50_100' }).every((t) => t.plano.esforcoEsperado === 4))
+})
+
+test('feedback: pesado demais diminui a principal; fácil demais aumenta', () => {
+  const plano = { esforcoEsperado: 4, fatorPrincipal: 0.8 }
+  const pesado = feedbackAdjustment(rules, condicionando, [{ difficulty: 7, plan: plano }, { difficulty: 8, plan: plano }])
+  assert.equal(pesado.carga, -1)
+  assert.equal(pesado.fatorPrincipal, 0.7)
+  const facil = feedbackAdjustment(rules, condicionando, [{ difficulty: 1, plan: plano }, { difficulty: 2, plan: plano }])
+  assert.equal(facil.carga, 1)
+  assert.equal(facil.fatorPrincipal, 0.9)
+  const certo = feedbackAdjustment(rules, condicionando, [{ difficulty: 4, plan: plano }])
+  assert.deepEqual([certo.carga, certo.fatorPrincipal], [0, 0.8])
+  // Sem histórico: o começo do condicionamento; para os outros, o tempo normal
+  assert.equal(feedbackAdjustment(rules, condicionando, []).fatorPrincipal, rules.condicionamento.fatorInicial)
+  assert.equal(feedbackAdjustment(rules, avancado, []).fatorPrincipal, 1)
+  // O motivo só conta acima de 8
+  const ar = feedbackAdjustment(rules, condicionando, [{ difficulty: 9, reason: 'respiracao', plan: plano }])
+  assert.equal(ar.foco, 'respiracao')
+  assert.equal(feedbackAdjustment(rules, condicionando, [{ difficulty: 7, reason: 'forca', plan: plano }]).foco, null)
+})
+
+test('feedback: os próximos treinos menores; sem A3 nos 2 primeiros quando foi pesado demais', () => {
+  const historico = [8, 9, 9].map((difficulty) => ({ difficulty, plan: { esforcoEsperado: 6, fatorPrincipal: 1 } }))
+  const treinos = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), historico })
+  assert.ok(treinos.every((t) => t.plano.fatorPrincipal === 0.9 && t.plano.carga === -1))
+  for (const t of treinos.slice(0, 2)) assert.notEqual(t.plano.intensidade, 'A3')
+  const normais = gerar(avancado)
+  const metros = (ts) => ts.reduce((s, t) => s + t.plano.metrosPrincipal, 0)
+  assert.ok(metros(treinos) < metros(normais), `${metros(treinos)} >= ${metros(normais)}`)
+})
+
+test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () => {
+  const plano = { esforcoEsperado: 4, fatorPrincipal: 0.8 }
+  const comFoco = (reason) => [1, 2, 3, 4].flatMap((seed) => generateTrainings({
+    rules, library, athlete: condicionando, today: '2026-11-23', random: seeded(seed),
+    historico: [{ difficulty: 9, reason, plan: plano }],
+  })).map((t) => t.partes.find((p) => p.parte === 'principal'))
+  const curtas = (ps) => ps.filter((p) => Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) <= 50).length
+  const palmar = (ps) => ps.filter((p) => p.material.includes('palmar') && !p.material.includes('pe_de_pato')).length
+  const ar = comFoco('respiracao')
+  const forca = comFoco('forca')
+  assert.ok(curtas(ar) > curtas(forca), `curtas ${curtas(ar)} x ${curtas(forca)}`)
+  assert.ok(palmar(forca) > palmar(ar), `palmar ${palmar(forca)} x ${palmar(ar)}`)
 })

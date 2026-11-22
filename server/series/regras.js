@@ -432,6 +432,14 @@ const cycle = (list, n) => Array.from({ length: n }, (_, i) => list[i % list.len
 // - "obrigatorio_por_bloco": só alguns blocos usam (ex.: os 400 de uma pirâmide);
 // - "piramide_alternada": cada distância da pirâmide com um material diferente.
 function materialOptions(rules, parte, serie, athleteEquipment, athleteStrokes = [], athleteLevel = null) {
+    // Material de cada série escrito no JSON (ex.: 1ª nadando, 2ª com pé de pato)
+    if (serie.materialPorSerie) {
+        const todos = MATERIAIS.filter((m) => serie.materialPorSerie.some((s) => s.includes(m)))
+        if (todos.every((m) => athleteEquipment.includes(m))) {
+            return [{ padrao: 'por_serie', series: serie.materialPorSerie, material: todos }]
+        }
+        return [{ padrao: 'sem_material', material: [] }]
+    }
     if (serie.exige.material.length > 0) {
         return [{ padrao: 'fixo', material: serie.exige.material }]
     }

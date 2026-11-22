@@ -352,3 +352,44 @@ test('valida a preparação', async () => {
   const calendar = await api('/api/competitions', { cookie })
   assert.deepEqual(calendar.body.competitions, [])
 })
+
+// ---------- Feedback e plano interno ----------
+
+test('gerar treinos guarda o plano interno (o atleta não recebe) e o feedback entra no próximo', async () => {
+  const cookie = await userFor('feedback')
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  const hoje = daysFromToday(0)
+  const gerado = await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  assert.equal(gerado.status, 201)
+  assert.ok(gerado.body.trainings.length > 0)
+  assert.ok(gerado.body.trainings.every((t) => t.plano === undefined), 'o plano não vai para o atleta')
+
+  const proximos = await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })
+  const primeiro = proximos.body.trainings[0]
+  assert.equal(JSON.stringify(primeiro).includes('esforcoEsperado'), false)
+  const feito = await api(`/api/trainings/${primeiro.id}/complete`, {
+    method: 'POST', cookie, body: { difficulty: 10, reason: 'forca' },
+  })
+  assert.equal(feito.status, 200)
+
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  const linha = db.prepare('SELECT difficulty, difficulty_reason, plan FROM trainings WHERE id = ?').get(primeiro.id)
+  assert.equal(linha.difficulty, 10)
+  assert.equal(linha.difficulty_reason, 'forca')
+  const plano = JSON.parse(linha.plan)
+  assert.ok(plano.esforcoEsperado >= 4)
+
+  // Gerando de novo: o feedback (10, bem acima do esperado) diminui a principal e foca na força
+  const amanha = daysFromToday(1)
+  await api(`/api/trainings/generate?today=${amanha}`, { method: 'POST', cookie })
+  const novos = db.prepare('SELECT plan FROM trainings WHERE completed_at IS NULL AND date >= ? AND plan IS NOT NULL').all(amanha)
+  db.close()
+  assert.ok(novos.length > 0)
+  for (const { plan } of novos) {
+    const p = JSON.parse(plan)
+    assert.equal(p.carga, -1)
+    assert.equal(p.foco, 'forca')
+    assert.ok(p.fatorPrincipal < plano.fatorPrincipal)
+  }
+})

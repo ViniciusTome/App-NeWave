@@ -1,0 +1,30 @@
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.error {
+    color: #b00020;
+    font-size: 14px;
+}
+
+.submit {
+    font: inherit;
+    font-weight: 700;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    background-color: #1d6fb8;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.submit:disabled {
+    opacity: 0.6;
+    cursor: default;
+}

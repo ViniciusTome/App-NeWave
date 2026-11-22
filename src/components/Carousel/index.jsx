@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card } from '../Card'
+import { CompleteTraining } from '../CompleteTraining'
+import { Modal } from '../Modal'
 import { api, notifyTrainingsChanged, TRAININGS_CHANGED } from '../../services/api'
 import { todayIso } from '../../utils/format'
 import chevron from '../../assets/chevron.svg'
@@ -15,6 +17,7 @@ export const Carousel = () => {
     const [loadError, setLoadError] = useState('')
     const [completing, setCompleting] = useState(false)
     const [completeError, setCompleteError] = useState('')
+    const [completingTraining, setCompletingTraining] = useState(null) // treino com a janela aberta
 
     const load = useCallback(() => {
         return api(`/trainings/upcoming?today=${todayIso()}`)
@@ -42,11 +45,13 @@ export const Carousel = () => {
 
     };
 
-    const handleComplete = async (training) => {
+    // Conclui com as respostas da janela (dificuldade da série principal e, acima de 8, o motivo)
+    const handleComplete = async (feedback) => {
         setCompleting(true)
         setCompleteError('')
         try {
-            await api(`/trainings/${training.id}/complete`, { method: 'POST' })
+            await api(`/trainings/${completingTraining.id}/complete`, { method: 'POST', body: feedback })
+            setCompletingTraining(null)
             notifyTrainingsChanged() // recarrega o carrossel e o histórico
         } catch (err) {
             setCompleteError(err.message)
@@ -95,14 +100,13 @@ export const Carousel = () => {
                                             <button
                                                 type='button'
                                                 className={styles.complete}
-                                                onClick={() => handleComplete(training)}
-                                                disabled={completing}
+                                                onClick={() => {
+                                                    setCompleteError('')
+                                                    setCompletingTraining(training)
+                                                }}
                                             >
-                                                {completing ? 'Concluindo...' : 'Concluir treino'}
+                                                Concluir treino
                                             </button>
-                                            {completeError && (
-                                                <p className={styles.error} role='alert'>{completeError}</p>
-                                            )}
                                         </>
                                     )}
                                 </div>
@@ -111,6 +115,13 @@ export const Carousel = () => {
                     </div>
                 )}
             </div>
+            <Modal
+                open={completingTraining !== null}
+                onClose={() => setCompletingTraining(null)}
+                title='Como foi o treino?'
+            >
+                <CompleteTraining onSubmit={handleComplete} submitting={completing} error={completeError} />
+            </Modal>
             {hasTrainings && trainings.length > 1 && (
                 <div className={styles.buttons}>
                     <button onClick={handleLeftClick}><img src={chevron} alt='Voltar'/> </button>

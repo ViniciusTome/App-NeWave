@@ -35,6 +35,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
 | `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"`, `"estilo"` (borboleta, costas ou peito) e/ou `"melhorEstiloEMedley"` (repetições alternando melhor estilo e medley), respeitando as provas de piscina (veja abaixo). |
 | `aulaAcimaDeMinutos` | Opcional. A série só entra em aulas mais longas que isso. Ex.: `90` = só acima de 1h30. |
+| `materialPorSerie` | Opcional, nas séries com `vezes`. O material de cada série. Ex.: `[[], ["pe_de_pato"]]` = 1ª série nadando, 2ª com pé de pato. |
 | `paraQuemNadaAte` | Opcional. A série só entra para quem nada até essa distância sem parar. Ex.: `100` = séries curtas (4 x 50, 8 x 25) para quem nada pouco. |
 | `peso` | Opcional. Frequência no sorteio: `1` é o normal (padrão), `0.25` sai bem menos (de vez em quando), `3` sai mais vezes. |
 | `porSensacao` + `duracaoMinutos` | Para séries sem metragem, como "aqueça até sentir o corpo aquecido". Aí `blocos` fica `[]`. |
@@ -425,6 +426,44 @@ Fica em `quemNadaPouco` no `regras.json`.
 - **Com pé de pato** ele aguenta uns **75 m** em ritmo leve: os 75 ficam, e a série vai com pé de pato.
 - Repetições acima de 200 m (400, 800...) não são adaptadas.
 - Para variar mais, o gerador evita as séries dos **últimos 4 treinos** (não só do anterior), sempre que outra serve no tempo da aula.
+
+### Condicionamento (quem não nada 400 m sem parar)
+
+Fica em `condicionamento` no `regras.json`.
+
+- **Não faz o teste de 400 m** (nem o de 1 mês, nem o da periodização) enquanto não nadar 400 m sem parar.
+- **A metragem da série principal aumenta devagar:** começa com 70% do tempo normal da principal e ganha 2% a cada treino, até 100%. O feedback pode frear ou acelerar (veja abaixo).
+- **Séries do condicionamento** (`pri-cond-...` na biblioteca, só para quem nada até 200 m sem parar): (2x) 4 x 75 com pé de pato e palmar; 8 x 25, (2x) 8 x 25, 16 x 25 e (4x) 4 x 25 (as de velocidade, sempre em ritmo leve); (2x) 1 x 100, 1 x 75, 1 x 50, 1 x 25 (1ª série nadando, 2ª com pé de pato); (2x) 1 x 100, 2 x 50; 4, 5 e 6 x 150 com pé de pato e palmar. A (3x) 4 x 50 já vem da (4x) 4 x 50.
+
+### Feedback do atleta
+
+Ao **concluir o treino**, o app pergunta:
+
+1. **Como foi a série principal?** de 1 (muito fácil) a 10 (muito difícil).
+2. **Acima de 8:** o que deixou mais difícil? **A respiração** (faltou ar) ou **a força** (os braços ficaram pesados).
+
+Vale para todos os níveis. Fica em `feedback` no `regras.json` (o limite de 8 também está em `server/swimming.js`).
+
+**Plano interno (o atleta não vê):** cada treino gerado guarda, no banco, o **esforço esperado** da série principal (A1/ritmo leve = 4, A2 = 6, A3 = 8, teste = 9), o tempo da principal (`fatorPrincipal`), a intensidade mais forte, a fase e os metros da principal.
+
+**Como o feedback muda os próximos treinos** (ao gerar de novo):
+
+- Compara a dificuldade dos **últimos 3 treinos** com o esforço esperado. Se, na média, ficou **2 ou mais acima** (ex.: ritmo leve e ele disse 8), os próximos têm **10% a menos de tempo na principal** e os 2 primeiros ficam sem A3. Se ficou **2 ou mais abaixo**, 10% a mais. O tempo da principal fica entre 60% e 110%.
+- **Faltou ar (respiração):** ele tem força, falta condicionamento. A principal prefere **repetições curtas (até 50 m) com mais repetições** (ex.: no lugar de 3 x 4 x 50, 3 x 6 x 50, evoluindo para 3 x 8 x 50 ou 2 x 8 x 50).
+- **Faltou força:** ele precisa empurrar mais água. A principal prefere **palmar e palmar + pull buoy** (sem pé de pato).
+
+### Periodização inteira de uma vez (a fazer, junto com o ATR)
+
+Todos os treinos da periodização serão **gerados de uma vez** (ex.: 56 treinos). Não precisa montar o card de todos na hora: guarda o **plano de cada treino** para montar depois. O plano de cada treino:
+
+- data e número do treino na periodização;
+- **fase** (Acumulação, Transição, Realização) e a semana dentro da fase;
+- **intensidade** do treino e o **esforço esperado** da série principal;
+- **volume** planejado (metros ou tempo da principal) e o tipo de principal (intensidades, AC, NEG, POS, final forte);
+- se é **dia de teste** (troca da A para a T; fim da R para prova de 400 m em piscina);
+- recuperação (o treino anterior foi forte?) e o material que será trabalhado (ex.: semana de força com palmar).
+
+O card de cada treino é montado perto da data, já com o feedback dos treinos anteriores.
 
 ### Descanso mínimo para quem nada pouco
 
