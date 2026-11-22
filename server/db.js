@@ -1,0 +1,75 @@
+import { DatabaseSync } from 'node:sqlite'
+import { mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
+
+// Abre (ou cria) o banco SQLite e garante que as tabelas existam.
+export function openDatabase(path) {
+  if (path !== ':memory:') {
+    mkdirSync(dirname(path), { recursive: true })
+  }
+
+  const db = new DatabaseSync(path)
+  db.exec('PRAGMA journal_mode = WAL')
+  db.exec('PRAGMA foreign_keys = ON')
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT    NOT NULL,
+      email         TEXT    NOT NULL UNIQUE,
+      password_hash TEXT    NOT NULL,
+      created_at    TEXT    NOT NULL
+    );
+
+    -- Guardamos só o hash do token da sessão: se o banco vazar,
+    -- ninguém consegue usar esses valores para entrar na conta.
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash TEXT    PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+    -- Links de "esqueci a senha". Também guardamos só o hash do token.
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash TEXT    PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_resets_user ON password_resets(user_id);
+
+    -- Testes de tempo que o atleta faz (ex.: 400 m em 5'32"45).
+    -- O tempo fica em centésimos de segundo, como número inteiro, para não
+    -- ter erro de arredondamento.
+    CREATE TABLE IF NOT EXISTS tests (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      distance         INTEGER NOT NULL,
+      time_hundredths  INTEGER NOT NULL,
+      date             TEXT    NOT NULL,
+      created_at       TEXT    NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_tests_user ON tests(user_id, distance, date);
+
+    -- Treinos que o atleta já realizou, com as quatro partes do treino.
+    CREATE TABLE IF NOT EXISTS trainings (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date         TEXT    NOT NULL,
+      title        TEXT    NOT NULL DEFAULT '',
+      warm_up      TEXT    NOT NULL DEFAULT '',
+      speed        TEXT    NOT NULL DEFAULT '',
+      main_series  TEXT    NOT NULL DEFAULT '',
+      release      TEXT    NOT NULL DEFAULT '',
+      notes        TEXT    NOT NULL DEFAULT '',
+      created_at   TEXT    NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_trainings_user ON trainings(user_id, date);
+  `)
+
+  return db
+}

@@ -8,8 +8,7 @@ export const Logout = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        logout()
-        navigate('/auth/login')
+        logout().finally(() => navigate('/auth/login'))
     }, [logout, navigate])
 
     return null

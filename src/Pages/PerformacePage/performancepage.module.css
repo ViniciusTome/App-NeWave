@@ -87,6 +87,13 @@
     font-size: 20px;
 }
 
+.EvolutionTimes {
+    /* Mesmo azul de piscina do Dashboard, para o texto branco do gráfico ficar legível */
+    background: linear-gradient(160deg, #1d6fb8 0%, #145891 45%, #0b2f57 100%);
+    color: #ffffff;
+    padding: 0;
+}
+
 
 @media screen and (min-width: 1024px) and (max-width: 1400px) {
     .feedback {

@@ -1,3 +1,23 @@
 .gap {
     margin: 10px;
 }
+
+.section {
+    margin-bottom: 16px;
+}
+
+.section:last-child {
+    margin-bottom: 0;
+}
+
+.section h3 {
+    font-size: 15px;
+    color: #1d6fb8;
+    margin-bottom: 4px;
+}
+
+/* Mantém as quebras de linha que o treino tiver */
+.text {
+    white-space: pre-line;
+    line-height: 1.5;
+}
