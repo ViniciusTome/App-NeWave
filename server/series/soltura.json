@@ -1,0 +1,22 @@
+[
+  {
+    "id": "soltura-100",
+    "texto": "100 solto",
+    "observacao": "Pode ser feito com pull buoy.",
+    "blocos": [{ "repeticoes": 1, "distancia": 100, "nado": "livre", "intensidade": "solto" }]
+  },
+  {
+    "id": "soltura-200",
+    "texto": "200 solto",
+    "observacao": "Pode ser feito com pull buoy.",
+    "blocos": [{ "repeticoes": 1, "distancia": 200, "nado": "livre", "intensidade": "solto" }]
+  },
+  {
+    "id": "soltura-400",
+    "texto": "400 solto",
+    "observacao": "Pode ser feito com pull buoy.",
+    "aulaAcimaDeMinutos": 90,
+    "peso": 0.25,
+    "blocos": [{ "repeticoes": 1, "distancia": 400, "nado": "livre", "intensidade": "solto" }]
+  }
+]

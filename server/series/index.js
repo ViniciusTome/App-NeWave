@@ -22,7 +22,10 @@ export const MATERIAIS = ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha',
 export const PISCINAS = [25, 50]
 
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
-const SERIE_KEYS = ['id', 'texto', 'observacao', 'vezes', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos']
+const SERIE_KEYS = [
+    'id', 'texto', 'observacao', 'vezes', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos',
+    'aulaAcimaDeMinutos', 'peso',
+]
 // Além do nado escrito nos blocos, a série também pode ser feita em:
 // "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
 // "estilo" (toda no estilo do atleta: borboleta, costas ou peito).
@@ -110,6 +113,7 @@ export function describe(serie) {
     return {
         ...serie,
         usos: serie.usos ?? ['treino'],
+        peso: serie.peso ?? 1,
         outrosNados: serie.outrosNados ?? [],
         // Metragem total da série ("vezes" repete o bloco inteiro: (2x) 4 x 25 = 200 m)
         // "vezes" na série repete o grupo de blocos: (3x) 1 x 100, 2 x 75, 3 x 50, 4 x 25
@@ -158,6 +162,15 @@ export function validate(series) {
         if (serie.observacao !== undefined &&
             (typeof serie.observacao !== 'string' || serie.observacao.trim() === '' || serie.observacao.length > 200)) {
             report('"observacao" precisa ser um texto de até 200 caracteres (ou tire o campo).')
+        }
+
+        // Só em aulas mais longas que isso (ex.: 90 = acima de 1h30)
+        if (serie.aulaAcimaDeMinutos !== undefined && !isInt(serie.aulaAcimaDeMinutos, 1, 240)) {
+            report('"aulaAcimaDeMinutos" precisa ser um número de minutos (ex.: 90 para acima de 1h30).')
+        }
+        // Frequência no sorteio: 1 é o normal; 0.25 sai bem menos (de vez em quando)
+        if (serie.peso !== undefined && !(typeof serie.peso === 'number' && serie.peso > 0 && serie.peso <= 10)) {
+            report('"peso" precisa ser um número maior que 0 (1 = normal; 0.25 = de vez em quando; 3 = mais vezes).')
         }
 
         if (serie.usos !== undefined) {
@@ -307,6 +320,10 @@ function validateTrechos(bloco, report) {
         report(`os trechos somam ${total} m, mas a "distancia" é ${bloco.distancia} m.`)
     }
 }
+
+// A série vale para uma aula desse tamanho? (ex.: 400 solto só acima de 1h30)
+export const fitsSession = (serie, minutos) =>
+    serie.aulaAcimaDeMinutos === undefined || minutos > serie.aulaAcimaDeMinutos
 
 // ---------- Leitura dos arquivos ----------
 

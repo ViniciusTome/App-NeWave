@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { describe, loadLibrary, loadPart, validate } from './series/index.js'
+import { describe, fitsSession, loadLibrary, loadPart, validate } from './series/index.js'
 
 const byId = (list, id) => list.find((serie) => serie.id === id)
 
@@ -115,6 +115,20 @@ test('principal: séries com 75 m só fecham na piscina de 25 m', () => {
   assert.equal(byId(principal, 'pri-piramide-400-50-400').maiorDistancia, 400)
 })
 
+test('soltura: as mesmas do solto, mais o 400 só acima de 1h30 e de vez em quando', () => {
+  const soltura = loadPart('soltura')
+  assert.deepEqual(soltura.map((s) => s.texto), ['100 solto', '200 solto', '400 solto'])
+  for (const serie of soltura) assert.equal(serie.observacao, 'Pode ser feito com pull buoy.')
+
+  const s400 = byId(soltura, 'soltura-400')
+  assert.equal(s400.peso, 0.25)
+  assert.equal(byId(soltura, 'soltura-200').peso, 1)
+  for (const minutos of [30, 45, 60, 75, 90]) assert.equal(fitsSession(s400, minutos), false, `${minutos} min`)
+  assert.equal(fitsSession(s400, 120), true)
+  // As outras valem em qualquer aula
+  assert.equal(fitsSession(byId(soltura, 'soltura-100'), 30), true)
+})
+
 // ---------- Validação (o que acontece quando alguém digita errado) ----------
 
 const trechos = (forte, solto) => [{ metros: forte, intensidade: 'forte' }, { metros: solto, intensidade: 'solto' }]
@@ -134,6 +148,8 @@ test('a validação aponta cada erro, dizendo a série e o campo', () => {
     [{ ...ok, id: 'Aquecimento 1' }, '"id" precisa ser'],
     [{ ...ok, texto: '' }, '"texto" é obrigatório'],
     [{ ...ok, observacao: '' }, '"observacao"'],
+    [{ ...ok, aulaAcimaDeMinutos: '1h30' }, '"aulaAcimaDeMinutos"'],
+    [{ ...ok, peso: 0 }, '"peso"'],
     [{ ...ok, observacao: 'x'.repeat(201) }, '"observacao"'],
     [{ ...ok, usos: ['competicao'] }, '"usos"'],
     [{ ...ok, blocos: [] }, 'pelo menos um bloco'],
