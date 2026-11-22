@@ -10,6 +10,7 @@ import {
 } from './http.js'
 import { createConsoleMailer, passwordResetMessage } from './mailer.js'
 import { createSwimmingRoutes } from './swimming.js'
+import { createAthleteRoutes } from './athlete.js'
 import {
   createRateLimiter,
   generateToken,
@@ -303,6 +304,7 @@ export function createApp({
   }
 
   const swimming = createSwimmingRoutes({ db, requireUser })
+  const athlete = createAthleteRoutes({ db, requireUser })
 
   // Rotas da API. Trechos como ":id" viram parâmetros (ex.: /api/tests/7).
   const routes = [
@@ -319,6 +321,12 @@ export function createApp({
     ['GET', '/api/trainings/upcoming', swimming.getUpcomingTrainings],
     ['POST', '/api/trainings', swimming.createTraining],
     ['POST', '/api/trainings/:id/complete', swimming.completeTraining],
+    ['GET', '/api/athlete-profile', athlete.getProfile],
+    ['PUT', '/api/athlete-profile', athlete.saveProfile],
+    ['GET', '/api/competitions', athlete.getCompetitions],
+    ['POST', '/api/competitions', athlete.createCompetition],
+    ['GET', '/api/preparations/current', athlete.getCurrentPreparation],
+    ['POST', '/api/preparations', athlete.createPreparation],
   ].map(([method, path, handler]) => {
     const names = []
     const pattern = path.replace(/:(\w+)/g, (_, name) => {

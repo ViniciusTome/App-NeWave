@@ -56,6 +56,12 @@ const planned = [
   [9, 'Treino misto', '300 crawl', '4 x 50 borboleta + crawl', '8 x 100 medley A2', '200 costas'],
 ]
 
+// Anamnese e calendário de exemplo: uma prova alvo (A) e uma de teste (C) no meio da preparação
+const competitions = [
+  [60, 'Troféu Estadual', 'piscina_50', '200 m livre', 'A'],
+  [20, 'Torneio de Inverno', 'piscina_25', '100 m livre', 'C'],
+]
+
 const insertTest = db.prepare(
   'INSERT INTO tests (user_id, distance, time_hundredths, date, created_at) VALUES (?, ?, ?, ?, ?)',
 )
@@ -65,8 +71,28 @@ const insertTraining = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `)
 
+const upsertProfile = db.prepare(`
+  INSERT OR REPLACE INTO athlete_profiles (
+    user_id, swimming_since, recent_break, continuous_distance, strokes, training_days,
+    session_minutes, pool_length, equipment, injuries, reported_400_hundredths, created_at, updated_at
+  ) VALUES (?, '2a_5a', 'nao', '1000_2000', '["crawl","costas"]', '[1,3,5]', 60, 25,
+    '["pe_de_pato","palmar","pull_buoy"]', '', NULL, ?, ?)
+`)
+const insertCompetition = db.prepare(`
+  INSERT INTO competitions (user_id, name, date, modality, event, priority, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`)
+const insertPreparation = db.prepare(`
+  INSERT INTO preparations (user_id, goal, competition_id, created_at) VALUES (?, 'competir', ?, ?)
+`)
+
 db.exec('BEGIN')
 try {
+  upsertProfile.run(user.id, now, now)
+  for (const [days, name, modality, event, priority] of competitions) {
+    const id = insertCompetition.run(user.id, name, daysAhead(days), modality, event, priority, now).lastInsertRowid
+    if (priority === 'A') insertPreparation.run(user.id, id, now)
+  }
   for (const [distance, times, days] of tests) {
     times.forEach((time, i) => insertTest.run(user.id, distance, time, daysAgo(days[i]), now))
   }
@@ -86,5 +112,6 @@ try {
 
 const testCount = tests.reduce((sum, [, times]) => sum + times.length, 0)
 console.log(
-  `Pronto! ${testCount} testes, ${trainings.length} treinos realizados e ${planned.length} agendados adicionados para ${user.name}.`,
+  `Pronto! ${testCount} testes, ${trainings.length} treinos realizados, ${planned.length} agendados, ` +
+    `anamnese e ${competitions.length} competições adicionados para ${user.name}.`,
 )

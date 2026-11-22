@@ -1,4 +1,5 @@
 import { Aside } from '../../components/Aside'
+import { AthleteSummary } from '../../components/AthleteSummary'
 import { Payments } from '../../components/Payments'
 import { PersonalData } from '../../components/PersonalData'
 import { Profile } from '../../components/Profile'
@@ -17,6 +18,11 @@ export const ProfilePage = () => {
                     <Profile/>
                 </div>
                 
+                <div className={styles.container}>
+                    <h2>Meu treino</h2>
+                    <AthleteSummary/>
+                </div>
+
                 <div className={styles.container}>
                     <h2>Dados pessoais</h2>
                     <PersonalData/>
