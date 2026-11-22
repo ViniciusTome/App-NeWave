@@ -10,6 +10,7 @@
 // - intensidade e fase da temporada das séries principais (ainda ignoradas);
 // - o valor usado dentro das faixas de descanso (o meio da faixa).
 import { fitsSession } from './series/index.js'
+import { materialText } from './series/regras.js'
 import {
     allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, intervalRangeFor, partsForLevel, pauseOf, restFor,
     seriesVariations,
@@ -88,6 +89,36 @@ export function withMeters(texto) {
         .replace(/\b(\d+) x (\d+)\b(?! ?m\b)/g, '$1 x $2 m')
         .replace(/^(\d+) (?![xm]\b)(?=\p{L})/u, '$1 m ')
         .replace(/\bos (\d+)\b(?! ?m\b)/g, 'os $1 m')
+}
+
+// Texto do card. Séries com várias metragens (pirâmides, grupos como
+// "(2x) 1 x 200, 2 x 100, 4 x 50") ficam com uma metragem por linha; quando o
+// material muda por bloco, ele vai na linha do bloco:
+//   1 x 400 m · com pé de pato + palmar
+//   2 x 200 m · com palmar
+//   4 x 100 m · nadando
+// O que vale para a série toda (ex.: "com palmar") fica na última linha.
+export function cardText(serie, variation) {
+    if (serie.blocos.length < 2) return withMeters(variation.texto)
+
+    const linhas = []
+    if ((serie.vezes ?? 1) > 1) linhas.push(`(${serie.vezes}x)`)
+    const alternada = variation.padrao === 'piramide_alternada'
+    serie.blocos.forEach((bloco, i) => {
+        const vezes = bloco.vezes > 1 ? `(${bloco.vezes}x) ` : ''
+        let linha = `${vezes}${bloco.repeticoes} x ${bloco.distancia} m`
+        const material = variation.porBloco?.[i]
+        if (material?.length > 0) linha += ` · com ${materialText(material)}`
+        else if (alternada) linha += ' · nadando'
+        linhas.push(linha)
+    })
+    // O resto do texto da variação (o que vem depois do texto da série), sem a
+    // parte "os 400 com ..." que já foi para as linhas dos blocos
+    if (!variation.porBloco && variation.texto.startsWith(serie.texto)) {
+        const resto = variation.texto.slice(serie.texto.length).replace(/^ · /, '')
+        if (resto) linhas.push(withMeters(resto).split(' · ').join(', '))
+    }
+    return linhas.join('\n')
 }
 
 // "2' de intervalo entre as séries" / "2' a 3' de intervalo entre as séries"
@@ -230,7 +261,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes }) {
             parte,
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
             serieId: escolha.serie.id,
-            texto: withMeters(escolha.variation.texto),
+            texto: cardText(escolha.serie, escolha.variation),
             ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,
             material: escolha.variation.material,

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
-import { estimateSeconds, generateTrainings, trainingDates, withMeters } from './generator.js'
+import { cardText, estimateSeconds, generateTrainings, trainingDates, withMeters } from './generator.js'
 import { loadLibrary } from './series/index.js'
 import { intervalBetweenSets, intervalRangeFor, loadRules, partsForLevel, strokeCategory } from './series/regras.js'
 
@@ -140,6 +140,46 @@ test('nos treinos gerados, toda distância tem o "m"', () => {
       if (hidratacao) assert.match(hidratacao.texto, /^5 min/)
     }
   }
+})
+
+// ---------- Uma metragem por linha ----------
+
+test('pirâmides e grupos: uma metragem embaixo da outra, com o material na linha do bloco', () => {
+  const p = (id) => library.principal.find((s) => s.id === id)
+  assert.equal(cardText(p('pri-2x-200-100-200-50'), { texto: '(2x) 1 x 200, 2 x 100, 1 x 200, 4 x 50', padrao: 'sem_material', material: [] }),
+    '(2x)\n1 x 200 m\n2 x 100 m\n1 x 200 m\n4 x 50 m')
+  // Material na série toda: na última linha
+  assert.equal(cardText(p('pri-2x-200-50'), { texto: '(2x) 1 x 200, 4 x 50 · com palmar + pull buoy', padrao: 'serie_inteira', material: ['palmar', 'pull_buoy'] }),
+    '(2x)\n1 x 200 m\n4 x 50 m\ncom palmar + pull buoy')
+  // Pirâmide alternando: cada bloco com o seu material
+  assert.equal(cardText(p('pri-piramide-400-50'), {
+    texto: 'ignorado · os 400 com ...', padrao: 'piramide_alternada', material: [],
+    porBloco: [['pe_de_pato', 'palmar'], ['palmar'], [], ['pe_de_pato']],
+  }), '1 x 400 m · com pé de pato + palmar\n2 x 200 m · com palmar\n4 x 100 m · nadando\n8 x 50 m · com pé de pato')
+  // Só os 400 com material: o resto sem nada escrito
+  assert.equal(cardText(p('pri-piramide-400-50'), {
+    texto: 'x', padrao: 'obrigatorio_por_bloco', material: ['pe_de_pato', 'palmar'],
+    porBloco: [['pe_de_pato', 'palmar'], [], [], []],
+  }), '1 x 400 m · com pé de pato + palmar\n2 x 200 m\n4 x 100 m\n8 x 50 m')
+  // Série de uma metragem só continua numa linha
+  assert.equal(cardText(p('pri-5x400'), { texto: '5 x 400 · com palmar', padrao: 'serie_inteira', material: ['palmar'] }),
+    '5 x 400 m · com palmar')
+})
+
+test('nos treinos gerados, as séries com várias metragens têm uma por linha', () => {
+  let vistas = 0
+  for (const [, athlete] of casos) {
+    for (let seed = 1; seed <= 6; seed++) {
+      for (const parte of gerar(athlete, seed).flatMap((t) => t.partes).filter((x) => x.serieId)) {
+        const serie = serieById(parte.serieId)
+        if (serie.blocos.length < 2) continue
+        vistas++
+        const linhas = parte.texto.split('\n').filter((l) => /^\d+ x \d+ m/.test(l))
+        assert.equal(linhas.length, serie.blocos.length, parte.texto)
+      }
+    }
+  }
+  assert.ok(vistas > 0, 'nenhuma pirâmide ou grupo foi sorteado')
 })
 
 // ---------- Intervalo entre as séries da série principal ----------
