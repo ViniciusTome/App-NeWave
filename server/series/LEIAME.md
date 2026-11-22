@@ -7,6 +7,7 @@ Cada parte do treino tem o seu arquivo:
 | `aquecimento.json` | Aquecimento |
 | `velocidade.json` | Velocidade |
 | `solto.json` | Solto: nado de recuperação (entre a velocidade e a série principal; no iniciante, no final do treino) |
+| `perna.json` | Série de perna, nos treinos acima de 50 min (ainda não criado) |
 | `principal.json` | Série principal (ainda não criado) |
 | `soltura.json` | Soltura (ainda não criado) |
 
@@ -92,17 +93,26 @@ server/series/aquecimento.json tem problemas:
 
 As séries ficam "brutas", sem material. As regras dizem como montar o treino com elas.
 
-### Partes do treino por nível
+### Partes do treino por nível e tempo de aula
 
 ```json
-"niveis": {
-  "iniciante": { "partes": ["aquecimento", "principal", "solto"] },
-  "intermediario": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
-  "avancado": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] }
+"intermediario": {
+  "estruturas": [
+    { "ateMinutos": 50, "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
+    { "partes": ["aquecimento", "velocidade", "solto", "principal", "perna", "soltura"] }
+  ]
 }
 ```
 
-A ordem da lista é a ordem do treino. O iniciante não faz velocidade e faz o solto **no final do treino**; o intermediário e o avançado fazem o solto entre a velocidade e a série principal.
+- Vale a primeira estrutura cujo `ateMinutos` comporta o tempo de aula do atleta. A última não tem `ateMinutos` e vale para qualquer tempo acima.
+- A ordem da lista é a ordem do treino.
+
+| Nível | Até 50 min | Acima de 50 min |
+|---|---|---|
+| Iniciante | aquecimento → principal → solto | (igual) |
+| Intermediário e avançado | aquecimento → velocidade → solto → principal → soltura | aquecimento → velocidade → solto → principal → **perna** → soltura |
+
+O iniciante não faz velocidade e faz o solto **no final do treino**.
 
 ### Material
 
@@ -173,6 +183,9 @@ Entre as séries de um `(2x)`, `(4x)`... o intervalo é **uma saída da repetiç
 As fases são `acumulacao`, `transicao` e `realizacao`.
 
 ### A decidir
+
+- **Treinos acima de 1h15:** por enquanto usam a mesma estrutura dos treinos de 50 min a 1h15.
+- **Iniciante em treinos mais longos:** por enquanto, a mesma estrutura em qualquer tempo de aula.
 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
 - **Saída do 25 forte de cada atleta**: como calcular a partir do ritmo dele.

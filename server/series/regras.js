@@ -39,12 +39,33 @@ export function validateRules(rules) {
     }
 
     for (const nivel of NIVEIS) {
-        const partes = rules.niveis?.[nivel]?.partes
-        if (!Array.isArray(partes) || partes.length === 0 || partes.some((p) => !PARTS.includes(p))) {
-            problems.push(`niveis.${nivel}.partes precisa ser uma lista com: ${PARTS.join(', ')}.`)
-        } else if (new Set(partes).size !== partes.length) {
-            problems.push(`niveis.${nivel}.partes tem uma parte repetida.`)
+        const estruturas = rules.niveis?.[nivel]?.estruturas
+        const where = `niveis.${nivel}.estruturas`
+        if (!Array.isArray(estruturas) || estruturas.length === 0) {
+            problems.push(`${where} precisa ser uma lista, ex.: [{ "ateMinutos": 50, "partes": [...] }, { "partes": [...] }].`)
+            continue
         }
+        let previous = 0
+        estruturas.forEach((estrutura, i) => {
+            const label = `${where}, estrutura ${i + 1}`
+            const partes = estrutura?.partes
+            if (!Array.isArray(partes) || partes.length === 0 || partes.some((p) => !PARTS.includes(p))) {
+                problems.push(`${label}: "partes" precisa ser uma lista com: ${PARTS.join(', ')}.`)
+            } else if (new Set(partes).size !== partes.length) {
+                problems.push(`${label}: "partes" tem uma parte repetida.`)
+            }
+            const last = i === estruturas.length - 1
+            if (last && estrutura?.ateMinutos !== undefined) {
+                problems.push(`${label}: a última estrutura não leva "ateMinutos" (vale para qualquer tempo acima).`)
+            } else if (!last) {
+                const ate = estrutura?.ateMinutos
+                if (!Number.isInteger(ate) || ate <= previous) {
+                    problems.push(`${label}: "ateMinutos" precisa ser um número maior que o da estrutura anterior.`)
+                } else {
+                    previous = ate
+                }
+            }
+        })
     }
 
     for (const [parte, regra] of Object.entries(rules.material ?? {})) {
@@ -133,9 +154,14 @@ export function loadRules(file = new URL('./regras.json', import.meta.url)) {
 
 // ---------- Uso das regras ----------
 
-// Partes do treino que o nível faz, na ordem em que são nadadas
-// (ex.: o iniciante não faz velocidade e faz o solto no final)
-export const partsForLevel = (rules, nivel) => rules.niveis[nivel].partes
+// Partes do treino para o nível e o tempo de aula, na ordem em que são nadadas.
+// Vale a primeira estrutura cujo "ateMinutos" comporta a aula; a última vale
+// para qualquer tempo acima. Ex.: até 50 min sem perna; acima disso, com perna.
+export function partsForLevel(rules, nivel, minutos) {
+    const estruturas = rules.niveis[nivel].estruturas
+    const estrutura = estruturas.find((e) => e.ateMinutos === undefined || minutos <= e.ateMinutos)
+    return estrutura.partes
+}
 
 // Agrupa as séries que ficam iguais: "1ª e 3ª séries com palmar, 2ª e 4ª séries nadando"
 function groupSets(descriptions) {

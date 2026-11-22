@@ -16,10 +16,22 @@ const textos = (...args) => variations(...args).map((v) => v.texto)
 
 // ---------- Níveis ----------
 
-test('iniciante não faz velocidade e faz o solto no final; intermediário e avançado fazem velocidade', () => {
-  assert.deepEqual(partsForLevel(rules, 'iniciante'), ['aquecimento', 'principal', 'solto'])
-  assert.deepEqual(partsForLevel(rules, 'intermediario'), ['aquecimento', 'velocidade', 'solto', 'principal', 'soltura'])
-  assert.ok(partsForLevel(rules, 'avancado').includes('velocidade'))
+test('iniciante: sem velocidade, com o solto no final', () => {
+  for (const minutos of [30, 45, 60, 75, 90, 120]) {
+    assert.deepEqual(partsForLevel(rules, 'iniciante', minutos), ['aquecimento', 'principal', 'solto'])
+  }
+})
+
+test('intermediário e avançado: até 50 min sem perna; acima disso, perna depois da série principal', () => {
+  const curto = ['aquecimento', 'velocidade', 'solto', 'principal', 'soltura']
+  const longo = ['aquecimento', 'velocidade', 'solto', 'principal', 'perna', 'soltura']
+  for (const nivel of ['intermediario', 'avancado']) {
+    assert.deepEqual(partsForLevel(rules, nivel, 30), curto)
+    assert.deepEqual(partsForLevel(rules, nivel, 45), curto)
+    assert.deepEqual(partsForLevel(rules, nivel, 50), curto)
+    assert.deepEqual(partsForLevel(rules, nivel, 60), longo)
+    assert.deepEqual(partsForLevel(rules, nivel, 75), longo)
+  }
 })
 
 // ---------- Material na velocidade ----------
@@ -172,9 +184,11 @@ test('a validação das regras aponta os erros', () => {
   assert.deepEqual(validateRules(structuredClone(rules)), [])
 
   const cases = [
-    [(r) => { r.niveis.iniciante.partes = ['nado'] }, 'niveis.iniciante.partes'],
-    [(r) => { delete r.niveis.avancado }, 'niveis.avancado.partes'],
-    [(r) => { r.niveis.iniciante.partes = ['aquecimento', 'solto', 'solto'] }, 'parte repetida'],
+    [(r) => { r.niveis.iniciante.estruturas[0].partes = ['nado'] }, 'niveis.iniciante.estruturas, estrutura 1'],
+    [(r) => { delete r.niveis.avancado }, 'niveis.avancado.estruturas'],
+    [(r) => { r.niveis.iniciante.estruturas[0].partes = ['aquecimento', 'solto', 'solto'] }, 'parte repetida'],
+    [(r) => { r.niveis.avancado.estruturas[1].ateMinutos = 120 }, 'a última estrutura não leva "ateMinutos"'],
+    [(r) => { r.niveis.avancado.estruturas.unshift({ ateMinutos: 60, partes: ['aquecimento'] }) }, 'maior que o da estrutura anterior'],
     [(r) => { r.material.velocidade.opcoes.push(['nadadeira']) }, 'opção 5'],
     [(r) => { r.material.velocidade.porSerie['2'] = [['nadando', 'nadando']] }, 'pelo menos uma série com material'],
     [(r) => { r.material.velocidade.porSerie['4'] = [['material', 'nadando']] }, 'precisa ter 4 itens'],

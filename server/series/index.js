@@ -6,10 +6,10 @@
 // é calculado aqui. O guia de como cadastrar está em server/series/LEIAME.md.
 import { readFileSync, existsSync } from 'node:fs'
 
-// Partes do treino, na ordem em que são nadadas. "solto" é o nado de recuperação
-// entre a velocidade e a série principal. Os arquivos que ainda não existem
-// são ignorados.
-export const PARTS = ['aquecimento', 'velocidade', 'solto', 'principal', 'soltura']
+// Partes do treino. "solto" é o nado de recuperação entre a velocidade e a
+// série principal; "perna" entra nos treinos mais longos. A ordem de cada treino
+// vem das regras (regras.json). Os arquivos que ainda não existem são ignorados.
+export const PARTS = ['aquecimento', 'velocidade', 'solto', 'principal', 'perna', 'soltura']
 
 // "livre": o atleta escolhe (normalmente crawl).
 // "estilo": um estilo que não seja o crawl (o que o atleta nada melhor).

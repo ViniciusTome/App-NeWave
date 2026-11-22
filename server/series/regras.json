@@ -1,8 +1,22 @@
 {
   "niveis": {
-    "iniciante": { "partes": ["aquecimento", "principal", "solto"] },
-    "intermediario": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
-    "avancado": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] }
+    "iniciante": {
+      "estruturas": [
+        { "partes": ["aquecimento", "principal", "solto"] }
+      ]
+    },
+    "intermediario": {
+      "estruturas": [
+        { "ateMinutos": 50, "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
+        { "partes": ["aquecimento", "velocidade", "solto", "principal", "perna", "soltura"] }
+      ]
+    },
+    "avancado": {
+      "estruturas": [
+        { "ateMinutos": 50, "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
+        { "partes": ["aquecimento", "velocidade", "solto", "principal", "perna", "soltura"] }
+      ]
+    }
   },
   "material": {
     "velocidade": {
