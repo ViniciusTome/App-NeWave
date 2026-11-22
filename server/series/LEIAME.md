@@ -137,9 +137,40 @@ Toda série pode ser feita **sem equipamento**, e só aparece o material que o a
 
 As séries com `outrosNados` também podem sair em medley ou no estilo, **com ou sem material**, mas só com os estilos que o atleta marcou na anamnese:
 
-- `medley`: só para quem nada os quatro estilos.
-- `estilo`: uma opção para cada estilo que o atleta nada, entre borboleta, costas e peito.
+- `medley`: só para quem nada os quatro estilos. Sai de dois jeitos:
+  - **por repetição**: um 25 de cada estilo (`8 x 25 forte · medley`);
+  - **por série**, quando a série tem 4 séries (ou múltiplo): `(4x) 4 x 25 forte · 1ª série borboleta, 2ª série costas, 3ª série peito, 4ª série crawl`.
+- `estilo`: a série toda num estilo que o atleta nada (borboleta, costas ou peito). Se a série tem várias séries e o atleta nada mais de um estilo, os estilos também podem se alternar: `(4x) 4 x 25 forte · 1ª e 3ª séries costas, 2ª e 4ª séries peito`.
+
+Quando o nado e o material mudam juntos, o texto mostra série por série:
+`(4x) 4 x 25 forte · 1ª série borboleta com pé de pato, 2ª série costas com pé de pato + palmar, 3ª série peito com palmar, 4ª série crawl com palmar + pull buoy`.
 
 Hoje: `8 x 25`, `(2x) 8 x 25` e `16 x 25` podem ser medley; o `(4x) 4 x 25` pode ser medley ou estilo.
 
 Se uma série tiver `material` escrito no próprio JSON, ela é fixa e o gerador não muda.
+
+### Intervalo entre as séries
+
+```json
+"intervalos": {
+  "velocidade": {
+    "padrao": "saida",
+    "excecoes": [
+      { "fase": "realizacao", "segundos": 60 },
+      { "repeticoesPorSerie": 8, "segundos": 60 }
+    ]
+  }
+}
+```
+
+Entre as séries de um `(2x)`, `(4x)`... o intervalo é **uma saída da repetição**: se o atleta faz o 25 a cada 30", o intervalo é 30". As exceções aumentam:
+
+- **1 minuto** na fase de **Realização** do ATR (`"fase": "realizacao"`);
+- **1 minuto** entre séries de **8 x 25** (`"repeticoesPorSerie": 8`).
+
+As fases são `acumulacao`, `transicao` e `realizacao`.
+
+### A decidir
+
+- **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
+- **Saída do 25 forte de cada atleta**: como calcular a partir do ritmo dele.

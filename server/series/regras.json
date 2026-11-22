@@ -22,5 +22,14 @@
         ]
       }
     }
+  },
+  "intervalos": {
+    "velocidade": {
+      "padrao": "saida",
+      "excecoes": [
+        { "fase": "realizacao", "segundos": 60 },
+        { "repeticoesPorSerie": 8, "segundos": 60 }
+      ]
+    }
   }
 }

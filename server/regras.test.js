@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { loadPart, validate } from './series/index.js'
-import { loadRules, partsForLevel, seriesVariations, validateRules } from './series/regras.js'
+import { intervalBetweenSets, loadRules, partsForLevel, seriesVariations, validateRules } from './series/regras.js'
 
 const rules = loadRules()
 const velocidade = loadPart('velocidade')
@@ -127,6 +127,45 @@ test('medley precisa de repetições em múltiplo de 4', () => {
   assert.ok(invalid.some((p) => p.includes('"outrosNados"')))
 })
 
+test('(4x) 4 x 25 medley dos dois jeitos: por repetição e por série', () => {
+  const lista = textos('vel-4x4x25-forte', [], QUATRO_ESTILOS)
+  assert.ok(lista.includes('(4x) 4 x 25 forte · medley'))
+  assert.ok(lista.includes('(4x) 4 x 25 forte · 1ª série borboleta, 2ª série costas, 3ª série peito, 4ª série crawl'))
+  // Medley por série com o material da (4x): cada série com o seu estilo e o seu material
+  assert.ok(textos('vel-4x4x25-forte', TODO_MATERIAL, QUATRO_ESTILOS).includes(
+    '(4x) 4 x 25 forte · 1ª série borboleta com pé de pato, 2ª série costas com pé de pato + palmar, ' +
+      '3ª série peito com palmar, 4ª série crawl com palmar + pull buoy',
+  ))
+  // (2x) 8 x 25 não tem 4 séries: medley só por repetição
+  assert.ok(!textos('vel-2x8x25-forte', [], QUATRO_ESTILOS).some((t) => t.includes('borboleta')))
+})
+
+test('séries mais longas alternam os estilos do atleta entre as séries', () => {
+  const lista = textos('vel-4x4x25-forte', [], ['crawl', 'costas', 'peito'])
+  assert.ok(lista.includes('(4x) 4 x 25 forte · 1ª e 3ª séries costas, 2ª e 4ª séries peito'))
+  // Com material por série: "sem material" quando a série é nadando
+  const comPe = textos('vel-4x4x25-forte', ['pe_de_pato', 'palmar', 'pull_buoy'], ['crawl', 'costas', 'peito'])
+  assert.ok(comPe.includes(
+    '(4x) 4 x 25 forte · 1ª série costas com pé de pato, 2ª série peito com pé de pato + palmar, ' +
+      '3ª série costas com palmar, 4ª série peito com palmar + pull buoy',
+  ))
+  // Um estilo só: não tem o que alternar
+  assert.ok(!textos('vel-4x4x25-forte', [], ['crawl', 'costas']).some((t) => t.includes('séries')))
+})
+
+// ---------- Intervalo entre as séries ----------
+
+test('intervalo entre séries: uma saída do 25; 1 minuto na Realização ou entre séries de 8 x 25', () => {
+  const contexto = { fase: 'acumulacao', saidaSegundos: 30 }
+  assert.equal(intervalBetweenSets(rules, 'velocidade', serie('vel-2x4x25-forte'), contexto), 30)
+  assert.equal(intervalBetweenSets(rules, 'velocidade', serie('vel-4x4x25-forte'), contexto), 30)
+  assert.equal(intervalBetweenSets(rules, 'velocidade', serie('vel-2x8x25-forte'), contexto), 60)
+  const realizacao = { fase: 'realizacao', saidaSegundos: 30 }
+  assert.equal(intervalBetweenSets(rules, 'velocidade', serie('vel-2x4x25-forte'), realizacao), 60)
+  // Série sem "(2x)", "(4x)": não tem intervalo entre séries
+  assert.equal(intervalBetweenSets(rules, 'velocidade', serie('vel-8x25-forte'), contexto), null)
+})
+
 // ---------- Validação do arquivo de regras ----------
 
 test('a validação das regras aponta os erros', () => {
@@ -141,6 +180,10 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.material.velocidade.porSerie['4'] = [[['pe_de_pato'], ['nadadeira'], 'nadando', 'material']] }, 'lista de materiais'],
     [(r) => { r.material.velocidade.porSerie['1'] = [['material']] }, 'número de séries'],
     [(r) => { r.material.natacao = { opcoes: [['palmar']] } }, 'não é uma parte do treino'],
+    [(r) => { r.intervalos.velocidade.excecoes.push({ fase: 'polimento', segundos: 60 }) }, '"fase" precisa ser'],
+    [(r) => { r.intervalos.velocidade.excecoes.push({ fase: 'realizacao', repeticoesPorSerie: 8, segundos: 60 }) }, 'use uma condição'],
+    [(r) => { r.intervalos.velocidade.excecoes.push({ repeticoesPorSerie: 8, segundos: '1min' }) }, '"segundos"'],
+    [(r) => { r.intervalos.velocidade.padrao = 'fixo' }, 'padrao'],
   ]
   for (const [change, expected] of cases) {
     const broken = structuredClone(rules)

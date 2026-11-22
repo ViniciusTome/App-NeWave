@@ -9,6 +9,8 @@ import { readFileSync } from 'node:fs'
 import { MATERIAIS, PARTS } from './index.js'
 
 const NIVEIS = ['iniciante', 'intermediario', 'avancado']
+// Fases da periodização ATR: Acumulação, Transição, Realização
+export const FASES = ['acumulacao', 'transicao', 'realizacao']
 
 const NOMES = { pe_de_pato: 'pé de pato', palmar: 'palmar', prancha: 'prancha', pull_buoy: 'pull buoy', snorkel: 'snorkel' }
 const ORDINAIS = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª', '7ª', '8ª', '9ª', '10ª']
@@ -82,6 +84,34 @@ export function validateRules(rules) {
             })
         }
     }
+    for (const [parte, regra] of Object.entries(rules.intervalos ?? {})) {
+        const where = `intervalos.${parte}`
+        if (!PARTS.includes(parte)) {
+            problems.push(`${where}: "${parte}" não é uma parte do treino (${PARTS.join(', ')}).`)
+            continue
+        }
+        if (regra?.padrao !== 'saida') {
+            problems.push(`${where}.padrao: por enquanto só existe "saida" (o intervalo é uma saída da repetição).`)
+        }
+        ;(Array.isArray(regra?.excecoes) ? regra.excecoes : [null]).forEach((excecao, i) => {
+            const label = `${where}.excecoes, exceção ${i + 1}`
+            if (excecao === null || typeof excecao !== 'object') {
+                return problems.push(`${where}.excecoes precisa ser uma lista, ex.: [{ "fase": "realizacao", "segundos": 60 }].`)
+            }
+            const conditions = ['fase', 'repeticoesPorSerie'].filter((k) => excecao[k] !== undefined)
+            if (conditions.length !== 1) {
+                problems.push(`${label}: use uma condição, "fase" ou "repeticoesPorSerie".`)
+            } else if (excecao.fase !== undefined && !FASES.includes(excecao.fase)) {
+                problems.push(`${label}: "fase" precisa ser uma de: ${FASES.join(', ')}.`)
+            } else if (excecao.repeticoesPorSerie !== undefined &&
+                !(Number.isInteger(excecao.repeticoesPorSerie) && excecao.repeticoesPorSerie > 0)) {
+                problems.push(`${label}: "repeticoesPorSerie" precisa ser um número, ex.: 8.`)
+            }
+            if (!(Number.isInteger(excecao.segundos) && excecao.segundos >= 0 && excecao.segundos <= 600)) {
+                problems.push(`${label}: "segundos" precisa ser de 0 a 600.`)
+            }
+        })
+    }
     return problems
 }
 
@@ -104,36 +134,40 @@ export function loadRules(file = new URL('./regras.json', import.meta.url)) {
 // Partes do treino que o nível faz (ex.: iniciante não faz velocidade)
 export const partsForLevel = (rules, nivel) => rules.niveis[nivel].partes
 
-// "1ª série com pé de pato, 2ª série com pé de pato + palmar, 3ª e 4ª séries nadando".
-// Séries seguidas com o mesmo material são agrupadas, na ordem em que aparecem.
-function perSetText(series) {
+// Agrupa as séries que ficam iguais: "1ª e 3ª séries com palmar, 2ª e 4ª séries nadando"
+function groupSets(descriptions) {
     const groups = []
-    series.forEach((material, i) => {
-        const key = material.join('+')
-        const group = groups.find((g) => g.key === key)
+    descriptions.forEach((description, i) => {
+        const group = groups.find((g) => g.description === description)
         if (group) group.indexes.push(i)
-        else groups.push({ key, material, indexes: [i] })
+        else groups.push({ description, indexes: [i] })
     })
     return groups
-        .map(({ material, indexes }) => {
-            const what = material.length === 0 ? 'nadando' : `com ${materialText(material)}`
-            return `${listText(indexes)} ${indexes.length > 1 ? 'séries' : 'série'} ${what}`
-        })
+        .map(({ description, indexes }) =>
+            `${listText(indexes)} ${indexes.length > 1 ? 'séries' : 'série'} ${description}`)
         .join(', ')
 }
 
+// Número de séries de um bloco repetido ("(4x) 4 x 25" = 4). Séries com mais
+// de um bloco ou sem "vezes" contam como uma só.
+const setsOf = (serie) => (serie.blocos.length === 1 ? serie.blocos[0].vezes ?? 1 : 1)
+
+// Repete a lista até ter n itens: ["costas", "peito"] -> costas, peito, costas, peito
+const cycle = (list, n) => Array.from({ length: n }, (_, i) => list[i % list.length])
+
 // Formas de usar o material na série, com o que o atleta tem. Devolve
-// [{ padrao, material, series?, sufixo }]:
+// [{ padrao, material, series? }]:
 // - "sem_material": a série como está (sempre possível);
 // - "serie_inteira": a série toda com o mesmo material;
-// - "por_serie": muda entre as séries de "(2x)", "(4x)"... conforme os modelos;
+// - "por_serie": muda entre as séries de "(2x)", "(4x)"... conforme os modelos
+//   (`series` tem o material de cada série);
 // - "fixo": a série tem material escrito no próprio JSON, e o gerador não mexe.
 function materialOptions(rules, parte, serie, athleteEquipment) {
     if (serie.exige.material.length > 0) {
-        return [{ padrao: 'fixo', material: serie.exige.material, sufixo: '' }]
+        return [{ padrao: 'fixo', material: serie.exige.material }]
     }
 
-    const options = [{ padrao: 'sem_material', material: [], sufixo: '' }]
+    const options = [{ padrao: 'sem_material', material: [] }]
     const regra = rules.material[parte]
     if (!regra || serie.porSensacao) return options
 
@@ -141,20 +175,16 @@ function materialOptions(rules, parte, serie, athleteEquipment) {
     const hasAll = (material) => material.every((m) => has.has(m))
     const opcoes = regra.opcoes.filter(hasAll)
 
-    for (const opcao of opcoes) {
-        options.push({ padrao: 'serie_inteira', material: opcao, sufixo: `com ${materialText(opcao)}` })
-    }
+    for (const opcao of opcoes) options.push({ padrao: 'serie_inteira', material: opcao })
 
-    // Troca entre séries só existe com um bloco repetido ("vezes")
-    const vezes = serie.blocos.length === 1 ? serie.blocos[0].vezes ?? 1 : 1
-    for (const modelo of regra.porSerie?.[String(vezes)] ?? []) {
+    for (const modelo of regra.porSerie?.[String(setsOf(serie))] ?? []) {
         // Modelo com "material": um para cada opção. Modelo com listas fixas: um só.
         const usesOption = modelo.includes('material')
         for (const opcao of usesOption ? opcoes : [null]) {
             const series = modelo.map((m) => (m === 'material' ? opcao : m === 'nadando' ? [] : m))
             if (!series.every(hasAll)) continue
             const material = MATERIAIS.filter((m) => series.some((s) => s.includes(m)))
-            options.push({ padrao: 'por_serie', material, series, sufixo: perSetText(series) })
+            options.push({ padrao: 'por_serie', material, series })
         }
     }
     return options
@@ -163,37 +193,87 @@ function materialOptions(rules, parte, serie, athleteEquipment) {
 // ---------- Variações de nado ----------
 
 const ESTILOS = ['borboleta', 'costas', 'peito'] // "estilo" = qualquer um que não seja o crawl
-const QUATRO = ['crawl', 'costas', 'peito', 'borboleta']
+const ORDEM_MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
 
-// Nados possíveis para a série, com os estilos que o atleta nada.
-// A série como está ("livre") sempre entra; "medley" exige os quatro estilos;
-// "estilo" vira uma opção para cada estilo (borboleta, costas, peito) que ele nada.
+// Nados possíveis para a série, só com os estilos que o atleta marcou na anamnese:
+// - "livre": a série como está (sempre entra);
+// - "medley": cada repetição num estilo; e, com 4 séries (ou múltiplo),
+//   "medley_por_serie": 1ª série borboleta, 2ª costas, 3ª peito, 4ª crawl.
+//   Os dois exigem os quatro estilos;
+// - "estilo": a série toda num estilo (borboleta, costas ou peito) que ele nada; e,
+//   com várias séries e mais de um estilo, "estilos_por_serie": os estilos se alternam.
+// `nados` (quando existe) tem o nado de cada série.
 function strokeOptions(serie, athleteStrokes) {
     const has = new Set(athleteStrokes)
-    const options = [{ nado: 'livre', sufixo: '' }]
+    const sets = setsOf(serie)
+    const options = [{ nado: 'livre' }]
     for (const outro of serie.outrosNados) {
-        if (outro === 'medley' && QUATRO.every((s) => has.has(s))) {
-            options.push({ nado: 'medley', sufixo: 'medley' })
+        if (outro === 'medley' && ORDEM_MEDLEY.every((s) => has.has(s))) {
+            options.push({ nado: 'medley' })
+            if (sets % 4 === 0) options.push({ nado: 'medley_por_serie', nados: cycle(ORDEM_MEDLEY, sets) })
         }
         if (outro === 'estilo') {
-            for (const estilo of ESTILOS.filter((s) => has.has(s))) options.push({ nado: estilo, sufixo: estilo })
+            const estilos = ESTILOS.filter((s) => has.has(s))
+            for (const estilo of estilos) options.push({ nado: estilo })
+            if (sets > 1 && estilos.length > 1) {
+                options.push({ nado: 'estilos_por_serie', nados: cycle(estilos, sets) })
+            }
         }
     }
     return options
 }
 
+// Texto da variação. O que vale para a série toda vai depois do texto da série;
+// o que muda entre as séries vai junto, série por série:
+// "(4x) 4 x 25 forte · 1ª série borboleta com pé de pato, 2ª série costas com pé de pato + palmar, ..."
+function variationText(serie, stroke, option) {
+    const parts = [serie.texto]
+    if (!stroke.nados && stroke.nado !== 'livre') parts.push(stroke.nado)
+    if (option.padrao === 'serie_inteira') parts.push(`com ${materialText(option.material)}`)
+
+    if (stroke.nados || option.series) {
+        const sets = (stroke.nados ?? option.series).length
+        const descriptions = Array.from({ length: sets }, (_, i) => {
+            const nado = stroke.nados?.[i]
+            const material = option.series?.[i]
+            if (!material) return nado
+            if (material.length === 0) return nado ? `${nado} sem material` : 'nadando'
+            return [nado, `com ${materialText(material)}`].filter(Boolean).join(' ')
+        })
+        parts.push(groupSets(descriptions))
+    }
+    return parts.join(' · ')
+}
+
 // Todas as formas de nadar a série para esse atleta: cada nado possível
-// combinado com cada forma de usar o material. O texto já sai pronto, ex.:
-// "(4x) 4 x 25 forte · medley · 1ª série com pé de pato, 2ª série com pé de pato + palmar, ..."
+// combinado com cada forma de usar o material, com o texto pronto.
 // `serie` vem de describe() (index.js); `athlete` é { equipment, strokes } da anamnese.
 export function seriesVariations(rules, parte, serie, athlete) {
     const variations = []
     for (const stroke of strokeOptions(serie, athlete.strokes)) {
         for (const option of materialOptions(rules, parte, serie, athlete.equipment)) {
-            const { sufixo, ...materialInfo } = option
-            const texto = [serie.texto, stroke.sufixo, sufixo].filter(Boolean).join(' · ')
-            variations.push({ nado: stroke.nado, ...materialInfo, texto })
+            variations.push({ ...stroke, ...option, texto: variationText(serie, stroke, option) })
         }
     }
     return variations
+}
+
+// ---------- Intervalo entre as séries ----------
+
+// Segundos de intervalo entre as séries de um "(2x)", "(4x)"... (null se a série
+// não tem intervalo). Em geral é uma saída da repetição (se o atleta faz o 25 a
+// cada 30", o intervalo é 30"); as exceções das regras podem aumentar,
+// ex.: 1 minuto na fase de Realização ou entre séries de 8 x 25.
+// `contexto` = { fase, saidaSegundos }.
+export function intervalBetweenSets(rules, parte, serie, contexto) {
+    if (setsOf(serie) < 2) return null
+    const regra = rules.intervalos?.[parte]
+    let segundos = contexto.saidaSegundos
+    for (const excecao of regra?.excecoes ?? []) {
+        const vale = excecao.fase !== undefined
+            ? excecao.fase === contexto.fase
+            : excecao.repeticoesPorSerie === serie.blocos[0].repeticoes
+        if (vale) segundos = Math.max(segundos, excecao.segundos)
+    }
+    return segundos
 }
