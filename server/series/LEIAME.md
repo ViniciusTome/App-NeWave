@@ -35,6 +35,8 @@ Copie uma série parecida, mude o `id` e preencha:
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
 | `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"`, `"estilo"` (borboleta, costas ou peito) e/ou `"melhorEstiloEMedley"` (repetições alternando melhor estilo e medley), respeitando as provas de piscina (veja abaixo). |
 | `aulaAcimaDeMinutos` | Opcional. A série só entra em aulas mais longas que isso. Ex.: `90` = só acima de 1h30. |
+| `materialPorSerie` | Opcional, nas séries com `vezes`. O material de cada série. Ex.: `[[], ["pe_de_pato"]]` = 1ª série nadando, 2ª com pé de pato. |
+| `paraQuemNadaAte` | Opcional. A série só entra para quem nada até essa distância sem parar. Ex.: `100` = séries curtas (4 x 50, 8 x 25) para quem nada pouco. |
 | `peso` | Opcional. Frequência no sorteio: `1` é o normal (padrão), `0.25` sai bem menos (de vez em quando), `3` sai mais vezes. |
 | `porSensacao` + `duracaoMinutos` | Para séries sem metragem, como "aqueça até sentir o corpo aquecido". Aí `blocos` fica `[]`. |
 
@@ -167,7 +169,7 @@ O número escrito é uma sugestão: o gerador escolhe **quantas séries** o atle
 
 ### Não repetir a série no treino seguinte
 
-A mesma série **nunca aparece em dois treinos seguidos** no aquecimento, na velocidade, na série principal e na perna, mesmo com outra intensidade (ex.: 5 x 400 m A1/A2/A3 num dia e 5 x 400 m 30 AC no outro). O primeiro treino gerado também não repete as séries do último treino do atleta. Só repete quando não existe outra série que sirva para o atleta. As partes ficam em `naoRepetirNoTreinoSeguinte` no `regras.json`. O solto e a soltura podem repetir.
+A mesma série **nunca aparece em dois treinos seguidos** no aquecimento, na velocidade, na série principal e na perna, mesmo com outra intensidade ou outro material (ex.: 5 x 400 m A1/A2/A3 num dia e 5 x 400 m 30 AC no outro). Vale também para a série **como ela sai** depois de ajustar o número de séries: (2x) 10 x 50 e (3x) 10 x 50 reduzida para (2x) contam como a mesma. O primeiro treino gerado também não repete as séries do último treino do atleta. Só repete quando não existe outra série que sirva para o atleta. As partes ficam em `naoRepetirNoTreinoSeguinte` no `regras.json`. O solto e a soltura podem repetir.
 
 ### Tempo máximo do iniciante
 
@@ -415,6 +417,54 @@ Descanso padrão de cada repetição, em segundos, `[mínimo, máximo]`, por ní
 - Uma série com `descanso` escrito no bloco usa o que está escrito.
 - A velocidade usa a **saída** (veja o intervalo entre as séries), não esta tabela.
 
+### Quem nada até 100 m sem parar
+
+Fica em `quemNadaPouco` no `regras.json`.
+
+- **Só ritmo leve** (A1), sem velocidade: ele precisa de condicionamento primeiro. Nada de moderado, forte, AC, NEG ou POS.
+- **As séries da biblioteca são adaptadas** para a distância que ele aguenta: as repetições são divididas, com a mesma metragem. Ex.: (3x) 4 x 100 vira **(3x) 8 x 50**; 75 vira 3 x 25. Blocos iguais em seguida se juntam (2 x 100, 2 x 100 vira 4 x 100).
+- **Com pé de pato** ele aguenta uns **75 m** em ritmo leve: os 75 ficam, e a série vai com pé de pato.
+- Repetições acima de 200 m (400, 800...) não são adaptadas.
+- Para variar mais, o gerador evita as séries dos **últimos 4 treinos** (não só do anterior), sempre que outra serve no tempo da aula.
+
+### Condicionamento (quem não nada 400 m sem parar)
+
+Fica em `condicionamento` no `regras.json`.
+
+- **Não faz o teste de 400 m** (nem o de 1 mês, nem o da periodização) enquanto não nadar 400 m sem parar.
+- **A metragem da série principal aumenta devagar:** começa com 70% do tempo normal da principal e ganha 2% a cada treino, até 100%. O feedback pode frear ou acelerar (veja abaixo).
+- **Séries do condicionamento** (`pri-cond-...` na biblioteca, só para quem nada até 200 m sem parar): (2x) 4 x 75 com pé de pato e palmar; 8 x 25, (2x) 8 x 25, 16 x 25 e (4x) 4 x 25 (as de velocidade, sempre em ritmo leve); (2x) 1 x 100, 1 x 75, 1 x 50, 1 x 25 (1ª série nadando, 2ª com pé de pato); (2x) 1 x 100, 2 x 50; 4, 5 e 6 x 150 com pé de pato e palmar. A (3x) 4 x 50 já vem da (4x) 4 x 50.
+
+### Feedback do atleta
+
+Ao **concluir o treino**, o app pergunta:
+
+1. **Como foi a série principal?** de 1 (muito fácil) a 10 (muito difícil).
+2. **A partir de 8:** o que deixou mais difícil? **A respiração** (faltou ar) ou **a força** (os braços ficaram pesados).
+
+Vale para todos os níveis. A nota (e o motivo) aparece na página **Desempenho/Feedback**. Fica em `feedback` no `regras.json` (o 8 também está em `server/swimming.js`).
+
+**Como o feedback muda os treinos:** só depois de **3 treinos seguidos** fora do esperado (1 ou 2 podem ser do dia do atleta: dormiu mal, trabalhou muito, não comeu direito).
+
+- **Pesados:** os 3 com nota **8 ou mais**, sem o treino ser para isso (esforço esperado abaixo da nota). No **avançado**, que já está acostumado, só contam **9 e 10** (`pesadoAPartirDe`). Ao concluir o 3º, os **treinos já montados são refeitos**: 10% a menos de tempo na principal e os 2 primeiros sem A3. O atleta vê o aviso "ajustamos os próximos para você".
+- **Fáceis:** os 3 com nota 2 ou mais abaixo do esperado: refeitos com 10% a mais.
+- **Faltou ar (respiração):** ele tem força, falta condicionamento. A principal prefere **repetições curtas (até 50 m) com mais repetições** (ex.: no lugar de 3 x 4 x 50, 3 x 6 x 50, evoluindo para 3 x 8 x 50 ou 2 x 8 x 50).
+- **Faltou força:** ele precisa empurrar mais água. A principal prefere **palmar e palmar + pull buoy** (sem pé de pato).
+- Os mesmos 3 treinos não ajustam duas vezes. O tempo da principal fica entre 60% e 110%.
+
+### Periodização inteira de uma vez
+
+Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia da preparação até a **prova alvo** (sem prova, **8 semanas**). Fica em `periodizacao` no `regras.json`.
+
+- **Fases** (PROVISÓRIO, até você definir): **Acumulação 50%** do período, **Transição 30%**, **Realização 20%**. Cada fase já muda as regras que dependem dela (saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação).
+- **Teste de 400 m** no 1º treino da Transição (veja "Teste de 400 m na periodização").
+- **Plano interno de cada treino** (fica só no banco, o atleta não vê): número do treino, fase e semana da fase, intensidade, esforço esperado (ritmo leve/A1 = 4, A2 = 6, A3 = 8, teste = 9), metros e minutos da principal, tipo da principal (intensidades, AC, NEG, POS, final forte), se é dia de teste, se vem depois de um treino forte (recuperação), material da principal, tempo da principal, carga e foco do feedback.
+- Os treinos já feitos ficam como estão; os que ainda não foram feitos são refeitos quando o atleta gera de novo ou quando o feedback pede (3 seguidos).
+
+### Descanso mínimo para quem nada pouco
+
+Quem nada **até 400 m sem parar** descansa pelo menos **20 a 30 segundos** entre as repetições (20" no ritmo leve/A1, 25" no moderado/A2, 30" no forte/A3), mesmo que a tabela dê menos. Fica em `descansoMinimo` no `regras.json`. Não vale para o solto. A saída (cd) acompanha esse descanso.
+
 ### Intervalo entre as séries
 
 **Série principal:** toda série com `(2x)`, `(3x)`, `(4x)`... (inclusive os grupos repetidos) tem um intervalo maior entre as séries, para recuperar: **2'** para intermediário e avançado e **2' a 3'** para iniciante. Ele aparece no card ("2' de intervalo entre as séries").
@@ -464,20 +514,21 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), não dá para montar a saída:
 
 - No lugar do `cd`, o card mostra o **descanso entre as repetições** (`c/20" de descanso`), pela tabela de descanso.
+- No lugar de A1, A2 e A3 vai o ritmo por extenso, com o quanto do máximo: **ritmo leve (60-70% do seu máximo)**, **ritmo moderado (70-80%)** e **ritmo forte (80-85%)** (`semTempos` no `regras.json`; os % vêm das intensidades do nível).
 - Na velocidade, o intermediário fica com **1/1**. O avançado nos 25 m continua com cd 30".
 - Não usa **AC**, porque o atleta ainda não sabe o melhor tempo.
-- O **primeiro treino é o teste**: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir, séries **para recuperar** e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
+- **O teste vem depois de 1 mês de treino** (nunca no começo): é o primeiro treino a partir de 30 dias depois do primeiro treino do atleta (`diaDoTeste.semTemposAposDias`). O treino do teste tem: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir, séries **para recuperar** e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
 - **Para recuperar:** 10 x 100 m e/ou 10 x 50 m em **A1 com pé de pato** (sem pé de pato, nadando), as que couberem no resto da aula, da maior para a menor. Ficam em `diaDoTeste` no `regras.json`. A **técnica** também vai entrar aqui quando tiver as séries de técnica.
 - Quem só **informou** o tempo na anamnese não ganha o teste agora: ele entra na periodização (veja abaixo).
 
-### Teste de 400 m na periodização (a fazer, junto com o ATR)
+### Teste de 400 m na periodização
 
 Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m na troca da Acumulação (A) para a Transição (T)**. Não fica na Realização (R) porque lá está a prova alvo do atleta. Vale para todos, inclusive quem só informou o tempo na anamnese.
 
 - **Exceção:** se a prova alvo é **em piscina** (25 ou 50 m) e é **de 400 m**, o teste fica no **fim da Realização** (a própria prova).
-- **Só a partir da 2ª vez** que o atleta usa o "Gerar treinos". Na primeira periodização não tem esse teste.
+- **Quem só informou o tempo na anamnese:** o teste entra **a partir da 2ª vez** que o atleta usa o "Gerar treinos" (na primeira periodização, não). Quem já tem o teste de 400 m registrado faz o teste da periodização desde a primeira vez.
 - Isso é diferente do teste do primeiro treino de quem **não tem nenhum tempo** (veja acima), que continua valendo sempre.
-- A regra fica em `testeNaPeriodizacao` no `regras.json`; o gerador passa a usar quando as fases do ATR existirem.
+- A regra fica em `testeNaPeriodizacao` no `regras.json`. Quem não nada 400 m sem parar (condicionamento) não faz o teste.
 
 ### Como a série aparece no card
 

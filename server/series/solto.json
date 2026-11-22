@@ -10,5 +10,7 @@
     "texto": "200 solto",
     "observacao": "Pode ser feito com pull buoy.",
     "blocos": [{ "repeticoes": 1, "distancia": 200, "nado": "livre", "intensidade": "solto" }]
-  }
+  },
+  { "id": "solto-4x25", "texto": "4 x 25 solto", "observacao": "Pode ser feito com pull buoy.", "paraQuemNadaAte": 100, "blocos": [{ "repeticoes": 4, "distancia": 25, "nado": "livre", "intensidade": "solto" }] },
+  { "id": "solto-2x50", "texto": "2 x 50 solto", "observacao": "Pode ser feito com pull buoy.", "paraQuemNadaAte": 100, "blocos": [{ "repeticoes": 2, "distancia": 50, "nado": "livre", "intensidade": "solto" }] }
 ]

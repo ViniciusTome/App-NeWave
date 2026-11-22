@@ -125,20 +125,62 @@
     }
   },
   "testeNaPeriodizacao": {
-    "_comentario": "A FAZER com as fases do ATR. Teste de 400 m na troca da Acumulação para a Transição (na Realização está a prova alvo). Se a prova alvo é em piscina e de 400 m, o teste fica no fim da Realização. Só a partir da 2ª vez que o atleta usa o Gerar treinos.",
+    "_comentario": "Teste de 400 m na troca da Acumulação para a Transição (na Realização está a prova alvo). Se a prova alvo é em piscina e de 400 m, o teste fica no fim da Realização. Quem só informou o tempo na anamnese: só a partir da 2ª vez que usa o Gerar treinos (quem tem o teste registrado, desde a 1ª).",
     "quando": "inicio_transicao",
     "excecao": { "modalidades": ["piscina_25", "piscina_50"], "prova": "400", "quando": "fim_realizacao" },
-    "aPartirDaGeracao": 2
+    "aPartirDaGeracao": { "tempoInformado": 2, "tempoDoTeste": 1 }
+  },
+  "semTempos": {
+    "_comentario": "Sem tempos de referência (sem o teste de 400 m): o card mostra o ritmo por extenso no lugar de A1, A2 e A3.",
+    "nomes": { "A1": "ritmo leve", "A2": "ritmo moderado", "A3": "ritmo forte" }
+  },
+  "quemNadaPouco": {
+    "_comentario": "Quem nada até 'paraQuemNadaAte' metros sem parar: (1) as séries da biblioteca são adaptadas, dividindo as repetições na distância que ele aguenta (4 x 100 vira 8 x 50), até repetições de 'maiorRepeticao' m; com pé de pato ele aguenta até 'comPeDePato' m (os 75 ficam, com pé de pato); (2) só ritmo leve (A1), sem velocidade: precisa de condicionamento primeiro.",
+    "paraQuemNadaAte": 100,
+    "maiorRepeticao": 200,
+    "comPeDePato": 75,
+    "soRitmoLeve": true
+  },
+  "periodizacao": {
+    "_comentario": "Todos os treinos da periodização são gerados de uma vez: do dia da preparação até a prova alvo (sem prova: 'semanasSemProva' semanas). As fases dividem o período nessa proporção (PROVISÓRIO). Cada treino guarda um plano interno (fase, semana, intensidade, esforço esperado, volume, tipo da principal, teste, recuperação, material).",
+    "semanasSemProva": 8,
+    "fases": [["acumulacao", 0.5], ["transicao", 0.3], ["realizacao", 0.2]],
+    "maximoDeDias": 366
+  },
+  "condicionamento": {
+    "_comentario": "Quem não nada 400 m sem parar: não faz teste; a metragem da série principal vai aumentando devagar ('fatorInicial' do tempo da principal, + 'aumentoPorTreino' a cada treino, até 'fatorMaximo') até ele conseguir nadar 400 m sem parar.",
+    "paraQuemNadaMenosDe": 400,
+    "fatorInicial": 0.7,
+    "aumentoPorTreino": 0.02,
+    "fatorMaximo": 1
+  },
+  "feedback": {
+    "_comentario": "Ao concluir o treino o atleta diz a dificuldade da série principal (1 a 10). A partir de 'perguntarMotivoAPartirDe', pergunta se foi pela respiração ou pela força. O app compara com o esforço esperado (escondido do atleta). Se os últimos 'treinosEmSequencia' treinos seguidos tiveram nota de 'pesadoAPartirDe' ou mais (8; avançado, que já está acostumado, 9) sem o treino ser para isso, os treinos já montados são refeitos com 'ajusteDaPrincipal' a menos de tempo na principal (e sem A3 nos 2 primeiros); se foram 'diferencaParaFacil' ou mais abaixo do esperado, com mais. 1 ou 2 treinos fora do esperado não mudam nada (pode ser o dia do atleta). Respiração: séries de repetições curtas (até 50 m) com mais repetições. Força: mais palmar e palmar + pull buoy.",
+    "perguntarMotivoAPartirDe": 8,
+    "pesadoAPartirDe": { "padrao": 8, "avancado": 9 },
+    "motivos": ["respiracao", "forca"],
+    "esforcoEsperado": { "A1": 4, "A2": 6, "A3": 8, "teste": 9 },
+    "treinosEmSequencia": 3,
+    "diferencaParaFacil": 2,
+    "ajusteDaPrincipal": 0.1,
+    "fatorMinimo": 0.6,
+    "fatorMaximo": 1.1
+  },
+  "descansoMinimo": {
+    "_comentario": "Quem nada até 'paraQuemNadaAte' metros sem parar descansa pelo menos isso entre as repetições (20 a 30 segundos), mesmo que a tabela dê menos.",
+    "paraQuemNadaAte": 400,
+    "segundos": { "A1": 20, "A2": 25, "A3": 30, "outras": 20 }
   },
   "diaDoTeste": {
-    "_comentario": "Treino do teste de 400 m: aquecimento, teste, séries para recuperar (A1 com pé de pato) até completar a aula, e a soltura. Entram as que cabem, da maior para a menor. A técnica entra aqui quando tiver as séries de técnica.",
+    "_comentario": "Quem não tem tempo nenhum faz o teste depois de 'semTemposAposDias' dias de treino (nunca no começo). Treino do teste de 400 m: aquecimento, teste, séries para recuperar (A1 com pé de pato) até completar a aula, e a soltura. Entram as que cabem, da maior para a menor. A técnica entra aqui quando tiver as séries de técnica.",
     "completarCom": [
       { "id": "teste-rec-10x100", "texto": "10 x 100", "blocos": [{ "repeticoes": 10, "distancia": 100, "nado": "livre" }] },
       { "id": "teste-rec-10x50", "texto": "10 x 50", "blocos": [{ "repeticoes": 10, "distancia": 50, "nado": "livre" }] }
     ],
     "intensidade": "A1",
     "material": ["pe_de_pato"],
-    "minimoDeMinutos": 6
+    "minimoDeMinutos": 6,
+    "semTemposAposDias": 30
   },
   "seriesAjustaveis": {
     "_comentario": "Nas séries (2x), (3x), (4x)... o gerador escolhe quantas séries o atleta faz, para caber no tempo da aula: de 'minimo' até o número escrito + 'aumentarAte' do nível (sem passar de 'maximo'). O iniciante só diminui e pode fazer uma série só ('minimoPorNivel').",

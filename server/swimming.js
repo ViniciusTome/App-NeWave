@@ -9,6 +9,9 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const DAY_MS = 24 * 60 * 60 * 1000
 const MAX_PLAN_DAYS = 366 // até quanto tempo à frente dá para agendar um treino
 const MAX_UPCOMING = 50
+// Feedback ao concluir: dificuldade da série principal de 1 (muito fácil) a 10 (muito
+// difícil); a partir de 8, o motivo (o mesmo de server/series/regras.json, "feedback")
+export const FEEDBACK = { motivoAPartirDe: 8, motivos: ['respiracao', 'forca'] }
 
 // Aceita só datas reais (ex.: recusa 2026-02-30), a partir de 1900.
 function isRealDate(value) {
@@ -57,7 +60,24 @@ const publicTraining = (row) => ({
   completed: row.completed_at !== null,
   // Treinos gerados: as partes, na ordem (aquecimento, velocidade, ...)
   partes: row.parts ? JSON.parse(row.parts) : null,
+  // Feedback do atleta ao concluir (null quando não respondeu)
+  difficulty: row.difficulty ?? null,
+  difficultyReason: row.difficulty_reason ?? null,
 })
+
+// { difficulty?, reason? } do "Concluir treino"
+function readFeedback(body) {
+  if (body.difficulty === undefined || body.difficulty === null) return { difficulty: null, reason: null }
+  const { difficulty, reason } = body
+  if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 10) {
+    throw new HttpError(400, 'Diga de 1 a 10 como foi a série principal.')
+  }
+  if (difficulty < FEEDBACK.motivoAPartirDe) return { difficulty, reason: null }
+  if (!FEEDBACK.motivos.includes(reason)) {
+    throw new HttpError(400, 'Conte se foi difícil pela respiração ou pela força.')
+  }
+  return { difficulty, reason }
+}
 
 function parseId(value) {
   const id = Number(value)
@@ -65,7 +85,7 @@ function parseId(value) {
   return id
 }
 
-export function createSwimmingRoutes({ db, requireUser }) {
+export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = () => 0 }) {
   const listTests = db.prepare(`
     SELECT id, distance, time_hundredths, date FROM tests
     WHERE user_id = ? ORDER BY date, id
@@ -76,7 +96,8 @@ export function createSwimmingRoutes({ db, requireUser }) {
   `)
   const deleteTest = db.prepare('DELETE FROM tests WHERE id = ? AND user_id = ?')
 
-  const TRAINING_COLUMNS = 'id, date, title, warm_up, speed, main_series, release, notes, completed_at, parts'
+  const TRAINING_COLUMNS =
+    'id, date, title, warm_up, speed, main_series, release, notes, completed_at, parts, difficulty, difficulty_reason'
   // Histórico: treinos concluídos e treinos cuja data já passou
   const listHistory = db.prepare(`
     SELECT ${TRAINING_COLUMNS} FROM trainings
@@ -96,7 +117,8 @@ export function createSwimmingRoutes({ db, requireUser }) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   const completeTraining = db.prepare(`
-    UPDATE trainings SET completed_at = ? WHERE id = ? AND user_id = ? AND completed_at IS NULL
+    UPDATE trainings SET completed_at = ?, difficulty = ?, difficulty_reason = ?
+    WHERE id = ? AND user_id = ? AND completed_at IS NULL
   `)
 
   return {
@@ -162,15 +184,20 @@ export function createSwimmingRoutes({ db, requireUser }) {
     },
 
     // POST /api/trainings/:id/complete -> marca o treino como realizado
-    completeTraining(req, res, { id }) {
+    // POST /api/trainings/:id/complete  { difficulty?: 1-10, reason?: 'respiracao' | 'forca' }
+    async completeTraining(req, res, { id }) {
       const user = requireUser(req)
       const trainingId = parseId(id)
-      if (completeTraining.run(new Date().toISOString(), trainingId, user.id).changes === 0) {
+      const comCorpo = (req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')
+      const { difficulty, reason } = readFeedback(comCorpo ? await readJson(req) : {})
+      if (completeTraining.run(new Date().toISOString(), difficulty, reason, trainingId, user.id).changes === 0) {
         // Filtrar pelo usuário impede concluir o treino de outra pessoa
         if (!findTraining.get(trainingId, user.id)) throw new HttpError(404, 'Treino não encontrado.')
         throw new HttpError(409, 'Esse treino já foi concluído.')
       }
-      sendJson(res, 200, { training: publicTraining(findTraining.get(trainingId, user.id)) })
+      // 3 treinos seguidos fora do esperado: os próximos treinos são refeitos
+      const reformulados = difficulty !== null ? onTrainingCompleted(user.id) : 0
+      sendJson(res, 200, { training: publicTraining(findTraining.get(trainingId, user.id)), reformulados })
     },
 
     // POST /api/trainings  { date, title?, warmUp?, speed?, mainSeries?, release?, notes?, planned? }

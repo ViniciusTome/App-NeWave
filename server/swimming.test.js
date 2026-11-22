@@ -298,6 +298,42 @@ test('concluir um treino tira ele dos próximos e coloca no histórico', async (
   assert.equal(again.status, 409)
 })
 
+test('ao concluir, o atleta diz a dificuldade (1 a 10) e, a partir de 8, o motivo', async () => {
+  const caio = await signUpAndLogin('Caio Lima', 'caio@example.com')
+  const concluir = async (body) => {
+    const { body: criado } = await plan(caio, today(), 'Treino')
+    return api(`/api/trainings/${criado.training.id}/complete`, { method: 'POST', cookie: caio, body })
+  }
+  const leve = await concluir({ difficulty: 5 })
+  assert.equal(leve.status, 200)
+  assert.deepEqual([leve.body.training.difficulty, leve.body.training.difficultyReason], [5, null])
+  // Até 7 o motivo não fica guardado
+  const sete = await concluir({ difficulty: 7, reason: 'forca' })
+  assert.equal(sete.body.training.difficultyReason, null)
+  // A partir de 8: respiração ou força
+  const oito = await concluir({ difficulty: 8, reason: 'forca' })
+  assert.equal(oito.body.training.difficultyReason, 'forca')
+  assert.equal((await concluir({ difficulty: 8 })).status, 400)
+  const ar = await concluir({ difficulty: 9, reason: 'respiracao' })
+  assert.deepEqual([ar.body.training.difficulty, ar.body.training.difficultyReason], [9, 'respiracao'])
+  assert.equal((await concluir({ difficulty: 10 })).status, 400)
+  assert.equal((await concluir({ difficulty: 10, reason: 'cansaco' })).status, 400)
+  // Fora de 1 a 10
+  for (const difficulty of [0, 11, 5.5, '7']) assert.equal((await concluir({ difficulty })).status, 400)
+  // Sem responder também conclui
+  const semResposta = await concluir({})
+  assert.equal(semResposta.status, 200)
+  assert.equal(semResposta.body.training.difficulty, null)
+})
+
+test('o limite do motivo é o mesmo das regras do gerador', async () => {
+  const { FEEDBACK } = await import('./swimming.js')
+  const { loadRules } = await import('./series/regras.js')
+  const regras = loadRules().feedback
+  assert.equal(FEEDBACK.motivoAPartirDe, regras.perguntarMotivoAPartirDe)
+  assert.deepEqual(FEEDBACK.motivos, regras.motivos)
+})
+
 test('não deixa concluir o treino de outra pessoa', async () => {
   const { body } = await plan(bia, daysFromToday(2), 'Da Bia')
   const res = await api(`/api/trainings/${body.training.id}/complete`, { method: 'POST', cookie: ana })

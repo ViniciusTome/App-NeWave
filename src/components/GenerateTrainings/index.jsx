@@ -118,7 +118,7 @@ export const GenerateTrainings = ({ onClose }) => {
                 method: 'POST',
                 body: targetPayload(),
             })
-            // Primeira versão do gerador: monta os treinos das próximas duas semanas
+            // Monta todos os treinos da periodização (até a prova alvo; sem prova, 8 semanas)
             const generated = await api(`/trainings/generate?today=${today}`, { method: 'POST' })
             setSaved({ ...preparation, trainings: generated.trainings, replaced: generated.replaced })
             setPhase('pronto')
@@ -280,8 +280,8 @@ export const GenerateTrainings = ({ onClose }) => {
                 </button>
 
                 <p className={styles.hint}>
-                    Vamos montar os treinos das próximas duas semanas. Os treinos agendados que você ainda não
-                    fez serão substituídos pelos novos.
+                    Vamos montar todos os treinos da sua preparação: até a prova alvo ou, sem prova, das
+                    próximas 8 semanas. Os treinos agendados que você ainda não fez serão substituídos pelos novos.
                 </p>
 
                 {saveError && <p className={styles.error} role='alert'>{saveError}</p>}

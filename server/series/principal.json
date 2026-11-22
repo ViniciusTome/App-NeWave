@@ -278,5 +278,93 @@
     "blocos": [
       { "repeticoes": 5, "distancia": 300, "nado": "livre" }
     ]
+  },
+  {
+    "id": "pri-cond-2x4x75-pe-palmar",
+    "texto": "(2x) 4 x 75 com pé de pato e palmar",
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 4, "distancia": 75, "nado": "livre", "material": ["pe_de_pato", "palmar"], "vezes": 2 }
+    ]
+  },
+  {
+    "id": "pri-cond-8x25",
+    "texto": "8 x 25",
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 8, "distancia": 25, "nado": "livre", "intensidade": "A1" }
+    ]
+  },
+  {
+    "id": "pri-cond-2x8x25",
+    "texto": "(2x) 8 x 25",
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 8, "distancia": 25, "nado": "livre", "vezes": 2, "intensidade": "A1" }
+    ]
+  },
+  {
+    "id": "pri-cond-16x25",
+    "texto": "16 x 25",
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 16, "distancia": 25, "nado": "livre", "intensidade": "A1" }
+    ]
+  },
+  {
+    "id": "pri-cond-4x4x25",
+    "texto": "(4x) 4 x 25",
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 4, "distancia": 25, "nado": "livre", "vezes": 4, "intensidade": "A1" }
+    ]
+  },
+  {
+    "id": "pri-cond-2x-100-75-50-25",
+    "texto": "(2x) 1 x 100, 1 x 75, 1 x 50, 1 x 25",
+    "vezes": 2,
+    "paraQuemNadaAte": 200,
+    "materialPorSerie": [[], ["pe_de_pato"]],
+    "observacao": "1ª série nadando (você está mais descansado), 2ª com pé de pato.",
+    "blocos": [
+      { "repeticoes": 1, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 1, "distancia": 75, "nado": "livre" },
+      { "repeticoes": 1, "distancia": 50, "nado": "livre" },
+      { "repeticoes": 1, "distancia": 25, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-cond-2x-100-2x50",
+    "texto": "(2x) 1 x 100, 2 x 50",
+    "vezes": 2,
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 1, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 2, "distancia": 50, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-cond-4x150-pe-palmar",
+    "texto": "4 x 150 com pé de pato e palmar",
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 4, "distancia": 150, "nado": "livre", "material": ["pe_de_pato", "palmar"] }
+    ]
+  },
+  {
+    "id": "pri-cond-5x150-pe-palmar",
+    "texto": "5 x 150 com pé de pato e palmar",
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 5, "distancia": 150, "nado": "livre", "material": ["pe_de_pato", "palmar"] }
+    ]
+  },
+  {
+    "id": "pri-cond-6x150-pe-palmar",
+    "texto": "6 x 150 com pé de pato e palmar",
+    "paraQuemNadaAte": 200,
+    "blocos": [
+      { "repeticoes": 6, "distancia": 150, "nado": "livre", "material": ["pe_de_pato", "palmar"] }
+    ]
   }
 ]

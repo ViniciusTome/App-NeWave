@@ -41,5 +41,9 @@
     "porSensacao": true,
     "duracaoMinutos": 15,
     "blocos": []
-  }
+  },
+  { "id": "aq-4x25-livre", "texto": "4 x 25 livre", "paraQuemNadaAte": 100, "blocos": [{ "repeticoes": 4, "distancia": 25, "nado": "livre", "intensidade": "A1" }] },
+  { "id": "aq-4x50-livre", "texto": "4 x 50 livre", "paraQuemNadaAte": 100, "blocos": [{ "repeticoes": 4, "distancia": 50, "nado": "livre", "intensidade": "A1" }] },
+  { "id": "aq-8x25-livre", "texto": "8 x 25 livre", "paraQuemNadaAte": 100, "blocos": [{ "repeticoes": 8, "distancia": 25, "nado": "livre", "intensidade": "A1" }] },
+  { "id": "aq-6x50-livre", "texto": "6 x 50 livre", "paraQuemNadaAte": 100, "blocos": [{ "repeticoes": 6, "distancia": 50, "nado": "livre", "intensidade": "A1" }] }
 ]

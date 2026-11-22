@@ -133,6 +133,11 @@ export function openDatabase(path) {
   // Treinos gerados guardam as partes (JSON); bancos antigos não têm a coluna
   const trainingCols = db.prepare('PRAGMA table_info(trainings)').all().map((col) => col.name)
   if (!trainingCols.includes('parts')) db.exec('ALTER TABLE trainings ADD COLUMN parts TEXT')
+  // Feedback ao concluir (dificuldade 1 a 10 e o motivo) e o plano interno do treino
+  // gerado (esforço esperado, fase...), que o atleta não vê
+  if (!trainingCols.includes('difficulty')) db.exec('ALTER TABLE trainings ADD COLUMN difficulty INTEGER')
+  if (!trainingCols.includes('difficulty_reason')) db.exec('ALTER TABLE trainings ADD COLUMN difficulty_reason TEXT')
+  if (!trainingCols.includes('plan')) db.exec('ALTER TABLE trainings ADD COLUMN plan TEXT')
 
   // Pergunta "Qual é o seu melhor estilo?" chegou depois: bancos antigos não têm a coluna
   const profileColumns = db.prepare('PRAGMA table_info(athlete_profiles)').all().map((col) => col.name)

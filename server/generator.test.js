@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, bestTimeFor, cardText, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, periodPhases, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -88,7 +88,11 @@ for (const [nome, athlete] of casos) {
           const serie = serieById(parte.serieId)
           // Distância sem parar, piscina, material e tempo de aula
           const semParar = { '100_200': 100, '400_1000': 400, mais_2000: 2000 }[athlete.continuousDistance]
-          assert.ok(serie.maiorDistancia <= semParar, `${parte.texto}: passa da distância sem parar`)
+          // A série como saiu (adaptada para quem nada pouco: 1 x 200 vira 2 x 100); com pé de pato, até 75 m
+          const repeticoes = [...(parte.serieTexto ?? '').matchAll(/x (\d+)/g)].map((m) => Number(m[1]))
+          const maior = repeticoes.length > 0 ? Math.max(...repeticoes) : serie.maiorDistancia
+          const limite = parte.material?.includes('pe_de_pato') ? Math.max(semParar, 75) : semParar
+          assert.ok(maior <= limite, `${parte.texto}: passa da distância sem parar`)
           assert.ok(serie.piscinas.includes(athlete.poolLength), `${parte.texto}: não fecha na piscina`)
           assert.ok(parte.material.every((m) => athlete.equipment.includes(m)), `${parte.texto}: material que não tem`)
           if (serie.aulaAcimaDeMinutos) assert.ok(athlete.sessionMinutes > serie.aulaAcimaDeMinutos)
@@ -211,10 +215,13 @@ test('nos treinos gerados, as séries com várias metragens têm uma por linha',
     for (let seed = 1; seed <= 6; seed++) {
       for (const parte of gerar(athlete, seed).flatMap((t) => t.partes).filter((x) => x.serieId)) {
         const serie = serieById(parte.serieId)
-        if (!serie || serie.blocos.length < 2) continue // as do dia do teste não estão na biblioteca
+        if (!serie) continue // as do dia do teste não estão na biblioteca
+        // Os blocos da série como saiu (adaptada para quem nada pouco, pode ter menos)
+        const blocos = parte.serieTexto ? (parte.serieTexto.match(/\d+ x \d+/g) ?? []).length : serie.blocos.length
+        if (blocos < 2) continue
         vistas++
         const linhas = parte.texto.split('\n').filter((l) => /^\d+ x \d+ m/.test(l))
-        assert.equal(linhas.length, serie.blocos.length, parte.texto)
+        assert.equal(linhas.length, blocos, parte.texto)
       }
     }
   }
@@ -473,11 +480,13 @@ test('rota: gera, salva no carrossel e substitui os agendados que não foram fei
 
   const first = await api(`/api/trainings/generate?today=${today}`, { method: 'POST', cookie })
   assert.equal(first.status, 201)
-  assert.equal(first.body.trainings.length, 6)
+  // Sem prova alvo: a periodização inteira de 8 semanas, 3 treinos por semana
+  const total = rules.periodizacao.semanasSemProva * profile.trainingDays.length
+  assert.equal(first.body.trainings.length, total)
   assert.equal(first.body.replaced, 0)
 
   const upcoming = await api(`/api/trainings/upcoming?today=${today}`, { cookie })
-  assert.equal(upcoming.body.trainings.length, 6)
+  assert.equal(upcoming.body.trainings.length, total)
   const [primeiro] = upcoming.body.trainings
   assert.equal(primeiro.date, today)
   assert.ok(Array.isArray(primeiro.partes) && primeiro.partes.length > 0)
@@ -488,12 +497,12 @@ test('rota: gera, salva no carrossel e substitui os agendados que não foram fei
   // Conclui um treino e gera de novo: o concluído fica; os outros são trocados
   await api(`/api/trainings/${primeiro.id}/complete`, { method: 'POST', cookie })
   const again = await api(`/api/trainings/generate?today=${today}`, { method: 'POST', cookie })
-  assert.equal(again.body.replaced, 5)
+  assert.equal(again.body.replaced, total - 1)
   const history = await api(`/api/trainings?today=${today}`, { cookie })
   assert.deepEqual(history.body.trainings.map((t) => t.id), [primeiro.id])
   // O dia do treino concluído não ganha outro treino
   const depois = await api(`/api/trainings/upcoming?today=${today}`, { cookie })
-  assert.equal(depois.body.trainings.length, 5)
+  assert.equal(depois.body.trainings.length, total - 1)
   assert.ok(!depois.body.trainings.some((t) => t.date === today))
 })
 
@@ -618,13 +627,19 @@ test('iniciante com equipamento: aviso para descansar o intervalo', () => {
 
 test('a mesma série nunca se repete de um treino para o seguinte', () => {
   const partes = rules.naoRepetirNoTreinoSeguinte.partes
-  for (const athlete of [avancado, { ...avancado, sessionMinutes: 90 }, { ...avancado, sessionMinutes: 45 }]) {
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '50_100',
+    strokes: ['crawl'], equipment: ['pe_de_pato'], time400: null,
+  }
+  for (const athlete of [avancado, { ...avancado, sessionMinutes: 90 }, { ...avancado, sessionMinutes: 45 }, iniciante]) {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const treinos = gerar(athlete, seed)
       treinos.slice(1).forEach((t, i) => {
-        const antes = new Set(treinos[i].partes.filter((p) => partes.includes(p.parte)).map((p) => p.serieId))
+        const antes = treinos[i].partes.filter((p) => partes.includes(p.parte))
         for (const p of t.partes.filter((x) => partes.includes(x.parte))) {
-          assert.ok(!antes.has(p.serieId), `${p.serieId} repetiu em ${treinos[i].date} e ${t.date}`)
+          assert.ok(!antes.some((a) => a.serieId === p.serieId), `${p.serieId} repetiu em ${treinos[i].date} e ${t.date}`)
+          // Nem a mesma série escrita igual (ex.: (4x) 4 x 50 e (6x) 4 x 50 reduzidas para (3x) 4 x 50)
+          assert.ok(!antes.some((a) => a.serieTexto === p.serieTexto), `${p.serieTexto} repetiu em ${treinos[i].date} e ${t.date}`)
         }
       })
     }
@@ -694,34 +709,245 @@ const semTempo = {
   ...avancado, level: 'intermediario', sessionMinutes: 60, continuousDistance: '400_1000', time400: null,
 }
 
-test('sem tempos de referência: o primeiro treino é o teste de 400 m', () => {
-  const [primeiro, segundo] = gerar(semTempo)
+test('sem tempos de referência: o teste de 400 m só depois de 1 mês de treino', () => {
+  // Começando agora: nenhum teste nas duas primeiras semanas
+  assert.ok(!gerar(semTempo).some((t) => t.partes.some((p) => p.parte === 'teste')))
+  // Treinando desde 01/11: o teste é o primeiro treino a partir de 01/12
+  const treinos = generateTrainings({
+    rules, library, athlete: semTempo, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-11-01',
+  })
+  const comTeste = treinos.filter((t) => t.partes.some((p) => p.parte === 'teste'))
+  assert.equal(comTeste.length, 1)
+  assert.equal(comTeste[0].date, '2026-12-02')
+  const primeiro = comTeste[0]
   const ordem = primeiro.partes.map((p) => p.parte)
   assert.deepEqual([ordem[0], ordem[1], ordem.at(-1)], ['aquecimento', 'teste', 'soltura'])
-  // O resto da aula: séries em A1 com pé de pato para recuperar
-  const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
-  assert.ok(recuperar.length > 0)
-  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · A1/)
-  assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
   const teste = primeiro.partes.find((p) => p.parte === 'teste')
   assert.equal(teste.titulo, 'Teste de 400 m')
   assert.match(teste.observacao, /registre o tempo/)
-  assert.ok(!segundo.partes.some((p) => p.parte === 'teste'))
-  // Quem não nada 400 sem parar pode parar na borda
-  const iniciante = { ...semTempo, level: 'iniciante', continuousDistance: '100_200', strokes: ['crawl'] }
-  assert.match(gerar(iniciante)[0].partes.find((p) => p.parte === 'teste').texto, /pode parar na borda/)
+  // O resto da aula: séries com pé de pato em ritmo leve para recuperar
+  const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
+  assert.ok(recuperar.length > 0)
+  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · ritmo leve/)
+  assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
+  // Quem não nada 400 m sem parar não faz o teste (condicionamento)
+  for (const continuousDistance of ['ate_50', '100_200', '200_400']) {
+    const iniciante = { ...semTempo, level: 'iniciante', continuousDistance, strokes: ['crawl'] }
+    const treinosIniciante = generateTrainings({
+      rules, library, athlete: iniciante, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-01-01',
+    })
+    assert.ok(!treinosIniciante.some((t) => t.partes.some((p) => p.parte === 'teste')), continuousDistance)
+  }
   // Com o tempo, não há teste
-  assert.ok(!gerar(avancado).some((t) => t.partes.some((p) => p.parte === 'teste')))
+  const comTempo = generateTrainings({
+    rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-01-01',
+  })
+  assert.ok(!comTempo.some((t) => t.partes.some((p) => p.parte === 'teste')))
 })
 
 test('sem tempos de referência: o descanso entre as repetições no lugar da saída', () => {
   const textos = [1, 2, 3, 4, 5].flatMap((seed) => semTeste(gerar(semTempo, seed)))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'principal' && p.intensidades).map((p) => p.texto))
   assert.ok(textos.length > 0)
-  for (const t of textos) assert.ok(!/cd \d/.test(t) && !/AC\)/.test(t), t)
+  for (const t of textos) assert.ok(!/cd \d/.test(t) && !/AC\)/.test(t) && !/\bA[123]\b/.test(t), t)
+  assert.ok(textos.some((t) => /ritmo (leve|moderado|forte)/.test(t)), textos.join('\n'))
   assert.ok(textos.some((t) => /c\/\d+"? de descanso|c\/\d+' de descanso/.test(t)), textos.join('\n'))
   // Velocidade do intermediário: 1/1
   const velocidade = [1, 2, 3].flatMap((seed) => semTeste(gerar(semTempo, seed)))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
   assert.ok(velocidade.every((t) => /1\/1/.test(t)), velocidade.join('\n'))
+})
+
+test('quem nada até 400 m sem parar descansa pelo menos 20 a 30 segundos', () => {
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '200_400',
+    strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar'], time400: null,
+  }
+  const descansos = [1, 2, 3, 4].flatMap((seed) => gerar(iniciante, seed)).flatMap((t) => t.partes)
+    .flatMap((p) => [...p.texto.matchAll(/c\/(\d+)" de descanso/g)].map((m) => Number(m[1])))
+  assert.ok(descansos.length > 0)
+  for (const d of descansos) assert.ok(d >= 20, `${d}"`)
+})
+
+test('quem nada só 50 ou 100 m sem parar também tem aquecimento e soltura', () => {
+  for (const continuousDistance of ['ate_50', '50_100']) {
+    for (const poolLength of [25, 50]) {
+      const athlete = {
+        level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength, continuousDistance,
+        strokes: ['crawl'], equipment: [], time400: null,
+      }
+      for (const t of gerar(athlete)) {
+        const partes = t.partes.map((p) => p.parte)
+        assert.ok(partes.includes('aquecimento') && partes.includes('solto'), `${continuousDistance} ${poolLength}: ${partes}`)
+      }
+    }
+  }
+})
+
+// ---------- Quem nada pouco sem parar ----------
+
+test('quem nada só 50 m: as séries são adaptadas (4 x 100 vira 8 x 50; com pé de pato os 75 ficam)', () => {
+  const semPe = { level: 'iniciante', continuousDistance: 'ate_50', equipment: [] }
+  const comPe = { ...semPe, equipment: ['pe_de_pato'] }
+  const a = adaptToDistance(rules, serieById('pri-3x4x100'), semPe)
+  assert.equal(a.texto, '(3x) 8 x 50')
+  assert.equal(a.volume, serieById('pri-3x4x100').volume)
+  // 75 sem pé de pato vira 3 x 25; com pé de pato fica 75 (e a série exige pé de pato)
+  assert.equal(adaptToDistance(rules, serieById('pri-4x4x75'), semPe).texto, '(4x) 12 x 25')
+  const com75 = adaptToDistance(rules, serieById('pri-4x4x75'), comPe)
+  assert.equal(com75.texto, '(4x) 4 x 75')
+  assert.equal(com75.exigePe, 75)
+  // Repetições muito longas (400, 800) não são adaptadas
+  assert.equal(adaptToDistance(rules, serieById('pri-3x800'), semPe), null)
+  // Quem aguenta, fica como está
+  assert.equal(adaptToDistance(rules, serieById('pri-3x4x100'), { ...semPe, continuousDistance: '400_1000' }).texto, '(3x) 4 x 100')
+})
+
+test('quem nada até 100 m sem parar: só ritmo leve e sem velocidade; mais variedade de séries', () => {
+  for (const [continuousDistance, time400] of [['ate_50', null], ['50_100', { hundredths: 54000 }], ['100_200', null]]) {
+    const athlete = {
+      level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 2, 3, 4, 5], poolLength: 25, continuousDistance,
+      strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar'], time400,
+    }
+    const treinos = gerar(athlete)
+    const principais = treinos.map((t) => t.partes.find((p) => p.parte === 'principal'))
+    for (const p of principais) {
+      assert.deepEqual(p.intensidades.valores, ['A1'], p.texto)
+      assert.ok(!/A[23]|moderado|forte|AC|NEG|POS/.test(p.texto), p.texto)
+      if (!time400) assert.match(p.texto, /ritmo leve \(60-70% do seu máximo\)/)
+    }
+    assert.ok(treinos.every((t) => !t.partes.some((p) => p.parte === 'velocidade')))
+    assert.ok(new Set(principais.map((p) => p.serieTexto)).size >= 4, `${continuousDistance}: pouca variedade`)
+  }
+})
+
+// ---------- Condicionamento e feedback ----------
+
+const condicionando = {
+  level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '200_400',
+  strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar', 'pull_buoy'], time400: null,
+}
+const fatores = (treinos) => treinos.map((t) => t.plano.fatorPrincipal)
+
+test('condicionamento: a metragem da principal aumenta devagar, treino a treino', () => {
+  const treinos = gerar(condicionando)
+  const f = fatores(treinos)
+  assert.equal(f[0], rules.condicionamento.fatorInicial)
+  for (let i = 1; i < f.length; i++) assert.ok(f[i] >= f[i - 1] && f[i] <= rules.condicionamento.fatorMaximo)
+  assert.ok(treinos.every((t) => t.plano.condicionamento))
+  // Quem nada 400 m sem parar não está no condicionamento
+  assert.ok(gerar(avancado).every((t) => !t.plano.condicionamento && t.plano.fatorPrincipal === 1))
+})
+
+test('plano interno: esforço esperado de cada treino (o atleta não vê no card)', () => {
+  for (const t of gerar(avancado)) {
+    assert.ok([4, 6, 8].includes(t.plano.esforcoEsperado), `${t.plano.esforcoEsperado}`)
+    assert.ok(t.partes.every((p) => !JSON.stringify(p).includes('esforcoEsperado')))
+  }
+  // Condicionamento: só ritmo leve
+  assert.ok(gerar({ ...condicionando, continuousDistance: '50_100' }).every((t) => t.plano.esforcoEsperado === 4))
+})
+
+test('feedback: só ajusta com 3 treinos seguidos fora do esperado', () => {
+  const plano = { esforcoEsperado: 4, fatorPrincipal: 0.8 }
+  const feitos = (...notas) => notas.map((difficulty) => ({ difficulty, reason: 'respiracao', plan: plano }))
+  // 1 ou 2 treinos pesados não mudam nada (pode ser o dia do atleta)
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 9)).carga, 0)
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 9, 5)).carga, 0)
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 5, 9)).carga, 0)
+  // 3 seguidos com 8 ou mais, num treino que não era para isso: diminui
+  const pesado = feedbackAdjustment(rules, condicionando, feitos(5, 8, 9, 10))
+  assert.deepEqual([pesado.carga, pesado.fatorPrincipal, pesado.foco], [-1, 0.7, 'respiracao'])
+  // Avançado já está acostumado: 8 não conta, só 9 e 10
+  const moderado = { esforcoEsperado: 6, fatorPrincipal: 1 }
+  const doAvancado = (...notas) => feedbackAdjustment(rules, avancado, notas.map((difficulty) => ({ difficulty, plan: moderado })))
+  assert.equal(doAvancado(8, 8, 8).carga, 0)
+  assert.equal(doAvancado(8, 9, 9).carga, 0)
+  assert.equal(doAvancado(9, 10, 9).carga, -1)
+  assert.equal(feedbackAdjustment(rules, { ...avancado, level: 'intermediario' }, [8, 8, 8].map((difficulty) => ({ difficulty, plan: moderado }))).carga, -1)
+  // Treino que era para ser forte (esperado 8) com nota 8: está certo
+  const forte = { esforcoEsperado: 8, fatorPrincipal: 1 }
+  assert.equal(feedbackAdjustment(rules, avancado, [8, 9, 8].map((difficulty) => ({ difficulty, plan: forte }))).carga, 0)
+  // 3 seguidos fáceis demais: aumenta
+  const facil = feedbackAdjustment(rules, condicionando, feitos(1, 2, 2))
+  assert.deepEqual([facil.carga, facil.fatorPrincipal], [1, 0.9])
+  // Já ajustado (o próximo treino montado já tem a carga menor): não ajusta de novo
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 9, 9), 0.7).carga, 0)
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 9, 9), 0.7).fatorPrincipal, 0.7)
+  // Sem histórico: o começo do condicionamento; para os outros, o tempo normal
+  assert.equal(feedbackAdjustment(rules, condicionando, []).fatorPrincipal, rules.condicionamento.fatorInicial)
+  assert.equal(feedbackAdjustment(rules, avancado, []).fatorPrincipal, 1)
+  // O foco é o motivo que mais apareceu
+  const forca = [
+    { difficulty: 9, reason: 'forca', plan: plano }, { difficulty: 8, reason: 'respiracao', plan: plano },
+    { difficulty: 9, reason: 'forca', plan: plano },
+  ]
+  assert.equal(feedbackAdjustment(rules, condicionando, forca).foco, 'forca')
+})
+
+test('feedback: os próximos treinos menores; sem A3 nos 2 primeiros quando foi pesado demais', () => {
+  const historico = [9, 9, 10].map((difficulty) => ({ difficulty, plan: { esforcoEsperado: 6, fatorPrincipal: 1 } }))
+  // (avançado: 3 seguidos com 9 ou mais num treino que era para ser moderado)
+  const treinos = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), historico })
+  assert.ok(treinos.every((t) => t.plano.fatorPrincipal === 0.9 && t.plano.carga === -1))
+  for (const t of treinos.slice(0, 2)) assert.notEqual(t.plano.intensidade, 'A3')
+  const normais = gerar(avancado)
+  const metros = (ts) => ts.reduce((s, t) => s + t.plano.metrosPrincipal, 0)
+  assert.ok(metros(treinos) < metros(normais), `${metros(treinos)} >= ${metros(normais)}`)
+})
+
+test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () => {
+  const plano = { esforcoEsperado: 4, fatorPrincipal: 0.8 }
+  const comFoco = (reason) => [1, 2, 3, 4].flatMap((seed) => generateTrainings({
+    rules, library, athlete: condicionando, today: '2026-11-23', random: seeded(seed),
+    historico: [9, 9, 9].map((difficulty) => ({ difficulty, reason, plan: plano })),
+  })).map((t) => t.partes.find((p) => p.parte === 'principal'))
+  const curtas = (ps) => ps.filter((p) => Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) <= 50).length
+  const palmar = (ps) => ps.filter((p) => p.material.includes('palmar') && !p.material.includes('pe_de_pato')).length
+  const ar = comFoco('respiracao')
+  const forca = comFoco('forca')
+  assert.ok(curtas(ar) > curtas(forca), `curtas ${curtas(ar)} x ${curtas(forca)}`)
+  assert.ok(palmar(forca) > palmar(ar), `palmar ${palmar(forca)} x ${palmar(ar)}`)
+})
+
+// ---------- Periodização inteira ----------
+
+test('periodização: fases na proporção das regras, com a semana de cada fase', () => {
+  const faseDe = periodPhases(rules, '2026-01-01', '2026-03-31') // 90 dias: 45 A, 27 T, 18 R
+  assert.deepEqual(faseDe('2026-01-01'), { fase: 'acumulacao', semanaDaFase: 1 })
+  assert.deepEqual(faseDe('2026-01-08'), { fase: 'acumulacao', semanaDaFase: 2 })
+  assert.equal(faseDe('2026-02-14').fase, 'acumulacao')
+  assert.deepEqual(faseDe('2026-02-15'), { fase: 'transicao', semanaDaFase: 1 })
+  assert.deepEqual(faseDe('2026-03-14'), { fase: 'realizacao', semanaDaFase: 1 })
+  assert.equal(faseDe('2026-03-31').fase, 'realizacao')
+})
+
+test('periodização: gera todos os treinos até a prova, com o plano de cada um', () => {
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-01-31', testeNaTransicao: true, numeroInicial: 1 }
+  const treinos = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), periodizacao })
+  // Seg, qua e sex de 23/11 a 31/01
+  assert.equal(treinos.length, trainingDates('2026-11-23', [1, 3, 5], 70).length)
+  assert.equal(treinos.at(-1).date <= '2027-01-31', true)
+  assert.deepEqual(treinos.map((t) => t.plano.numero), treinos.map((_, i) => i + 1))
+  const fases = treinos.map((t) => t.plano.fase)
+  assert.deepEqual([...new Set(fases)], ['acumulacao', 'transicao', 'realizacao'])
+  for (const t of treinos) {
+    for (const campo of ['semanaDaFase', 'intensidade', 'esforcoEsperado', 'metrosPrincipal', 'tipoPrincipal', 'diaDeTeste', 'recuperacao', 'material']) {
+      assert.ok(t.plano[campo] !== undefined, campo)
+    }
+  }
+  // Um teste só: o 1º treino da Transição
+  const testes = treinos.filter((t) => t.plano.diaDeTeste)
+  assert.equal(testes.length, 1)
+  assert.equal(testes[0], treinos.find((t) => t.plano.fase === 'transicao'))
+  // Sem permissão para o teste (ex.: só informou o tempo, 1ª vez): nenhum
+  const semTeste = generateTrainings({
+    rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), periodizacao: { ...periodizacao, testeNaTransicao: false },
+  })
+  assert.ok(semTeste.every((t) => !t.plano.diaDeTeste))
+  // Condicionamento (não nada 400 m): nunca tem teste
+  const cond = generateTrainings({
+    rules, library, athlete: { ...condicionando, time400: { hundredths: 54000 } }, today: '2026-11-23', random: seeded(1), periodizacao,
+  })
+  assert.ok(cond.every((t) => !t.plano.diaDeTeste))
 })
