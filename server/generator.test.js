@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, bestTimeFor, cardText, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, bestTimeFor, cardText, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -88,7 +88,11 @@ for (const [nome, athlete] of casos) {
           const serie = serieById(parte.serieId)
           // Distância sem parar, piscina, material e tempo de aula
           const semParar = { '100_200': 100, '400_1000': 400, mais_2000: 2000 }[athlete.continuousDistance]
-          assert.ok(serie.maiorDistancia <= semParar, `${parte.texto}: passa da distância sem parar`)
+          // A série como saiu (adaptada para quem nada pouco: 1 x 200 vira 2 x 100); com pé de pato, até 75 m
+          const repeticoes = [...(parte.serieTexto ?? '').matchAll(/x (\d+)/g)].map((m) => Number(m[1]))
+          const maior = repeticoes.length > 0 ? Math.max(...repeticoes) : serie.maiorDistancia
+          const limite = parte.material?.includes('pe_de_pato') ? Math.max(semParar, 75) : semParar
+          assert.ok(maior <= limite, `${parte.texto}: passa da distância sem parar`)
           assert.ok(serie.piscinas.includes(athlete.poolLength), `${parte.texto}: não fecha na piscina`)
           assert.ok(parte.material.every((m) => athlete.equipment.includes(m)), `${parte.texto}: material que não tem`)
           if (serie.aulaAcimaDeMinutos) assert.ok(athlete.sessionMinutes > serie.aulaAcimaDeMinutos)
@@ -211,10 +215,13 @@ test('nos treinos gerados, as séries com várias metragens têm uma por linha',
     for (let seed = 1; seed <= 6; seed++) {
       for (const parte of gerar(athlete, seed).flatMap((t) => t.partes).filter((x) => x.serieId)) {
         const serie = serieById(parte.serieId)
-        if (!serie || serie.blocos.length < 2) continue // as do dia do teste não estão na biblioteca
+        if (!serie) continue // as do dia do teste não estão na biblioteca
+        // Os blocos da série como saiu (adaptada para quem nada pouco, pode ter menos)
+        const blocos = parte.serieTexto ? (parte.serieTexto.match(/\d+ x \d+/g) ?? []).length : serie.blocos.length
+        if (blocos < 2) continue
         vistas++
         const linhas = parte.texto.split('\n').filter((l) => /^\d+ x \d+ m/.test(l))
-        assert.equal(linhas.length, serie.blocos.length, parte.texto)
+        assert.equal(linhas.length, blocos, parte.texto)
       }
     }
   }
@@ -770,5 +777,42 @@ test('quem nada só 50 ou 100 m sem parar também tem aquecimento e soltura', ()
         assert.ok(partes.includes('aquecimento') && partes.includes('solto'), `${continuousDistance} ${poolLength}: ${partes}`)
       }
     }
+  }
+})
+
+// ---------- Quem nada pouco sem parar ----------
+
+test('quem nada só 50 m: as séries são adaptadas (4 x 100 vira 8 x 50; com pé de pato os 75 ficam)', () => {
+  const semPe = { level: 'iniciante', continuousDistance: 'ate_50', equipment: [] }
+  const comPe = { ...semPe, equipment: ['pe_de_pato'] }
+  const a = adaptToDistance(rules, serieById('pri-3x4x100'), semPe)
+  assert.equal(a.texto, '(3x) 8 x 50')
+  assert.equal(a.volume, serieById('pri-3x4x100').volume)
+  // 75 sem pé de pato vira 3 x 25; com pé de pato fica 75 (e a série exige pé de pato)
+  assert.equal(adaptToDistance(rules, serieById('pri-4x4x75'), semPe).texto, '(4x) 12 x 25')
+  const com75 = adaptToDistance(rules, serieById('pri-4x4x75'), comPe)
+  assert.equal(com75.texto, '(4x) 4 x 75')
+  assert.equal(com75.exigePe, 75)
+  // Repetições muito longas (400, 800) não são adaptadas
+  assert.equal(adaptToDistance(rules, serieById('pri-3x800'), semPe), null)
+  // Quem aguenta, fica como está
+  assert.equal(adaptToDistance(rules, serieById('pri-3x4x100'), { ...semPe, continuousDistance: '400_1000' }).texto, '(3x) 4 x 100')
+})
+
+test('quem nada até 100 m sem parar: só ritmo leve e sem velocidade; mais variedade de séries', () => {
+  for (const [continuousDistance, time400] of [['ate_50', null], ['50_100', { hundredths: 54000 }], ['100_200', null]]) {
+    const athlete = {
+      level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 2, 3, 4, 5], poolLength: 25, continuousDistance,
+      strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar'], time400,
+    }
+    const treinos = gerar(athlete)
+    const principais = treinos.map((t) => t.partes.find((p) => p.parte === 'principal'))
+    for (const p of principais) {
+      assert.deepEqual(p.intensidades.valores, ['A1'], p.texto)
+      assert.ok(!/A[23]|moderado|forte|AC|NEG|POS/.test(p.texto), p.texto)
+      if (!time400) assert.match(p.texto, /ritmo leve \(60-70% do seu máximo\)/)
+    }
+    assert.ok(treinos.every((t) => !t.partes.some((p) => p.parte === 'velocidade')))
+    assert.ok(new Set(principais.map((p) => p.serieTexto)).size >= 4, `${continuousDistance}: pouca variedade`)
   }
 })

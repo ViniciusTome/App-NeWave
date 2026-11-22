@@ -152,11 +152,20 @@ function descansosDaSerie(rules, athlete, serie, intensidades) {
 }
 
 // Sem tempos de referência o atleta não sabe o tempo do A1, A2, A3: no card vai
-// o ritmo por extenso ("ritmo leve", "ritmo moderado", "ritmo forte")
+// o ritmo por extenso, com o quanto do máximo
+// ("ritmo leve (60-70% do seu máximo)"), com o esforço do nível
+export function rhythmLabel(rules, athlete, valor) {
+    const nome = rules.semTempos?.nomes?.[valor]
+    if (!nome) return valor
+    const esforco = rules.intensidades?.[valor]?.esforco
+    const faixa = esforco?.[athlete.level === 'avancado' ? 'avancado' : 'iniciante'] ?? esforco?.iniciante
+    if (!faixa) return nome
+    return `${nome} (${faixa[0] === faixa[1] ? faixa[0] : `${faixa[0]}-${faixa[1]}`}% do seu máximo)`
+}
+
 function comoMostrar(rules, athlete, intensidades) {
-    const nomes = rules.semTempos?.nomes
-    if (!intensidades || athlete.tabela || !nomes) return intensidades
-    return { ...intensidades, valores: intensidades.valores.map((v) => nomes[v] ?? v) }
+    if (!intensidades || athlete.tabela || !rules.semTempos?.nomes) return intensidades
+    return { ...intensidades, valores: intensidades.valores.map((v) => rhythmLabel(rules, athlete, v)) }
 }
 
 // Saída (segundos) ou descanso (texto) do jeito que vai no card
@@ -413,12 +422,57 @@ function intervalText(faixa) {
 
 // ---------- Escolha das séries ----------
 
+// Quem nada pouco sem parar (até 100 m): divide as repetições na distância que
+// ele aguenta ("(3x) 4 x 100" -> "(3x) 8 x 50"). Com pé de pato, os 75 ficam (e a
+// série vai com pé de pato). Devolve a série como está, a adaptada ou null (não dá).
+export function adaptToDistance(rules, serie, athlete) {
+    const cfg = rules.quemNadaPouco
+    const aguenta = SEM_PARAR[athlete.continuousDistance] ?? Infinity
+    if (serie.porSensacao || serie.maiorDistancia <= aguenta) return serie
+    if (!cfg || aguenta > cfg.paraQuemNadaAte) return serie
+    const temPe = (athlete.equipment ?? []).includes('pe_de_pato')
+    let exigePe = false
+    const blocos = []
+    for (const bloco of serie.blocos) {
+        if (bloco.distancia <= aguenta) { blocos.push(bloco); continue }
+        if (temPe && bloco.distancia <= cfg.comPeDePato) { exigePe = true; blocos.push(bloco); continue }
+        // "Indo crawl, voltando medley" e trechos não dá para dividir
+        if (bloco.distancia > cfg.maiorRepeticao || Array.isArray(bloco.nado) || bloco.trechos) return null
+        const pedaco = [aguenta, 50, 25].find((d) => d <= aguenta && bloco.distancia % d === 0)
+        if (!pedaco) return null
+        blocos.push({ ...bloco, repeticoes: bloco.repeticoes * (bloco.distancia / pedaco), distancia: pedaco })
+    }
+    // Blocos iguais em seguida viram um só: "2 x 100, 2 x 100" -> "4 x 100"
+    for (let i = blocos.length - 1; i > 0; i--) {
+        const [a, b] = [blocos[i - 1], blocos[i]]
+        if (a.distancia === b.distancia && (a.vezes ?? 1) === 1 && (b.vezes ?? 1) === 1 &&
+            JSON.stringify({ ...a, repeticoes: 0 }) === JSON.stringify({ ...b, repeticoes: 0 })) {
+            blocos.splice(i - 1, 2, { ...a, repeticoes: a.repeticoes + b.repeticoes })
+        }
+    }
+    if (blocos.length === 1 && serie.blocos.length > 1 && (serie.vezes ?? 1) === 1) return null
+    // Pirâmide que vira tudo igual (8 x 50, 8 x 50, 8 x 50) não serve
+    if (blocos.length > 1 && blocos.every((b) => b.repeticoes === blocos[0].repeticoes && b.distancia === blocos[0].distancia)) return null
+    const estrutura = /^(?:\(\d+x\) )?(?:(?:\(\d+x\) )?(?:\d+ x )?\d+(?:, )?)+/.exec(serie.texto)?.[0] ?? ''
+    const resto = serie.texto.slice(estrutura.length).trim()
+    const blocoTexto = (b) => `${(b.vezes ?? 1) > 1 ? `(${b.vezes}x) ` : ''}${b.repeticoes} x ${b.distancia}`
+    const texto = [`${(serie.vezes ?? 1) > 1 ? `(${serie.vezes}x) ` : ''}${blocos.map(blocoTexto).join(', ')}`, resto]
+        .filter(Boolean).join(' ')
+    return describe({ ...serie, texto, blocos, ...(exigePe && { exigePe: cfg.comPeDePato }) })
+}
+
+// Só ritmo leve, sem velocidade, para quem nada pouco sem parar (condicionamento primeiro)
+export const soRitmoLeve = (rules, athlete) => Boolean(rules.quemNadaPouco?.soRitmoLeve) &&
+    (SEM_PARAR[athlete.continuousDistance] ?? Infinity) <= rules.quemNadaPouco.paraQuemNadaAte
+
 // O atleta pode fazer essa série? (distância sem parar, estilos, piscina, tempo de aula)
 function seriesFits(serie, athlete) {
     if (!serie.usos.includes('treino')) return false
     if (!fitsSession(serie, athlete.sessionMinutes)) return false
     if (!serie.piscinas.includes(athlete.poolLength)) return false
-    if (serie.maiorDistancia > SEM_PARAR[athlete.continuousDistance]) return false
+    // Adaptada com pé de pato: aguenta até 75 m
+    const aguenta = Math.max(SEM_PARAR[athlete.continuousDistance], serie.exigePe ?? 0)
+    if (serie.maiorDistancia > aguenta) return false
     // Séries curtas, só para quem nada pouco sem parar
     if (serie.paraQuemNadaAte !== undefined && SEM_PARAR[athlete.continuousDistance] > serie.paraQuemNadaAte) return false
     if (!serie.exige.estilos.every((s) => athlete.strokes.includes(s))) return false
@@ -483,8 +537,9 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     const candidatas = []
     // Passar do tempo é pior que ficar um pouco abaixo (a aula tem hora para acabar)
     const foraDoTempo = (segundos) => (segundos > budget ? 1.5 : 1) * Math.abs(segundos - budget)
-    for (const original of library[parte] ?? []) {
-        if (!seriesFits(original, athlete)) continue
+    for (const daBiblioteca of library[parte] ?? []) {
+        const original = adaptToDistance(rules, daBiblioteca, athlete)
+        if (!original || !seriesFits(original, athlete)) continue
         if (evitar?.has(original.id)) continue
         if (primeiraPrincipal && original.id === primeiraPrincipal.serie.id) continue
         // (2x), (3x), (4x)...: o número de séries que melhor cabe no tempo da parte.
@@ -494,9 +549,11 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
         const serie = opcoes.length === 1 ? opcoes[0] : opcoes
             .map((s) => ({ s, fora: foraDoTempo(estimateSeconds(rules, parte, s, { material: [] }, athlete, pace)) }))
             .reduce((melhor, o) => (o.fora < melhor.fora ? o : melhor)).s
-        let variations = seriesVariations(rules, parte, serie, athlete).filter((v) => variationFits(v, athlete))
+        // Série adaptada com os 75 m: só com pé de pato
+        const serve = (v) => variationFits(v, athlete) && (!serie.exigePe || v.material.includes('pe_de_pato'))
+        let variations = seriesVariations(rules, parte, serie, athlete).filter(serve)
         const mistura = drawMixedStrokes(rules, parte, serie, athlete, random)
-        if (mistura && variationFits(mistura, athlete)) variations.push(mistura)
+        if (mistura && serve(mistura)) variations.push(mistura)
         if (primeiraPrincipal) {
             variations = variations.filter((variation) =>
                 allowedAsSecondMain(rules, primeiraPrincipal, { serie, variation }, athlete.strokes))
@@ -511,8 +568,9 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     // As que mais se aproximam do tempo da parte; as usadas recentemente perdem prioridade
     // Repetir uma série recente custa como passar 1 minuto do tempo: varia sem
     // estourar a aula nas partes com poucas séries (solto, soltura)
+    // (cada vez que a série apareceu nos últimos treinos conta, pelo id e como saiu)
     const distancia = (c) => foraDoTempo(c.segundos) +
-        (recentes.has(c.serie.id) ? 60 : 0)
+        60 * (recentes.vezes(c.serie.id) + recentes.vezes(`texto:${c.serie.texto}`))
     // Sorteia só entre as que ficam perto da melhor (até 1 min ou 15% do tempo da parte a mais)
     const ordenadas = candidatas.sort((a, b) => distancia(a) - distancia(b))
     const limite = distancia(ordenadas[0]) + Math.max(60, budget * 0.15)
@@ -542,7 +600,8 @@ export function trainingDates(today, trainingDays, dias = DIAS_PADRAO) {
 
 // Monta um treino: uma série para cada parte da estrutura do nível e do tempo de aula.
 function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas }) {
-    const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes)
+    const leve = soRitmoLeve(rules, athlete)
+    const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes).filter((p) => !leve || p !== 'velocidade')
     const pausas = estrutura.map((p) => pauseOf(rules, p)).filter(Boolean)
     const segundosLivres = (athlete.sessionMinutes - pausas.reduce((s, p) => s + p.minutos, 0)) * 60
     const somaPesos = estrutura.filter((p) => !pauseOf(rules, p)).reduce((s, p) => s + (TEMPO_DAS_PARTES[p] ?? 0), 0)
@@ -555,6 +614,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         if (escolha) {
             escolhas.set(i, escolha)
             recentes.add(escolha.serie.id)
+            recentes.add(`texto:${escolha.serie.texto}`)
         }
         return escolha
     }
@@ -575,9 +635,12 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         if (escolha && !primeiraPrincipal) primeiraPrincipal = escolha
         // Como nadar a série principal (A1/A2/A3, AC, NEG, POS ou final forte)
         if (escolha) {
-            const sorteio = drawIntensities(rules, escolha.serie, escolha.variation, athlete, {
-                proibidas: athlete.tabela ? proibidas : [...proibidas, 'AC'], random,
-            })
+            // Quem nada pouco sem parar: a série toda em ritmo leve
+            const sorteio = leve
+                ? { tipo: 'intensidades', unidade: 'serie_toda', valores: ['A1'], variation: escolha.variation }
+                : drawIntensities(rules, escolha.serie, escolha.variation, athlete, {
+                    proibidas: athlete.tabela ? proibidas : [...proibidas, 'AC'], random,
+                })
             if (sorteio) {
                 escolha.variation = sorteio.variation
                 escolha.intensidades = { tipo: sorteio.tipo, unidade: sorteio.unidade, valores: sorteio.valores }
@@ -682,6 +745,22 @@ function buildTestTraining({ rules, library, athlete, pace, random, recentes }) 
     return partes
 }
 
+// Séries usadas nos últimos `n` treinos (e no treino que está sendo montado):
+// quanto mais vezes apareceu, menos chance de sair de novo
+function recentWindow(n) {
+    const treinos = []
+    let atual = new Set()
+    return {
+        vezes: (chave) => treinos.filter((t) => t.has(chave)).length + (atual.has(chave) ? 1 : 0),
+        add: (chave) => atual.add(chave),
+        fecharTreino: () => {
+            treinos.push(atual)
+            if (treinos.length > n) treinos.shift()
+            atual = new Set()
+        },
+    }
+}
+
 // Séries de um treino, para não repetir no seguinte: o id e a série como saiu
 // (com o número de séries escolhido), ex.: "texto:(3x) 4 x 50"
 export const seriesUsadas = (partes) => new Set(partes.flatMap((p) =>
@@ -710,7 +789,7 @@ export function generateTrainings({
     if (maximo && athlete.sessionMinutes > maximo) {
         athlete = { ...athlete, aulaMinutos: athlete.sessionMinutes, sessionMinutes: maximo }
     }
-    const recentes = new Set()
+    const recentes = recentWindow(4) // séries dos últimos 4 treinos perdem prioridade
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino
     const depoisDe = new Date(`${inicioDosTreinos}T12:00:00Z`)
     depoisDe.setUTCDate(depoisDe.getUTCDate() + (rules.diaDoTeste?.semTemposAposDias ?? 30))
@@ -725,8 +804,6 @@ export function generateTrainings({
     const horasEntre = (a, b) => (Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 3_600_000
 
     return trainingDates(today, athlete.trainingDays, dias).map((date, i) => {
-        // Só as séries dos últimos 2 treinos contam como "recentes"
-        if (i % 2 === 0) recentes.clear()
         const proibidas = []
         if (anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)) {
             const recuperacao = rules.intensidades?.A3?.recuperacaoHoras?.[1] ?? 48
@@ -738,6 +815,7 @@ export function generateTrainings({
             ? buildTestTraining({ rules, library, athlete, pace, random, recentes })
             : buildTraining({ rules, library, athlete, pace, random, recentes, proibidas, bloqueadas })
         bloqueadas = seriesUsadas(partes)
+        recentes.fecharTreino()
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
         if (partes.some((p) => p.parte === 'teste')) intensidades.push('A3') // o teste é forte
         anterior = { date, intensidade: intensidades.includes('A3') ? 'A3' : intensidades.includes('A2') ? 'A2' : 'A1' }

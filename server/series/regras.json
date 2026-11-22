@@ -134,6 +134,13 @@
     "_comentario": "Sem tempos de referência (sem o teste de 400 m): o card mostra o ritmo por extenso no lugar de A1, A2 e A3.",
     "nomes": { "A1": "ritmo leve", "A2": "ritmo moderado", "A3": "ritmo forte" }
   },
+  "quemNadaPouco": {
+    "_comentario": "Quem nada até 'paraQuemNadaAte' metros sem parar: (1) as séries da biblioteca são adaptadas, dividindo as repetições na distância que ele aguenta (4 x 100 vira 8 x 50), até repetições de 'maiorRepeticao' m; com pé de pato ele aguenta até 'comPeDePato' m (os 75 ficam, com pé de pato); (2) só ritmo leve (A1), sem velocidade: precisa de condicionamento primeiro.",
+    "paraQuemNadaAte": 100,
+    "maiorRepeticao": 200,
+    "comPeDePato": 75,
+    "soRitmoLeve": true
+  },
   "descansoMinimo": {
     "_comentario": "Quem nada até 'paraQuemNadaAte' metros sem parar descansa pelo menos isso entre as repetições (20 a 30 segundos), mesmo que a tabela dê menos.",
     "paraQuemNadaAte": 400,

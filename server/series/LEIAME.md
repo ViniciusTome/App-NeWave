@@ -416,6 +416,16 @@ Descanso padrão de cada repetição, em segundos, `[mínimo, máximo]`, por ní
 - Uma série com `descanso` escrito no bloco usa o que está escrito.
 - A velocidade usa a **saída** (veja o intervalo entre as séries), não esta tabela.
 
+### Quem nada até 100 m sem parar
+
+Fica em `quemNadaPouco` no `regras.json`.
+
+- **Só ritmo leve** (A1), sem velocidade: ele precisa de condicionamento primeiro. Nada de moderado, forte, AC, NEG ou POS.
+- **As séries da biblioteca são adaptadas** para a distância que ele aguenta: as repetições são divididas, com a mesma metragem. Ex.: (3x) 4 x 100 vira **(3x) 8 x 50**; 75 vira 3 x 25. Blocos iguais em seguida se juntam (2 x 100, 2 x 100 vira 4 x 100).
+- **Com pé de pato** ele aguenta uns **75 m** em ritmo leve: os 75 ficam, e a série vai com pé de pato.
+- Repetições acima de 200 m (400, 800...) não são adaptadas.
+- Para variar mais, o gerador evita as séries dos **últimos 4 treinos** (não só do anterior), sempre que outra serve no tempo da aula.
+
 ### Descanso mínimo para quem nada pouco
 
 Quem nada **até 400 m sem parar** descansa pelo menos **20 a 30 segundos** entre as repetições (20" no ritmo leve/A1, 25" no moderado/A2, 30" no forte/A3), mesmo que a tabela dê menos. Fica em `descansoMinimo` no `regras.json`. Não vale para o solto. A saída (cd) acompanha esse descanso.
@@ -469,7 +479,7 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), não dá para montar a saída:
 
 - No lugar do `cd`, o card mostra o **descanso entre as repetições** (`c/20" de descanso`), pela tabela de descanso.
-- No lugar de A1, A2 e A3 vai o ritmo por extenso: **ritmo leve**, **ritmo moderado** e **ritmo forte** (`semTempos` no `regras.json`).
+- No lugar de A1, A2 e A3 vai o ritmo por extenso, com o quanto do máximo: **ritmo leve (60-70% do seu máximo)**, **ritmo moderado (70-80%)** e **ritmo forte (80-85%)** (`semTempos` no `regras.json`; os % vêm das intensidades do nível).
 - Na velocidade, o intermediário fica com **1/1**. O avançado nos 25 m continua com cd 30".
 - Não usa **AC**, porque o atleta ainda não sabe o melhor tempo.
 - **O teste vem depois de 1 mês de treino** (nunca no começo): é o primeiro treino a partir de 30 dias depois do primeiro treino do atleta (`diaDoTeste.semTemposAposDias`). O treino do teste tem: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir, séries **para recuperar** e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
