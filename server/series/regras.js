@@ -105,6 +105,13 @@ export function validateRules(rules) {
         }
     }
 
+    const diaDoTeste = rules.diaDoTeste
+    if (diaDoTeste !== undefined) {
+        const ok = Array.isArray(diaDoTeste.completarCom) && diaDoTeste.completarCom.every((s) =>
+            typeof s.id === 'string' && typeof s.texto === 'string' && Array.isArray(s.blocos) &&
+            s.blocos.every((b) => Number.isInteger(b.repeticoes) && Number.isInteger(b.distancia)))
+        if (!ok) problems.push('diaDoTeste.completarCom: use séries como na biblioteca, ex.: { "id": "...", "texto": "10 x 50", "blocos": [{ "repeticoes": 10, "distancia": 50, "nado": "livre" }] }.')
+    }
     const ajustaveis = rules.seriesAjustaveis
     if (ajustaveis !== undefined) {
         const { partes, minimo, maximo, aumentarAte = {}, minimoPorNivel = {} } = ajustaveis

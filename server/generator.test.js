@@ -211,7 +211,7 @@ test('nos treinos gerados, as séries com várias metragens têm uma por linha',
     for (let seed = 1; seed <= 6; seed++) {
       for (const parte of gerar(athlete, seed).flatMap((t) => t.partes).filter((x) => x.serieId)) {
         const serie = serieById(parte.serieId)
-        if (serie.blocos.length < 2) continue
+        if (!serie || serie.blocos.length < 2) continue // as do dia do teste não estão na biblioteca
         vistas++
         const linhas = parte.texto.split('\n').filter((l) => /^\d+ x \d+ m/.test(l))
         assert.equal(linhas.length, serie.blocos.length, parte.texto)
@@ -696,7 +696,13 @@ const semTempo = {
 
 test('sem tempos de referência: o primeiro treino é o teste de 400 m', () => {
   const [primeiro, segundo] = gerar(semTempo)
-  assert.deepEqual(primeiro.partes.map((p) => p.parte), ['aquecimento', 'teste', 'soltura'])
+  const ordem = primeiro.partes.map((p) => p.parte)
+  assert.deepEqual([ordem[0], ordem[1], ordem.at(-1)], ['aquecimento', 'teste', 'soltura'])
+  // O resto da aula: séries em A1 com pé de pato para recuperar
+  const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
+  assert.ok(recuperar.length > 0)
+  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · A1/)
+  assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
   const teste = primeiro.partes.find((p) => p.parte === 'teste')
   assert.equal(teste.titulo, 'Teste de 400 m')
   assert.match(teste.observacao, /registre o tempo/)

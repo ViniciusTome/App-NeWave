@@ -628,6 +628,29 @@ function buildTestTraining({ rules, library, athlete, pace, random, recentes }) 
     const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes)
     const ultima = estrutura[estrutura.length - 1]
     const soltura = pickForPart({ rules, library, parte: ultima, budget: 5 * 60, athlete, pace, random, recentes })
+
+    // O resto da aula: séries para recuperar (A1 com pé de pato), da maior para a menor
+    const cfg = rules.diaDoTeste
+    let livres = athlete.sessionMinutes * 60 - partes.reduce((s, p) => s + p.minutos * 60, 0) - (soltura?.segundos ?? 0)
+    const material = (cfg?.material ?? []).filter((m) => (athlete.equipment ?? []).includes(m))
+    const intensidades = { tipo: 'intensidades', unidade: 'serie_toda', valores: [cfg?.intensidade ?? 'A1'] }
+    for (const crua of cfg?.completarCom ?? []) {
+        const serie = describe({ ...crua, blocos: crua.blocos.map((b) => ({ ...b, intensidade: intensidades.valores[0] })) })
+        if (serie.maiorDistancia > (SEM_PARAR[athlete.continuousDistance] ?? Infinity)) continue
+        if (!serie.piscinas.includes(athlete.poolLength)) continue
+        const variation = { texto: serie.texto, material, padrao: 'serie_inteira', nado: 'livre' }
+        const segundos = estimateSeconds(rules, 'principal', serie, variation, athlete, pace)
+        if (segundos > livres || segundos < (cfg.minimoDeMinutos ?? 0) * 60) continue
+        livres -= segundos
+        const saidas = athlete.tabela ? saidasDaSerie(rules, athlete, serie, intensidades)
+            : descansosDaSerie(rules, athlete, serie, intensidades)
+        partes.push({
+            parte: 'recuperacao', titulo: 'Para recuperar', serieId: serie.id,
+            texto: cardText(serie, variation, null, intensidades, saidas),
+            intensidades, nado: 'livre', material, metros: serie.volume, minutos: Math.round(segundos / 60),
+        })
+    }
+
     if (soltura) {
         partes.push({
             parte: ultima, titulo: NOMES_DAS_PARTES[ultima], serieId: soltura.serie.id,
@@ -699,7 +722,7 @@ export function legacyFields(partes) {
     return {
         warmUp: juntar(['aquecimento']),
         speed: juntar(['velocidade', 'solto']),
-        mainSeries: juntar(['teste', 'principal', 'hidratacao', 'perna']),
+        mainSeries: juntar(['teste', 'recuperacao', 'principal', 'hidratacao', 'perna']),
         release: juntar(['soltura']),
     }
 }

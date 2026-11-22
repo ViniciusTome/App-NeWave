@@ -124,6 +124,16 @@
       "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
     }
   },
+  "diaDoTeste": {
+    "_comentario": "Treino do teste de 400 m: aquecimento, teste, séries para recuperar (A1 com pé de pato) até completar a aula, e a soltura. Entram as que cabem, da maior para a menor. A técnica entra aqui quando tiver as séries de técnica.",
+    "completarCom": [
+      { "id": "teste-rec-10x100", "texto": "10 x 100", "blocos": [{ "repeticoes": 10, "distancia": 100, "nado": "livre" }] },
+      { "id": "teste-rec-10x50", "texto": "10 x 50", "blocos": [{ "repeticoes": 10, "distancia": 50, "nado": "livre" }] }
+    ],
+    "intensidade": "A1",
+    "material": ["pe_de_pato"],
+    "minimoDeMinutos": 6
+  },
   "seriesAjustaveis": {
     "_comentario": "Nas séries (2x), (3x), (4x)... o gerador escolhe quantas séries o atleta faz, para caber no tempo da aula: de 'minimo' até o número escrito + 'aumentarAte' do nível (sem passar de 'maximo'). O iniciante só diminui e pode fazer uma série só ('minimoPorNivel').",
     "partes": ["aquecimento", "velocidade", "principal", "perna"],

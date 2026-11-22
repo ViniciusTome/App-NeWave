@@ -9,7 +9,6 @@
       { "sigla": "c/2' de intervalo", "detectar": "c/\\d+'( a \\d+')? de intervalo", "nome": "Intervalo entre séries", "explicacao": "Pausa maior, entre uma série e outra (ex.: entre as séries de um (3x)). Ex.: c/2' de intervalo = 2 minutos de intervalo antes da próxima série; c/2' a 3' de intervalo = de 2 a 3 minutos." },
       { "sigla": "c/20\" de descanso", "detectar": "c/\\d+['\"] de descanso", "nome": "Descanso entre as repetições", "explicacao": "Pausa entre uma repetição e outra. Ex.: c/20\" de descanso = ao chegar, descanse 20 segundos e saia de novo. Aparece no lugar do cd enquanto você não tem o teste de 400 m." },
       { "sigla": "1/1", "nome": "Descanso igual ao nado", "explicacao": "Descanse o mesmo tempo que levou para nadar. Ex.: nadou o 25 em 20 segundos, descanse 20 segundos." },
-      { "sigla": "Teste de 400 m", "nome": "Teste", "explicacao": "400 m de crawl no seu melhor ritmo, cronometrado. Com o tempo, o app calcula os seus ritmos (A1, A2, A3) e as saídas (cd) dos treinos." },
       { "sigla": "Descanso", "detectar": false, "explicacao": "Pausa entre uma repetição e outra." },
       { "sigla": "Intervalo", "detectar": false, "explicacao": "Pausa maior, entre uma série e outra (ex.: entre as séries de um (3x))." },
       { "sigla": "Pirâmide", "detectar": false, "explicacao": "Série com metragens diferentes, uma embaixo da outra (ex.: 1 x 400 m, 2 x 200 m, 4 x 100 m, 8 x 50 m)." },
@@ -84,7 +83,7 @@
       { "sigla": "Acumulação", "explicacao": "Início da temporada: mais volume, base aeróbica." },
       { "sigla": "Transição", "explicacao": "Meio da temporada: o treino fica mais específico para a prova." },
       { "sigla": "Realização", "explicacao": "Final da temporada: perto da prova, menos volume e mais qualidade." },
-      { "sigla": "Teste de 400 m", "explicacao": "400 m no seu melhor tempo. É com ele que o app calcula os ritmos dos treinos." }
+      { "sigla": "Teste de 400 m", "explicacao": "400 m de crawl no seu melhor tempo, cronometrado. É com ele que o app calcula os ritmos (A1, A2, A3) e as saídas (cd) dos treinos." }
     ]
   }
 ]

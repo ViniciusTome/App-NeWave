@@ -466,7 +466,13 @@ Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), n
 - No lugar do `cd`, o card mostra o **descanso entre as repetições** (`c/20" de descanso`), pela tabela de descanso.
 - Na velocidade, o intermediário fica com **1/1**. O avançado nos 25 m continua com cd 30".
 - Não usa **AC**, porque o atleta ainda não sabe o melhor tempo.
-- O **primeiro treino é o teste**: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
+- O **primeiro treino é o teste**: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir, séries **para recuperar** e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
+- **Para recuperar:** 10 x 100 m e/ou 10 x 50 m em **A1 com pé de pato** (sem pé de pato, nadando), as que couberem no resto da aula, da maior para a menor. Ficam em `diaDoTeste` no `regras.json`. A **técnica** também vai entrar aqui quando tiver as séries de técnica.
+- Quem só **informou** o tempo na anamnese não ganha o teste agora: ele fica para o fim da periodização.
+
+### Teste no fim da periodização (a fazer, junto com o ATR)
+
+Sempre haverá um **teste de 400 m no fim da periodização, no fim da Realização (R)**, para atualizar os ritmos e as saídas da próxima periodização. Vale para todos, inclusive quem só informou o tempo na anamnese.
 
 ### Como a série aparece no card
 
@@ -489,6 +495,7 @@ Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `de
 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
 - **Saída com pé de pato/palmar no intermediário e avançado:** hoje não muda com o material.
+- **Séries de técnica:** completar o dia do teste (e outros treinos) com técnica.
 - **Velocidade com cd 25":** quando forçar mais (ex.: na fase de Realização).
 - **Melhor estilo pelos testes**: comparar os tempos de cada estilo (hoje os testes não guardam o estilo).
 - **Mistura de nados com material**: por enquanto a mistura sai sem material (material + estilo depende da fase).
