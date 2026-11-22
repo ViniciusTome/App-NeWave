@@ -11,16 +11,18 @@
 // - o valor usado dentro das faixas de descanso (o meio da faixa).
 import { fitsSession } from './series/index.js'
 import {
-    allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, partsForLevel, pauseOf, restFor, seriesVariations,
+    allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, intervalRangeFor,
+    partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
+    drawIntensities, hardestIntensity, recoveryWaived,
 } from './series/regras.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
 const DEFAULT_400 = { iniciante: 9 * 6000, intermediario: 7 * 6000, avancado: 5 * 6000 + 3000 }
 
-// PROVISÓRIO: quanto mais lento (> 1) ou mais rápido (< 1) que o ritmo do teste
-// de 400 m é cada intensidade. Sem intensidade definida: entre A1 e A2.
-const RITMO = { solto: 1.3, A1: 1.2, A2: 1.1, A3: 1.0, forte: 0.9 }
-const RITMO_SEM_INTENSIDADE = 1.15
+// Ritmo de cada intensidade = tempo do teste de 400 m ÷ % do esforço máximo
+// (regras.json, "intensidades"). Sem intensidade definida (série principal,
+// por enquanto): PROVISÓRIO, como A2. "solto": PROVISÓRIO, 60% do esforço.
+const ESFORCO_SOLTO = 60
 const RITMO_PERNA = 1.6 // pernada é bem mais lenta que o nado
 const RITMO_PE_DE_PATO = 0.9 // pé de pato deixa mais rápido
 
@@ -44,6 +46,25 @@ export const NOMES_DAS_PARTES = {
 
 // ---------- Tempo estimado de uma série ----------
 
+// Quanto mais lento que o ritmo do teste: 100 ÷ % do esforço (A2 avançado: 100/80 = 1,25)
+function paceFactor(rules, intensidade, athlete) {
+    if (intensidade === 'solto') return 100 / ESFORCO_SOLTO
+    const esforco = effortFor(rules, intensidade ?? 'A2', athlete.level) ?? effortFor(rules, 'A2', athlete.level)
+    return 100 / esforco
+}
+
+// Descanso de uma repetição: o escrito no bloco; senão, para iniciante e recém
+// intermediário, o da intensidade; para os outros, o da tabela por distância.
+// Dentro da faixa, o meio (PROVISÓRIO).
+function blockRest(rules, bloco, athlete) {
+    if (bloco.descanso !== undefined) return bloco.descanso
+    const meio = (f) => (f[0] + f[1]) / 2
+    const intensidade = intensityName(rules, bloco.trechos ? bloco.trechos[0].intensidade : bloco.intensidade)
+    if (intensidade && usesIntensityRest(rules, athlete)) return meio(rules.intensidades[intensidade].descanso)
+    const { min, max } = restFor(rules, athlete.level, bloco.distancia)
+    return (min + max) / 2
+}
+
 // Segundos que o atleta leva na série, com os descansos. `pace` = segundos por
 // 100 m no ritmo do teste de 400 m.
 export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
@@ -51,20 +72,173 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
 
     const comPe = variation.material.includes('pe_de_pato') || variation.material.includes('pe_de_pato_peito')
     const fator = (parte === 'perna' ? RITMO_PERNA : 1) * (comPe ? RITMO_PE_DE_PATO : 1)
+    // Intervalo entre as séries: troca o descanso da última repetição de cada série
+    const intervalo = (saidaSegundos) =>
+        intervalBetweenSets(rules, parte, serie, { fase: null, level: athlete.level, saidaSegundos })
     let total = 0
+    let ultimo = { saida: 0, descanso: 0 }
     for (const bloco of serie.blocos) {
         const ritmo = bloco.trechos
-            ? bloco.trechos.reduce((s, t) => s + t.metros * (RITMO[t.intensidade] ?? RITMO_SEM_INTENSIDADE), 0) / bloco.distancia
-            : RITMO[bloco.intensidade] ?? RITMO_SEM_INTENSIDADE
-        const nado = (bloco.distancia / 100) * pace * ritmo * fator
-        const { min, max } = restFor(rules, athlete.level, bloco.distancia)
-        const descanso = bloco.descanso ?? (min + max) / 2 // PROVISÓRIO: meio da faixa
-        total += (bloco.vezes ?? 1) * bloco.repeticoes * (nado + descanso)
-        // Intervalo entre as séries de um "(2x)", "(4x)" (a saída de uma repetição)
-        const intervalo = intervalBetweenSets(rules, parte, serie, { fase: null, saidaSegundos: nado + descanso })
-        if (intervalo !== null) total += ((bloco.vezes ?? 1) - 1) * Math.max(0, intervalo - descanso)
+            ? bloco.trechos.reduce((s, t) => s + t.metros * paceFactor(rules, t.intensidade, athlete), 0) / bloco.distancia
+            : paceFactor(rules, bloco.intensidade, athlete)
+        // Tempo de nado: a tabela de tempos do treinador (pelo teste de 400 m);
+        // o que ela não cobre (solto, velocidade, trechos) vai pelo % de esforço
+        const daTabela = athlete.tabela && !bloco.trechos
+            ? repSeconds(rules, athlete.tabela, bloco.distancia, bloco.intensidade) : null
+        const nado = (daTabela ?? (bloco.distancia / 100) * pace * ritmo) * fator
+        const descanso = blockRest(rules, bloco, athlete)
+        const vezes = bloco.vezes ?? 1
+        total += vezes * bloco.repeticoes * (nado + descanso)
+        // "(4x) 3 x 200": intervalo entre as séries do bloco
+        if (vezes > 1) total += (vezes - 1) * Math.max(0, intervalo(nado + descanso) - descanso)
+        ultimo = { saida: nado + descanso, descanso }
     }
-    return total * (serie.vezes ?? 1)
+    // "(3x) 1 x 100, 2 x 75, ...": o grupo se repete, com intervalo entre as séries
+    const vezesDaSerie = serie.vezes ?? 1
+    if (vezesDaSerie > 1) {
+        total = total * vezesDaSerie + (vezesDaSerie - 1) * Math.max(0, intervalo(ultimo.saida) - ultimo.descanso)
+    }
+    return total
+}
+
+// ---------- Texto do card ----------
+
+// Coloca o "m" de metros depois das distâncias do texto da série:
+// "300 livre" -> "300 m livre"; "(2x) 10 x 100" -> "(2x) 10 x 100 m";
+// "os 400 com pé de pato" -> "os 400 m com pé de pato". O que já tem "m" fica igual.
+export function withMeters(texto) {
+    return texto
+        .replace(/\b(\d+) x (\d+)\b(?! ?m\b)/g, '$1 x $2 m')
+        .replace(/^(\d+) (?![xm]\b)(?=\p{L})/u, '$1 m ')
+        .replace(/\bos (\d+)\b(?! ?m\b)/g, 'os $1 m')
+}
+
+// ---------- Abreviações do card (as mesmas do glossário) ----------
+
+const MATERIAL_ABREV = {
+    pe_de_pato: 'PÉ', pe_de_pato_peito: 'PÉ de peito', palmar: 'PALM', pull_buoy: 'BOIA',
+    snorkel: 'SNK', paraquedas: 'PARA', prancha: 'prancha',
+}
+const NADO_ABREV = { crawl: 'CR', costas: 'CO', peito: 'PE', borboleta: 'BO', medley: 'MD', livre: 'livre' }
+
+// ["pe_de_pato", "palmar"] -> "c/PÉ + PALM"; [] -> "NAD"
+export const materialAbbrev = (material) =>
+    material.length === 0 ? 'NAD' : `c/${material.map((m) => MATERIAL_ABREV[m]).join(' + ')}`
+
+// Troca as palavras do texto pelas abreviações do treinador:
+// "100 indo crawl, voltando estilo" -> "100 indo CR, voltando estilo";
+// "com pé de pato + palmar" -> "c/PÉ + PALM"; "nadando" -> "NAD"
+export function abbreviate(texto) {
+    return texto
+        .replace(/\bpé de pato de peito\b/g, 'PÉ de peito')
+        .replace(/\bpé de pato\b/g, 'PÉ')
+        .replace(/\bpalmar\b/g, 'PALM')
+        .replace(/\bpull buoy\b/g, 'BOIA')
+        .replace(/\bsnorkel\b/g, 'SNK')
+        .replace(/\bparaquedas\b/g, 'PARA')
+        .replace(/\bcom (?=PÉ|PALM|BOIA|SNK|PARA|prancha)/g, 'c/')
+        .replace(/\bnadando\b/g, 'NAD')
+        // "costas (melhor estilo)" -> "ME" (o glossário mostra qual é o do atleta)
+        .replace(/\b(?:crawl|costas|peito|borboleta) \(melhor estilo\)/g, 'ME')
+        .replace(/\bmelhor estilo\b/g, 'ME')
+        .replace(/\bcrawl\b/g, 'CR')
+        .replace(/\bcostas\b/g, 'CO')
+        .replace(/(?<!PÉ de )\bpeito\b/g, 'PE') // "PÉ de peito" (o material) fica por extenso
+        .replace(/\bborboleta\b/g, 'BO')
+        .replace(/\bmedley\b/g, 'MD')
+        .replace(/\bperna\b/g, 'PR')
+}
+
+// "c/2'" ou "c/2' a 3'" (intervalo entre as séries)
+const minutosCurto = (s) => (s % 60 === 0 ? `${s / 60}'` : `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`)
+const intervalAbbrev = (faixa) =>
+    faixa && `c/${faixa.min === faixa.max ? minutosCurto(faixa.min) : `${minutosCurto(faixa.min)} a ${minutosCurto(faixa.max)}`}`
+
+// Texto do card, abreviado como no caderno do treinador.
+// - Série simples: uma linha ("5 x 400 m · c/PALM").
+// - Quando o nado ou o material muda entre as séries de um (2x), (4x)...:
+//   cabeçalho e uma linha por série
+//     (4x) 3 x 200 m · c/2'
+//     1ª série: NAD · MD / PE / MD
+//     2ª série: c/PÉ · ME / MD / ME
+// - Pirâmides e grupos: uma metragem por linha, com o material do bloco.
+// `intervalo` = { min, max } do intervalo entre as séries (ou null).
+export function cardText(serie, variation, intervalo = null, intensidades = null) {
+    const c = intervalAbbrev(intervalo)
+    const nadoDaSerie = variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
+        ? null : abbreviate(variation.texto.slice(serie.texto.length).split(' · ')[1] ?? '')
+    // Material igual em todas as séries: vai no cabeçalho, uma vez só
+    const seriesIguais = variation.series?.every((m) => m.join('+') === variation.series[0].join('+'))
+    const materialDaSerie = ['serie_inteira', 'obrigatorio'].includes(variation.padrao) || seriesIguais
+        ? materialAbbrev(seriesIguais ? variation.series[0] : variation.material) : null
+    const materialPorSerie = variation.series && !seriesIguais ? variation.series : null
+    // Como nadar: A1/A2/A3 como estão; AC, NEG, POS e final forte entre parênteses
+    const I = intensidades
+    const fmt = (v) => (/^A\d$/.test(v) ? v : `(${v})`)
+    const sequencia = I ? (I.valores.every((v) => v === I.valores[0]) ? fmt(I.valores[0]) : I.valores.map(fmt).join(' / ')) : null
+
+    // Pirâmides e grupos
+    if (serie.blocos.length > 1) {
+        const linhas = []
+        const cabecalho = [(serie.vezes ?? 1) > 1 ? `(${serie.vezes}x)` : null, c].filter(Boolean).join(' · ')
+        if (cabecalho) linhas.push(cabecalho)
+        const alternada = variation.padrao === 'piramide_alternada'
+        serie.blocos.forEach((bloco, i) => {
+            const vezes = bloco.vezes > 1 ? `(${bloco.vezes}x) ` : ''
+            let linha = `${vezes}${bloco.repeticoes} x ${bloco.distancia} m`
+            const material = variation.porBloco?.[i]
+            if (material?.length > 0) linha += ` · ${materialAbbrev(material)}`
+            else if (alternada) linha += ' · NAD'
+            if (I?.unidade === 'bloco') linha += ` · ${fmt(I.valores[i])}`
+            linhas.push(linha)
+        })
+        const resto = [nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null].filter(Boolean).join(' · ')
+        if (resto) linhas.push(resto)
+        // Grupo repetido com intensidade por série
+        if (I?.unidade === 'serie') {
+            I.valores.forEach((v, i) => {
+                const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
+                linhas.push(`${ORDINAIS[i]} série: ${[material, fmt(v)].filter(Boolean).join(' · ')}`)
+            })
+        }
+        return linhas.join('\n')
+    }
+
+    const base = abbreviate(withMeters(serie.texto))
+    const porSerie = materialPorSerie || variation.nados || variation.porSerie || (I?.unidade === 'serie' ? I.valores : null)
+    if (!porSerie) {
+        if (!I) return [abbreviate(withMeters(variation.texto)), c].filter(Boolean).join(' · ')
+        // Série simples com intensidade: na série toda ou repetição por repetição
+        return [base, nadoDaSerie, materialDaSerie, sequencia, c].filter(Boolean).join(' · ')
+    }
+
+    // Uma linha por série
+    const cabecalho = [base, nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null, c]
+        .filter(Boolean).join(' · ')
+    const linhas = porSerie.map((_, i) => {
+        const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
+        const intensidade = I?.unidade === 'serie' ? fmt(I.valores[i]) : null
+        let nados = null
+        if (variation.porSerie) {
+            // O melhor estilo aparece como ME
+            const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME' : NADO_ABREV[n] ?? n))
+            nados = daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' / ')
+        } else if (variation.nados) {
+            nados = NADO_ABREV[variation.nados[i]] ?? variation.nados[i]
+        }
+        return `${ORDINAIS[i]} série: ${[material, intensidade, nados].filter(Boolean).join(' · ')}`
+    })
+    return [cabecalho, ...linhas].join('\n')
+}
+
+const ORDINAIS = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª', '7ª', '8ª', '9ª', '10ª']
+
+// "2' de intervalo entre as séries" / "2' a 3' de intervalo entre as séries"
+const minutos = (s) => (s % 60 === 0 ? `${s / 60}'` : `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`)
+function intervalText(faixa) {
+    if (!faixa) return null
+    const valor = faixa.min === faixa.max ? minutos(faixa.min) : `${minutos(faixa.min)} a ${minutos(faixa.max)}`
+    return `${valor} de intervalo entre as séries`
 }
 
 // ---------- Escolha das séries ----------
@@ -122,9 +296,14 @@ function pickForPart({ rules, library, parte, budget, athlete, pace, random, rec
 
     // As que mais se aproximam do tempo da parte; as usadas recentemente perdem prioridade
     // Passar do tempo é pior que ficar um pouco abaixo (a aula tem hora para acabar)
-    const distancia = (c) => (c.segundos > budget ? 1.5 : 1) * Math.abs(c.segundos - budget) *
-        (recentes.has(c.serie.id) ? 3 : 1)
-    const melhores = candidatas.sort((a, b) => distancia(a) - distancia(b)).slice(0, 3)
+    // Repetir uma série recente custa como passar 1 minuto do tempo: varia sem
+    // estourar a aula nas partes com poucas séries (solto, soltura)
+    const distancia = (c) => (c.segundos > budget ? 1.5 : 1) * Math.abs(c.segundos - budget) +
+        (recentes.has(c.serie.id) ? 60 : 0)
+    // Sorteia só entre as que ficam perto da melhor (até 1 min ou 15% do tempo da parte a mais)
+    const ordenadas = candidatas.sort((a, b) => distancia(a) - distancia(b))
+    const limite = distancia(ordenadas[0]) + Math.max(60, budget * 0.15)
+    const melhores = ordenadas.filter((c) => distancia(c) <= limite).slice(0, 3)
     const escolhida = weightedPick(melhores.map((c) => ({ item: c, peso: c.serie.peso })), random)
     const variation = weightedPick(escolhida.variations.map((v) => ({ item: v, peso: v.peso ?? 1 })), random)
     const segundos = estimateSeconds(rules, parte, escolhida.serie, variation, athlete, pace)
@@ -149,7 +328,7 @@ export function trainingDates(today, trainingDays, dias = DIAS_PADRAO) {
 // ---------- Montagem ----------
 
 // Monta um treino: uma série para cada parte da estrutura do nível e do tempo de aula.
-function buildTraining({ rules, library, athlete, pace, random, recentes }) {
+function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [] }) {
     const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes)
     const pausas = estrutura.map((p) => pauseOf(rules, p)).filter(Boolean)
     const segundosLivres = (athlete.sessionMinutes - pausas.reduce((s, p) => s + p.minutos, 0)) * 60
@@ -181,6 +360,14 @@ function buildTraining({ rules, library, athlete, pace, random, recentes }) {
         if (parte !== 'principal') return
         const escolha = escolher(i, budgetPrincipal, primeiraPrincipal)
         if (escolha && !primeiraPrincipal) primeiraPrincipal = escolha
+        // Como nadar a série principal (A1/A2/A3, AC, NEG, POS ou final forte)
+        if (escolha) {
+            const sorteio = drawIntensities(rules, escolha.serie, escolha.variation, athlete, { proibidas, random })
+            if (sorteio) {
+                escolha.variation = sorteio.variation
+                escolha.intensidades = { tipo: sorteio.tipo, unidade: sorteio.unidade, valores: sorteio.valores }
+            }
+        }
     })
 
     // Monta na ordem do treino
@@ -194,11 +381,15 @@ function buildTraining({ rules, library, athlete, pace, random, recentes }) {
         const escolha = escolhas.get(i)
         if (!escolha) return // nenhuma série da biblioteca serve para esse atleta
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
+        const intervalo = intervalText(intervalRangeFor(rules, parte, escolha.serie, athlete.level))
         partes.push({
             parte,
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
             serieId: escolha.serie.id,
-            texto: escolha.variation.texto,
+            texto: cardText(escolha.serie, escolha.variation, intervalRangeFor(rules, parte, escolha.serie, athlete.level),
+                escolha.intensidades),
+            ...(escolha.intensidades && { intensidades: escolha.intensidades }),
+            ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,
             material: escolha.variation.material,
             ...(escolha.serie.observacao && { observacao: escolha.serie.observacao }),
@@ -215,12 +406,26 @@ function buildTraining({ rules, library, athlete, pace, random, recentes }) {
 export function generateTrainings({ rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
+    // Tabela de tempos do atleta (método do treinador)
+    athlete = { ...athlete, tabela: timeTable(rules, tempo400 / 100) }
     const recentes = new Set()
+
+    // Recuperação: depois de um treino com A3 na série principal, o próximo não tem
+    // A3 enquanto não passarem as horas de recuperação do A3 (até 48 h)
+    let anterior = null // { date, intensidade }
+    const horasEntre = (a, b) => (Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 3_600_000
 
     return trainingDates(today, athlete.trainingDays, dias).map((date, i) => {
         // Só as séries dos últimos 2 treinos contam como "recentes"
         if (i % 2 === 0) recentes.clear()
-        const partes = buildTraining({ rules, library, athlete, pace, random, recentes })
+        const proibidas = []
+        if (anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)) {
+            const recuperacao = rules.intensidades?.A3?.recuperacaoHoras?.[1] ?? 48
+            if (horasEntre(anterior.date, date) < recuperacao) proibidas.push('A3')
+        }
+        const partes = buildTraining({ rules, library, athlete, pace, random, recentes, proibidas })
+        const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
+        anterior = { date, intensidade: intensidades.includes('A3') ? 'A3' : intensidades.includes('A2') ? 'A2' : 'A1' }
         return {
             date,
             title: `Treino ${i + 1}`,

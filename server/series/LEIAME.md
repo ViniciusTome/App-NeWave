@@ -299,6 +299,80 @@ Hoje: `8 x 25`, `(2x) 8 x 25` e `16 x 25` podem ser medley; o `(4x) 4 x 25` pode
 
 Se uma série tiver `material` escrito no próprio JSON, ela é fixa e o gerador não muda.
 
+### Intensidades
+
+```json
+"intensidades": {
+  "A1": { "esforco": { "iniciante": [60, 70], "avancado": [75, 75] }, "descanso": [0, 20], "recuperacaoHoras": [0, 6] },
+  "A2": { "esforco": { "iniciante": [70, 80], "avancado": [80, 80] }, "descanso": [0, 30], "recuperacaoHoras": [12, 24] },
+  "A3": { "esforco": { "iniciante": [80, 85], "avancado": [85, 85] }, "descanso": [0, 60], "recuperacaoHoras": [24, 48],
+          "material": { "opcoes": [["pe_de_pato"], ["pe_de_pato", "palmar"]], "semMaterialSo": ["avancado"], "pesoSemMaterial": 0.1 } },
+  "AA": { "nomes": ["forte"], "esforco": { ... [95, 100] }, "descanso": [0, 60], "recuperacaoHoras": [6, 24] }
+},
+"descansoPorIntensidadePara": ["iniciante", "intermediarioInicio"]
+```
+
+- **Esforço:** % do esforço máximo do atleta (teste de 400 m). O ritmo da intensidade é o ritmo do teste ÷ esforço. Ex.: avançado em A2 (80%) nada 1,25 vez mais devagar que no teste.
+- **Intermediário:** ainda sem valor; por enquanto (PROVISÓRIO) usa o meio termo entre o meio da faixa do iniciante e o avançado (A1 70%, A2 77,5%, A3 83,75%).
+- **AA (alático) = velocidade:** perto de 100%. "forte" nas séries é o mesmo que AA.
+- **Descanso:** o **iniciante** e o **recém intermediário** usam o descanso da intensidade; o **avançado** e o **intermediário bom** usam a tabela por distância (abaixo). Recém intermediário (PROVISÓRIO) = metade de baixo da faixa do intermediário no cálculo do nível.
+- **A3 com equipamento:** séries em A3 saem com pé de pato ou pé de pato + palmar; sem material só para avançado e raramente (`pesoSemMaterial`). Sem pé de pato, quem não é avançado não recebe a série.
+- **Recuperação:** horas que o corpo leva para se recuperar. Vai ser usada para planejar a semana (olhando o treino inteiro, com mais peso na série principal) quando as séries principais tiverem intensidade.
+
+### Como nadar a série principal
+
+```json
+"intensidadesNaPrincipal": {
+  "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 },
+  "padroes": [["A1","A2","A3"], ["A1","A2","A1","A3"], ["A1","A2","A1","A2","A3"], ["A1","A2","A1","A3","A1","A2","A1"]],
+  "acimaDoMelhor": [20, 15, 10, 5],
+  "maxRepeticoesComIntensidade": 7,
+  "ritmoUnicoNasSimples": 50,
+  "ritmoPorDistancia": {
+    "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
+  }
+}
+```
+
+A cada treino, o gerador sorteia **um tipo** para a série principal (pelos pesos de `tipos`). Os tipos **nunca se misturam**: A1/A2/A3 não vão junto com NEG, POS, AC ou final forte.
+
+- **intensidades:** um dos `padroes` do tamanho certo, ou a escada progressiva (A1 → A2 → A3). Vai uma por série nos `(2x)`, `(4x)`, uma por bloco nas pirâmides, ou uma por repetição nas séries simples (até `maxRepeticoesComIntensidade`; acima disso, uma intensidade para a série toda).
+- **Séries simples:** metade das vezes (`ritmoUnicoNasSimples`) um ritmo só para a série toda (ex.: `10 x 200 m · A2`); nas outras, um ritmo por repetição (`5 x 400 m · c/PÉ + PALM · A1 / A2 / A1 / A2 / A3`).
+- **Um ritmo por repetição** (`ritmoPorRepeticao`) é do **início da temporada** (Acumulação) e sempre **com equipamento** (c/PÉ + PALM ou c/PÉ). Sem pé de pato, sai um ritmo só. Enquanto o app não calcula a fase da temporada, vale em qualquer fase.
+- **Ritmo próprio da distância** (`ritmoPorDistancia`): nas séries de **400 m**, na maioria das vezes (`chance`: 70%) a série toda em **30 AC com c/PÉ + PALM**, como o treinador passa. Com o equipamento, não conta como A3 na recuperação.
+- **AC:** diminuindo, como em `acimaDoMelhor` (ex.: 3 séries = 15, 10, 5 AC).
+- **final forte:** `75 NAD x 25 fo` num 100, `25 NAD x 25 fo` num 50; nas pirâmides e grupos, bloco por bloco.
+- **NEG / POS:** a série toda.
+- Final forte, NEG e POS só em séries sem repetições de 25 m.
+- **A3 sempre com equipamento:** a série, o bloco ou (nas séries simples) a série toda em A3 recebe c/PÉ ou c/PÉ + PALM. Quem não é avançado e não tem pé de pato não recebe A3.
+- **Recuperação:** depois de um treino com A3 (ou AC de 10 ou menos) na série principal, o próximo treino dentro de 48 h (recuperação do A3) não tem A3.
+- **Recuperação dispensada** (`recuperacaoDispensada`): quem treina **até 2 vezes por semana** e **menos de 1 hora** pode ter A3 em qualquer treino. A não ser na preparação para **triatlo**.
+
+No card: A1/A2/A3 como estão, os outros entre parênteses (`(15 AC)`, `(NEG)`, `(75 NAD x 25 fo)`). O que é igual em todas as séries aparece uma vez, no cabeçalho.
+
+### Tabela de tempos (método do treinador)
+
+```json
+"tabelaDeTempos": {
+  "50":  { "divisor": 8, "ajustes": { "A1": [-3, -2], "A2": [-5, -4], "A3": [-7, -6] } },
+  "100": { "divisor": 4, "ajustes": { "A1": [0, 0], "A2": [-2, -2], "A3": [-4, -4] } },
+  "200": { "divisor": 2, "ajustes": { "A1": [4, 6], "A2": [0, 0], "A3": [-6, -4] } },
+  "400": { "divisor": 1, "ajustes": { "AC": [30, 30] } }
+}
+```
+
+A partir do teste de 400 m: **base = teste ÷ divisor**, e cada intensidade é a base + o ajuste, em segundos (`[de, até]`).
+
+| Distância | Regra |
+|---|---|
+| 100 m | A1 = teste ÷ 4; A2 = A1 − 2"; A3 = A1 − 4" |
+| 200 m | A2 = teste ÷ 2; A1 = A2 + 4 a 6"; A3 = A2 − 4 a 6" |
+| 50 m | (A1 do 100 ÷ 2) − 2 a 3" = A1; A2 = A1 − 2"; A3 = A1 − 4" |
+| 400 m | 30" acima do melhor (normalmente c/PÉ + PALM) |
+
+- É o que aparece no bloco **Tempos** do Dashboard, para cada atleta.
+- O gerador usa a tabela para o tempo de nado de cada repetição. As outras distâncias (25, 75, 150, 250, 300, 800) são estimadas pelo ritmo das vizinhas. Sem intensidade, vale o A2. Solto e velocidade, que a tabela não cobre, vão pelo % de esforço.
+
 ### Descanso entre as repetições
 
 ```json
@@ -326,6 +400,16 @@ Descanso padrão de cada repetição, em segundos, `[mínimo, máximo]`, por ní
 
 ### Intervalo entre as séries
 
+**Série principal:** toda série com `(2x)`, `(3x)`, `(4x)`... (inclusive os grupos repetidos) tem um intervalo maior entre as séries, para recuperar: **2'** para intermediário e avançado e **2' a 3'** para iniciante. Ele aparece no card ("2' de intervalo entre as séries").
+
+```json
+"principal": {
+  "porNivel": { "iniciante": [120, 180], "intermediario": [120, 120], "avancado": [120, 120] }
+}
+```
+
+**Velocidade:**
+
 ```json
 "intervalos": {
   "velocidade": {
@@ -345,7 +429,23 @@ Entre as séries de um `(2x)`, `(4x)`... o intervalo é **uma saída da repetiç
 
 As fases são `acumulacao`, `transicao` e `realizacao`.
 
+### Como a série aparece no card
+
+O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, MD, ME, NAD, c/PÉ, c/PALM, BOIA, SNK, PARA, PR), e o "m" entra depois das distâncias. Cada card tem um botão **Glossário** que mostra só os termos usados naquele treino; no **ME**, mostra o melhor estilo do atleta.
+
+- Quando o material ou o nado muda entre as séries de um `(2x)`, `(4x)`: cabeçalho e **uma linha por série** (`1ª série: NAD · MD / PE / MD`).
+- Pirâmides e grupos: **uma metragem por linha**, com o material do bloco.
+- O intervalo entre as séries da série principal vai no cabeçalho (`c/2'`).
+
+Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
+
 ### A decidir
+
+- **Esforço do intermediário** em cada intensidade (hoje é um meio termo provisório).
+- **Recuperação:** hoje só evita A3 seguido; falta pesar o treino inteiro (velocidade, AC) com mais precisão.
+- **Tempo das séries com intensidade:** o tempo estimado ainda usa A2 para a série principal toda.
+
+- **Metragem e tempo de cada parte no card** ("100 m · ~2 min"): escondidos para sobrar espaço. Para voltar a mostrar, troque `MOSTRAR_METRAGEM_E_TEMPO` para `true` em `src/components/Training/index.jsx`. O total do treino vai aparecer em outro lugar.
 
 - **Iniciante em treinos mais longos:** por enquanto, a mesma estrutura em qualquer tempo de aula.
 

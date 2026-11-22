@@ -103,7 +103,7 @@ test('antes de responder, a anamnese vem vazia', async () => {
   const cookie = await userFor('semAnamnese')
   const res = await api('/api/athlete-profile', { cookie })
   assert.equal(res.status, 200)
-  assert.deepEqual(res.body, { profile: null, time400: null, level: null })
+  assert.deepEqual(res.body, { profile: null, time400: null, level: null, tempos: null })
 })
 
 test('salva a anamnese, organiza as listas e calcula o nível', async () => {
@@ -134,8 +134,9 @@ test('quem só nada crawl não tem melhor estilo', async () => {
 test('atualizar a anamnese troca as respostas', async () => {
   const cookie = await userFor('anamnese')
   await saveProfile(cookie)
-  const res = await saveProfile(cookie, { ...sampleProfile, poolLength: 50, injuries: '' })
+  const res = await saveProfile(cookie, { ...sampleProfile, poolLength: 50, injuries: '', sessionMinutes: 40 })
   assert.equal(res.body.profile.poolLength, 50)
+  assert.equal(res.body.profile.sessionMinutes, 40) // aula de 40 minutos
   assert.equal(res.body.profile.injuries, '')
 })
 
@@ -152,6 +153,7 @@ test('valida as respostas da anamnese', async () => {
     { trainingDays: [] },
     { trainingDays: [7] },
     { sessionMinutes: 50 },
+    { sessionMinutes: 35 },
     { poolLength: 33 },
     { equipment: ['nadadeira'] },
     { injuries: 'x'.repeat(501) },
@@ -181,6 +183,8 @@ test('o tempo nos 400 m vem do último teste; sem teste, do tempo informado', as
   const res = await api('/api/athlete-profile', { cookie })
   assert.equal(res.body.time400.source, 'teste')
   assert.equal(res.body.time400.hundredths, 33245)
+  // A tabela de tempos vem calculada pelo teste: A1 do 100 = teste ÷ 4
+  assert.deepEqual(res.body.tempos['100'].A1, [83.1125, 83.1125])
 })
 
 test('cálculo do nível', () => {
@@ -200,7 +204,15 @@ test('cálculo do nível', () => {
   assert.deepEqual(computeLevel({ ...base, recentBreak: 'mais_6m' }, fast), {
     level: 'intermediario',
     returning: true,
+    recemIntermediario: false, // caiu de avançado: não é recém intermediário
   })
+  // Recém intermediário: na metade de baixo da faixa do intermediário
+  const recem = computeLevel({ swimmingSince: '6m_2a', recentBreak: 'nao', continuousDistance: '200_400' }, { hundredths: 8 * 6000 })
+  assert.equal(recem.level, 'intermediario')
+  assert.equal(recem.recemIntermediario, true)
+  const bom = computeLevel({ swimmingSince: 'mais_5a', recentBreak: 'nao', continuousDistance: '400_1000' }, { hundredths: 7 * 6000 })
+  assert.equal(bom.level, 'intermediario')
+  assert.equal(bom.recemIntermediario, false)
 })
 
 // ---------- Competições ----------

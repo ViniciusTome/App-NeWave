@@ -15,8 +15,8 @@ export const PARTS = ['aquecimento', 'velocidade', 'solto', 'principal', 'perna'
 // "estilo": um estilo que não seja o crawl (o que o atleta nada melhor).
 // "medley": cada volta num estilo, na ordem borboleta, costas, peito, crawl.
 export const NADOS = ['livre', 'crawl', 'costas', 'peito', 'borboleta', 'estilo', 'medley']
-// "solto": nado leve, de recuperação. "forte": acima do A3 (velocidade).
-export const INTENSIDADES = ['solto', 'A1', 'A2', 'A3', 'forte']
+// "solto": nado leve, de recuperação. "AA" (alático) = velocidade; "forte" é o mesmo que AA.
+export const INTENSIDADES = ['solto', 'A1', 'A2', 'A3', 'AA', 'forte']
 export const USOS = ['treino', 'teste']
 export const MATERIAIS = ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas']
 export const PISCINAS = [25, 50]

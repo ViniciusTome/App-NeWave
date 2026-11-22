@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '../../../services/api'
+import { api, notifyAthleteChanged } from '../../../services/api'
 import { todayIso } from '../../../utils/format'
 import styles from './evolutionofthetimes.module.css'
 
@@ -35,6 +35,8 @@ export const AddTestForm = ({ defaultDistance, onSaved }) => {
                 },
             })
             onSaved(test)
+            // Um teste novo (de 400 m) muda a tabela de tempos e o nível
+            notifyAthleteChanged()
         } catch (err) {
             setError(err.message)
             setIsSubmitting(false)

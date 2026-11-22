@@ -4,9 +4,11 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
-import { generateTrainings, trainingDates } from './generator.js'
+import { abbreviate, cardText, estimateSeconds, generateTrainings, trainingDates, withMeters } from './generator.js'
 import { loadLibrary } from './series/index.js'
-import { loadRules, partsForLevel, strokeCategory } from './series/regras.js'
+import {
+  drawIntensities, intervalBetweenSets, intervalRangeFor, loadRules, partsForLevel, seriesVariations, strokeCategory,
+} from './series/regras.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -111,6 +113,303 @@ test('o treino mostra a hidratação nos treinos acima de 1h15', () => {
   const hidratacao = treino.partes.find((p) => p.parte === 'hidratacao')
   assert.equal(hidratacao.minutos, 5)
   assert.equal(treino.partes.filter((p) => p.parte === 'principal').at(-1).titulo, '2ª série principal')
+})
+
+// ---------- Metragem no card ----------
+
+test('o card mostra o "m" de metros depois das distâncias', () => {
+  assert.equal(withMeters('300 livre'), '300 m livre')
+  assert.equal(withMeters('100 indo crawl, voltando estilo'), '100 m indo crawl, voltando estilo')
+  assert.equal(withMeters('(2x) 10 x 100 · com palmar'), '(2x) 10 x 100 m · com palmar')
+  assert.equal(withMeters('8 x 25 forte · medley'), '8 x 25 m forte · medley')
+  assert.equal(withMeters('8 x 25 (15 m forte, 10 m solto)'), '8 x 25 m (15 m forte, 10 m solto)')
+  assert.equal(withMeters('4 x 15 m'), '4 x 15 m') // já tinha
+  assert.equal(withMeters('1 x 400, 2 x 200 · os 400 com pé de pato + palmar, os 200 nadando'),
+    '1 x 400 m, 2 x 200 m · os 400 m com pé de pato + palmar, os 200 m nadando')
+  assert.equal(withMeters('400 perna com pé de pato'), '400 m perna com pé de pato')
+  assert.equal(withMeters('Aqueça até sentir que o corpo está bem aquecido'), 'Aqueça até sentir que o corpo está bem aquecido')
+})
+
+test('nos treinos gerados, toda distância tem o "m"', () => {
+  for (const [, athlete] of casos) {
+    for (const treino of gerar(athlete)) {
+      for (const parte of treino.partes.filter((p) => p.serieId)) {
+        assert.doesNotMatch(parte.texto, /\b\d+ x \d+\b(?! m\b)/, parte.texto)
+        assert.doesNotMatch(parte.texto, /^\d+ (?!m\b|x\b)/, parte.texto)
+      }
+      // A hidratação não ganha "m" ("5 min de hidratação")
+      const hidratacao = treino.partes.find((p) => p.parte === 'hidratacao')
+      if (hidratacao) assert.match(hidratacao.texto, /^5 min/)
+    }
+  }
+})
+
+// ---------- Abreviações do card ----------
+
+test('o card usa as abreviações do treinador', () => {
+  assert.equal(abbreviate('100 m indo crawl, voltando estilo'), '100 m indo CR, voltando estilo')
+  assert.equal(abbreviate('8 x 25 m forte · medley · com pé de pato + palmar'), '8 x 25 m forte · MD · c/PÉ + PALM')
+  assert.equal(abbreviate('com palmar + pull buoy'), 'c/PALM + BOIA')
+  assert.equal(abbreviate('400 m perna com pé de pato · ida crawl, volta costas (melhor estilo)'), '400 m PR c/PÉ · ida CR, volta ME')
+  assert.equal(abbreviate('ida crawl, volta peito (melhor estilo) · com pé de pato de peito'), 'ida CR, volta ME · c/PÉ de peito')
+  assert.equal(abbreviate('1ª série nadando'), '1ª série NAD')
+  // Frases que não são termos ficam iguais
+  assert.equal(abbreviate('Aqueça até sentir que o corpo está bem aquecido'), 'Aqueça até sentir que o corpo está bem aquecido')
+})
+
+test('série com material ou nado mudando entre as séries: uma linha por série', () => {
+  const vel = library.velocidade.find((s) => s.id === 'vel-2x4x25-forte')
+  assert.equal(cardText(vel, { texto: 'x', padrao: 'por_serie', material: ['pe_de_pato'], series: [['pe_de_pato'], []] }),
+    '(2x) 4 x 25 m forte\n1ª série: c/PÉ\n2ª série: NAD')
+
+  // Mistura de nados: o melhor estilo aparece como ME, e série toda igual fica com um nado só
+  const pri = library.principal.find((s) => s.id === 'pri-4x3x200')
+  const mistura = {
+    nado: 'misto', padrao: 'sem_material', material: [], melhorEstilo: 'costas', texto: 'x',
+    porSerie: [['medley', 'peito', 'medley'], ['costas', 'medley', 'costas'], ['costas', 'costas', 'costas'], ['costas', 'peito', 'medley']],
+  }
+  assert.equal(cardText(pri, mistura, { min: 120, max: 120 }),
+    "(4x) 3 x 200 m · c/2'\n1ª série: MD / PE / MD\n2ª série: ME / MD / ME\n3ª série: ME\n4ª série: ME / PE / MD")
+  // Iniciante: intervalo de 2' a 3'
+  assert.match(cardText(pri, mistura, { min: 120, max: 180 }), /^\(4x\) 3 x 200 m · c\/2' a 3'\n/)
+})
+
+// ---------- Uma metragem por linha ----------
+
+test('pirâmides e grupos: uma metragem embaixo da outra, com o material na linha do bloco', () => {
+  const p = (id) => library.principal.find((s) => s.id === id)
+  assert.equal(cardText(p('pri-2x-200-100-200-50'), { texto: '(2x) 1 x 200, 2 x 100, 1 x 200, 4 x 50', padrao: 'sem_material', material: [] }),
+    '(2x)\n1 x 200 m\n2 x 100 m\n1 x 200 m\n4 x 50 m')
+  // Material na série toda: na última linha
+  assert.equal(cardText(p('pri-2x-200-50'), { texto: '(2x) 1 x 200, 4 x 50 · com palmar + pull buoy', padrao: 'serie_inteira', material: ['palmar', 'pull_buoy'] }),
+    '(2x)\n1 x 200 m\n4 x 50 m\nc/PALM + BOIA')
+  // Pirâmide alternando: cada bloco com o seu material
+  assert.equal(cardText(p('pri-piramide-400-50'), {
+    texto: 'ignorado · os 400 com ...', padrao: 'piramide_alternada', material: [],
+    porBloco: [['pe_de_pato', 'palmar'], ['palmar'], [], ['pe_de_pato']],
+  }), '1 x 400 m · c/PÉ + PALM\n2 x 200 m · c/PALM\n4 x 100 m · NAD\n8 x 50 m · c/PÉ')
+  // Só os 400 com material: o resto sem nada escrito
+  assert.equal(cardText(p('pri-piramide-400-50'), {
+    texto: 'x', padrao: 'obrigatorio_por_bloco', material: ['pe_de_pato', 'palmar'],
+    porBloco: [['pe_de_pato', 'palmar'], [], [], []],
+  }), '1 x 400 m · c/PÉ + PALM\n2 x 200 m\n4 x 100 m\n8 x 50 m')
+  // Série de uma metragem só continua numa linha
+  assert.equal(cardText(p('pri-5x400'), { texto: '5 x 400 · com palmar', padrao: 'serie_inteira', material: ['palmar'] }),
+    '5 x 400 m · c/PALM')
+})
+
+test('nos treinos gerados, as séries com várias metragens têm uma por linha', () => {
+  let vistas = 0
+  for (const [, athlete] of casos) {
+    for (let seed = 1; seed <= 6; seed++) {
+      for (const parte of gerar(athlete, seed).flatMap((t) => t.partes).filter((x) => x.serieId)) {
+        const serie = serieById(parte.serieId)
+        if (serie.blocos.length < 2) continue
+        vistas++
+        const linhas = parte.texto.split('\n').filter((l) => /^\d+ x \d+ m/.test(l))
+        assert.equal(linhas.length, serie.blocos.length, parte.texto)
+      }
+    }
+  }
+  assert.ok(vistas > 0, 'nenhuma pirâmide ou grupo foi sorteado')
+})
+
+// ---------- Intervalo entre as séries da série principal ----------
+
+const principalDe = (id) => library.principal.find((s) => s.id === id)
+
+test('série principal com séries: 2 minutos de intervalo (iniciante, 2 a 3 minutos)', () => {
+  for (const id of ['pri-2x10x100', 'pri-4x3x200', 'pri-3x-100-75-50-25', 'pri-2x-200-50']) {
+    assert.deepEqual(intervalRangeFor(rules, 'principal', principalDe(id), 'avancado'), { min: 120, max: 120 }, id)
+    assert.deepEqual(intervalRangeFor(rules, 'principal', principalDe(id), 'intermediario'), { min: 120, max: 120 }, id)
+    assert.deepEqual(intervalRangeFor(rules, 'principal', principalDe(id), 'iniciante'), { min: 120, max: 180 }, id)
+  }
+  // Sem séries, não tem intervalo
+  assert.equal(intervalRangeFor(rules, 'principal', principalDe('pri-10x200'), 'avancado'), null)
+  // A velocidade continua com a saída (não muda)
+  const vel = library.velocidade.find((s) => s.id === 'vel-2x4x25-forte')
+  assert.equal(intervalRangeFor(rules, 'velocidade', vel, 'avancado'), null)
+  assert.equal(intervalBetweenSets(rules, 'velocidade', vel, { fase: null, level: 'avancado', saidaSegundos: 30 }), 30)
+})
+
+test('o intervalo entra no tempo estimado e aparece no card', () => {
+  const pace = 90
+  const variation = { material: [] }
+  const athleteAv = { level: 'avancado' }
+  // (2x) 10 x 100 = 10 x 100 + 2' + 10 x 100: o intervalo soma ~2' no lugar de um descanso de 25"
+  const comIntervalo = estimateSeconds(rules, 'principal', principalDe('pri-2x10x100'), variation, athleteAv, pace)
+  const semIntervalo = estimateSeconds(rules, 'principal', principalDe('pri-16x100'), variation, athleteAv, pace) / 16 * 20
+  assert.ok(Math.abs(comIntervalo - semIntervalo - (120 - 25)) < 1, `${comIntervalo} x ${semIntervalo}`)
+
+  for (const [nome, athlete] of casos) {
+    for (const treino of gerar(athlete, 2)) {
+      for (const parte of treino.partes.filter((p) => p.parte === 'principal')) {
+        const temSeries = /^\(\d+x\)/.test(parte.texto)
+        if (!temSeries) {
+          assert.equal(parte.intervalo, undefined, parte.texto)
+          continue
+        }
+        const esperado = athlete.level === 'iniciante'
+          ? "2' a 3' de intervalo entre as séries"
+          : "2' de intervalo entre as séries"
+        assert.equal(parte.intervalo, esperado, `${nome}: ${parte.texto}`)
+      }
+    }
+  }
+})
+
+// ---------- Intensidades na série principal ----------
+
+const diario = { ...avancado, trainingDays: [0, 1, 2, 3, 4, 5, 6] }
+const principaisDe = (athlete, seeds = 8) => {
+  const lista = []
+  for (let seed = 1; seed <= seeds; seed++) {
+    for (const t of gerar(athlete, seed)) lista.push(...t.partes.filter((p) => p.parte === 'principal').map((p) => ({ ...p, date: t.date })))
+  }
+  return lista
+}
+
+test('a série principal sempre tem um jeito de nadar, e os tipos nunca se misturam', () => {
+  const tipos = new Set()
+  for (const p of principaisDe(diario)) {
+    assert.ok(p.intensidades, p.texto)
+    tipos.add(p.intensidades.tipo)
+    const aLevels = p.intensidades.valores.filter((v) => /^A[123]$/.test(v))
+    // Ou só A1/A2/A3, ou nenhum deles
+    assert.ok(aLevels.length === 0 || aLevels.length === p.intensidades.valores.length, p.intensidades.valores.join())
+    assert.equal(p.intensidades.tipo === 'intensidades', aLevels.length > 0)
+  }
+  assert.deepEqual([...tipos].sort(), ['AC', 'NEG', 'POS', 'finalForte', 'intensidades'])
+})
+
+test('A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM)', () => {
+  let vistos = 0
+  for (const p of principaisDe(diario)) {
+    if (!p.intensidades.valores.includes('A3')) continue
+    vistos++
+    const linhas = p.texto.split('\n')
+    // O material da série toda fica no cabeçalho ou, nas pirâmides e grupos, na linha depois dos blocos
+    const daSerieToda = linhas.filter((l) => !/ª série:/.test(l) && !/^\d+ x \d+ m/.test(l))
+    for (const linha of linhas.filter((l) => /\bA3\b/.test(l))) {
+      assert.ok(linha.includes('c/PÉ') || daSerieToda.some((l) => l.includes('c/PÉ')), p.texto)
+    }
+  }
+  assert.ok(vistos > 0, 'nenhuma série em A3 foi sorteada')
+})
+
+test('A3 sem pé de pato: quem não é avançado não recebe; com pé de pato, sim', () => {
+  const semPe = { ...diario, level: 'intermediario', continuousDistance: '1000_2000', equipment: ['palmar'] }
+  for (const p of principaisDe(semPe, 4)) assert.ok(!p.intensidades.valores.includes('A3'), p.texto)
+  const serie = library.principal.find((s) => s.id === 'pri-4x4x100')
+  const variacao = seriesVariations(rules, 'principal', serie, { ...avancado, equipment: ['pe_de_pato'] })[0]
+  let comA3 = 0
+  for (let seed = 1; seed <= 40; seed++) {
+    const r = drawIntensities(rules, serie, variacao, { ...avancado, equipment: ['pe_de_pato'] }, { random: seeded(seed) })
+    r.valores.forEach((v, i) => {
+      if (v !== 'A3') return
+      comA3++
+      assert.ok(r.variation.series[i].includes('pe_de_pato'), `série ${i + 1} em A3 sem pé de pato`)
+    })
+  }
+  assert.ok(comA3 > 0)
+})
+
+test('recuperação: depois de um treino com A3, o próximo dentro de 48 h não tem A3', () => {
+  for (let seed = 1; seed <= 8; seed++) {
+    const treinos = gerar(diario, seed)
+    for (let i = 1; i < treinos.length; i++) {
+      const pesado = (t) => t.partes.some((p) => p.intensidades?.valores.some((v) => v === 'A3' || /^([5-9]|10) AC$/.test(v)))
+      if (pesado(treinos[i - 1])) {
+        const temA3 = treinos[i].partes.some((p) => p.intensidades?.valores.includes('A3'))
+        assert.ok(!temA3, `${treinos[i - 1].date} e ${treinos[i].date} com A3`)
+      }
+    }
+  }
+})
+
+test('séries simples: um ritmo por repetição ou um ritmo só; 400 m quase sempre 30 AC c/PÉ + PALM', () => {
+  const s5x400 = library.principal.find((s) => s.id === 'pri-5x400')
+  const variacao = seriesVariations(rules, 'principal', s5x400, avancado)[0]
+  let trinta = 0
+  for (let seed = 1; seed <= 60; seed++) {
+    const r = drawIntensities(rules, s5x400, variacao, avancado, { random: seeded(seed) })
+    if (r.valores[0] === '30 AC') {
+      trinta++
+      assert.equal(r.unidade, 'serie_toda')
+      assert.deepEqual(r.variation.material, ['pe_de_pato', 'palmar'])
+    }
+  }
+  assert.ok(trinta > 30 && trinta < 60, `${trinta} de 60`)
+  // 10 x 200: às vezes um ritmo só, às vezes um por repetição
+  const s10x200 = library.principal.find((s) => s.id === 'pri-10x200')
+  const v200 = seriesVariations(rules, 'principal', s10x200, avancado)[0]
+  const unidades = new Set()
+  for (let seed = 1; seed <= 60; seed++) {
+    const r = drawIntensities(rules, s10x200, v200, avancado, { random: seeded(seed) })
+    if (r.tipo === 'intensidades') unidades.add(r.unidade)
+  }
+  assert.ok(unidades.has('serie_toda'))
+})
+
+test('série simples com um ritmo por repetição: sempre com equipamento, e só no início da temporada', () => {
+  const s6x300 = library.principal.find((s) => s.id === 'pri-6x300')
+  const v = seriesVariations(rules, 'principal', s6x300, avancado)[0] // sem material
+  let porRep = 0
+  for (let seed = 1; seed <= 80; seed++) {
+    const r = drawIntensities(rules, s6x300, v, avancado, { random: seeded(seed) })
+    if (r.tipo === 'intensidades' && r.unidade === 'repeticao') {
+      porRep++
+      assert.ok(r.variation.material.includes('pe_de_pato'), 'ritmo por repetição sem equipamento')
+    }
+    // Fora da Acumulação: nunca um ritmo por repetição
+    const fora = drawIntensities(rules, s6x300, v, avancado, { random: seeded(seed), fase: 'realizacao' })
+    assert.notEqual(fora.unidade, 'repeticao')
+  }
+  assert.ok(porRep > 0)
+  // Sem pé de pato: um ritmo só
+  const semPe = { ...avancado, equipment: ['palmar'] }
+  for (let seed = 1; seed <= 30; seed++) {
+    const r = drawIntensities(rules, s6x300, v, semPe, { random: seeded(seed) })
+    assert.notEqual(r.unidade, 'repeticao')
+  }
+})
+
+test('quem treina até 2x por semana e menos de 1 h pode ter A3 em qualquer treino (menos triatlo)', async () => {
+  const { recoveryWaived } = await import('./series/regras.js')
+  const pouco = { ...avancado, trainingDays: [2, 4], sessionMinutes: 40 }
+  assert.equal(recoveryWaived(rules, pouco), true)
+  assert.equal(recoveryWaived(rules, { ...pouco, modalidade: 'triatlo' }), false)
+  assert.equal(recoveryWaived(rules, { ...pouco, sessionMinutes: 60 }), false)
+  assert.equal(recoveryWaived(rules, { ...pouco, trainingDays: [1, 3, 5] }), false)
+  // Treinando terça e quinta (48 h), mas também em dias seguidos: sem a regra, A3 seguido aparece
+  const seguidos = { ...avancado, trainingDays: [2, 3], sessionMinutes: 45 }
+  let a3Seguido = false
+  for (let seed = 1; seed <= 20 && !a3Seguido; seed++) {
+    const t = gerar(seguidos, seed)
+    for (let i = 1; i < t.length; i++) {
+      const temA3 = (x) => x.partes.some((p) => p.intensidades?.valores.includes('A3'))
+      if (temA3(t[i - 1]) && temA3(t[i])) a3Seguido = true
+    }
+  }
+  assert.ok(a3Seguido, 'sem a regra da recuperação, deveria poder ter A3 em treinos seguidos')
+})
+
+test('padrões do treinador e escada; AC diminuindo; final forte por bloco', () => {
+  const padroes = rules.intensidadesNaPrincipal.padroes.map((p) => p.join())
+  const vistos = new Set()
+  for (const p of principaisDe(diario)) {
+    const { tipo, unidade, valores } = p.intensidades
+    if (tipo === 'intensidades' && padroes.includes(valores.join())) vistos.add(valores.join())
+    if (tipo === 'AC' && valores.length > 1) {
+      const n = valores.map((v) => Number(v.split(' ')[0]))
+      assert.deepEqual(n, [...n].sort((a, b) => b - a), 'AC precisa diminuir')
+    }
+    if (tipo === 'finalForte' && unidade === 'bloco') {
+      const serie = serieById(p.serieId)
+      assert.deepEqual(valores, serie.blocos.map((b) => `${b.distancia - 25} NAD x 25 fo`))
+    }
+  }
+  assert.ok(vistos.size > 0, 'nenhum padrão do treinador foi usado')
 })
 
 // ---------- Rota POST /api/trainings/generate ----------

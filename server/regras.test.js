@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { describe, loadPart, validate } from './series/index.js'
 import {
-  allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, restFor, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
+  allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, repSeconds, restFor, timeTable,
+  usesIntensityRest, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
 } from './series/regras.js'
 
 const rules = loadRules()
@@ -611,6 +612,97 @@ test('descanso: distâncias fora da tabela ficam entre as vizinhas, de 5 em 5 se
   assert.deepEqual(restFor(rules, 'avancado', 1500), { min: 120, max: 120 })
 })
 
+// ---------- Intensidades ----------
+
+test('esforço de cada intensidade por nível (% do máximo do teste de 400 m)', () => {
+  assert.equal(effortFor(rules, 'A1', 'iniciante'), 65)
+  assert.equal(effortFor(rules, 'A2', 'iniciante'), 75)
+  assert.equal(effortFor(rules, 'A3', 'iniciante'), 82.5)
+  assert.equal(effortFor(rules, 'A1', 'avancado'), 75)
+  assert.equal(effortFor(rules, 'A2', 'avancado'), 80)
+  assert.equal(effortFor(rules, 'A3', 'avancado'), 85)
+  // Intermediário (provisório): meio termo entre o iniciante e o avançado
+  assert.equal(effortFor(rules, 'A1', 'intermediario'), 70)
+  assert.equal(effortFor(rules, 'A2', 'intermediario'), 77.5)
+  // AA (velocidade) perto de 100%; "forte" é o mesmo que AA
+  assert.equal(intensityName(rules, 'forte'), 'AA')
+  assert.equal(effortFor(rules, 'forte', 'avancado'), 97.5)
+})
+
+test('descanso por intensidade: iniciante e recém intermediário; os outros, por distância', () => {
+  assert.equal(usesIntensityRest(rules, { level: 'iniciante' }), true)
+  assert.equal(usesIntensityRest(rules, { level: 'intermediario', recemIntermediario: true }), true)
+  assert.equal(usesIntensityRest(rules, { level: 'intermediario', recemIntermediario: false }), false)
+  assert.equal(usesIntensityRest(rules, { level: 'avancado' }), false)
+  assert.deepEqual(rules.intensidades.A1.descanso, [0, 20])
+  assert.deepEqual(rules.intensidades.A2.descanso, [0, 30])
+  assert.deepEqual(rules.intensidades.A3.descanso, [0, 60])
+  assert.deepEqual(rules.intensidades.AA.descanso, [0, 60])
+})
+
+test('A3 quase sempre com pé de pato ou pé + palmar; sem material só para avançado, e raramente', () => {
+  const a3 = describe({ id: 'a3', texto: '6 x 200', blocos: [{ repeticoes: 6, distancia: 200, nado: 'livre', intensidade: 'A3' }] })
+  const de = (level, equipment = TODO_MATERIAL) =>
+    seriesVariations(rules, 'principal', a3, { level, equipment, strokes: ['crawl'] })
+  const intermediario = de('intermediario')
+  assert.deepEqual(intermediario.map((v) => v.material), [['pe_de_pato'], ['pe_de_pato', 'palmar']])
+  const avancado = de('avancado')
+  const sem = avancado.find((v) => v.padrao === 'sem_material')
+  assert.ok(sem, 'avançado pode fazer sem material')
+  assert.equal(sem.peso, 0.1)
+  // Sem pé de pato, quem não é avançado não recebe a série em A3
+  assert.deepEqual(de('intermediario', ['palmar']), [])
+})
+
+test('recuperação de cada intensidade fica guardada nas regras', () => {
+  assert.deepEqual(rules.intensidades.A1.recuperacaoHoras, [0, 6])
+  assert.deepEqual(rules.intensidades.A2.recuperacaoHoras, [12, 24])
+  assert.deepEqual(rules.intensidades.A3.recuperacaoHoras, [24, 48])
+  assert.deepEqual(rules.intensidades.AA.recuperacaoHoras, [6, 24])
+})
+
+// ---------- Tabela de tempos (método do treinador) ----------
+
+test('tabela de tempos a partir do teste de 400 m (ex.: 6\'00")', () => {
+  const t = timeTable(rules, 360)
+  // 100 m: A1 = 400 ÷ 4; A2 = A1 − 2"; A3 = A1 − 4"
+  assert.deepEqual(t['100'], { A1: [90, 90], A2: [88, 88], A3: [86, 86] })
+  // 200 m: A2 = 400 ÷ 2; A1 = A2 + 4 a 6"; A3 = A2 − 4 a 6"
+  assert.deepEqual(t['200'], { A1: [184, 186], A2: [180, 180], A3: [174, 176] })
+  // 50 m: (A1 do 100 ÷ 2) − 2 a 3"; A2 = A1 − 2"; A3 = A1 − 4"
+  assert.deepEqual(t['50'], { A1: [42, 43], A2: [40, 41], A3: [38, 39] })
+  // 400 m: 30" acima do melhor
+  assert.deepEqual(t['400'], { AC: [390, 390] })
+})
+
+test('tempo de nado de cada repetição pela tabela; outras distâncias estimadas', () => {
+  const t = timeTable(rules, 360)
+  assert.equal(repSeconds(rules, t, 100, 'A1'), 90)
+  assert.equal(repSeconds(rules, t, 200, 'A3'), 175) // meio de 2'54" a 2'56"
+  assert.equal(repSeconds(rules, t, 50, 'A2'), 40.5)
+  assert.equal(repSeconds(rules, t, 400, 'A2'), 390) // 400: 30" acima do melhor
+  // Sem intensidade: A2
+  assert.equal(repSeconds(rules, t, 100, undefined), 88)
+  // 150 m: ritmo entre o do 100 e o do 200
+  const r150 = repSeconds(rules, t, 150, 'A2')
+  assert.ok(r150 > 1.5 * 88 && r150 < 1.5 * 90, String(r150))
+  // 25 m: ritmo do 50; 800 m: ritmo do 400
+  assert.equal(repSeconds(rules, t, 25, 'A1'), 21.25)
+  assert.equal(repSeconds(rules, t, 800, 'A1'), 780)
+  // A tabela não cobre solto nem velocidade
+  assert.equal(repSeconds(rules, t, 100, 'solto'), null)
+  assert.equal(repSeconds(rules, t, 25, 'forte'), null)
+})
+
+test('escada progressiva: começa no A1 e termina no A3 (ou no A2, se A3 não pode)', async () => {
+  const { ladder } = await import('./series/regras.js')
+  assert.deepEqual(ladder(3), ['A1', 'A2', 'A3'])
+  assert.deepEqual(ladder(4), ['A1', 'A2', 'A1', 'A3'])
+  assert.deepEqual(ladder(6), ['A1', 'A1', 'A2', 'A2', 'A3', 'A3'])
+  assert.deepEqual(ladder(4, 'A2'), ['A1', 'A2', 'A1', 'A2'])
+  assert.deepEqual(ladder(2), ['A1', 'A2'])
+})
+
 // ---------- Validação do arquivo de regras ----------
 
 test('a validação das regras aponta os erros', () => {
@@ -630,6 +722,10 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
     [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
     [(r) => { r.descansos.iniciante['50'] = [40, 25] }, 'descansos.iniciante.50'],
+    [(r) => { r.intensidades.A1.esforco.iniciante = [60, 120] }, 'intensidades.A1.esforco.iniciante'],
+    [(r) => { r.tabelaDeTempos['100'].divisor = 0 }, 'tabelaDeTempos.100.divisor'],
+    [(r) => { r.tabelaDeTempos['200'].ajustes.A1 = [6, 4] }, 'tabelaDeTempos.200.ajustes.A1'],
+    [(r) => { r.intensidades.A3.material.semMaterialSo = ['junior'] }, 'intensidades.A3.material.semMaterialSo'],
     [(r) => { r.descansos.avancado = {} }, 'descansos.avancado'],
     [(r) => { r.descansos.avancado['cem'] = [20, 30] }, '"cem" precisa ser uma distância'],
     [(r) => { r.misturaDeNados.minimoDeSeries = 1 }, 'misturaDeNados.minimoDeSeries'],
@@ -651,6 +747,8 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.intervalos.velocidade.excecoes.push({ fase: 'realizacao', repeticoesPorSerie: 8, segundos: 60 }) }, 'use uma condição'],
     [(r) => { r.intervalos.velocidade.excecoes.push({ repeticoesPorSerie: 8, segundos: '1min' }) }, '"segundos"'],
     [(r) => { r.intervalos.velocidade.padrao = 'fixo' }, 'padrao'],
+    [(r) => { r.intervalos.principal.porNivel.iniciante = [180, 120] }, 'intervalos.principal.porNivel.iniciante'],
+    [(r) => { delete r.intervalos.principal.porNivel.avancado }, 'intervalos.principal.porNivel.avancado'],
   ]
   for (const [change, expected] of cases) {
     const broken = structuredClone(rules)

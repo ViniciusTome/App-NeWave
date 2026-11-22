@@ -10,6 +10,7 @@ import { Register } from './Pages/RegisterPage'
 import { ForgotPassword } from './Pages/ForgotPassword'
 import { ResetPassword } from './Pages/ResetPassword'
 import { TrainingPage } from './Pages/TrainingPage'
+import { GlossaryPage } from './Pages/GlossaryPage'
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AuthProvider } from './contexts/AuthProvider'
 
@@ -36,6 +37,10 @@ function App() {
             <Route path='performance' element={
               <ProtectedRoute>
                 <PerformancePage />
+              </ProtectedRoute>} />
+            <Route path='glossario' element={
+              <ProtectedRoute>
+                <GlossaryPage />
               </ProtectedRoute>} />
           </Route>
           <Route path='auth'>

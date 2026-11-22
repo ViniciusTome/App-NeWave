@@ -2,6 +2,7 @@ import styles from './menu.module.css'
 import { IconAccount } from '../icons/IconAccount'
 import { IconFeed } from '../icons/IconFeed'
 import { IconInfo } from '../icons/IconInfo'
+import { IconBook } from '../icons/IconBook'
 import { IconLogin } from '../icons/IconLogin'
 import { AsideIcon } from '../AsideIcon'
 import { Link } from 'react-router-dom'
@@ -28,6 +29,13 @@ export const Menu = () => {
                 <Link to='/page/performance' className={styles.link}>
                     <AsideIcon icon={<IconInfo/>} className={styles.asideicon}>
                         Desempenho/Feedback
+                    </AsideIcon>
+                </Link>
+            </div>
+            <div className={styles.icon}>
+                <Link to='/page/glossario' className={styles.link}>
+                    <AsideIcon icon={<IconBook/>} className={styles.asideicon}>
+                        Glossário
                     </AsideIcon>
                 </Link>
             </div>

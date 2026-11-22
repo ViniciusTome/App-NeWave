@@ -3,6 +3,7 @@
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
 import { generateTrainings, legacyFields } from './generator.js'
+import { timeTable } from './series/regras.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -13,7 +14,7 @@ export const OPTIONS = {
   recentBreak: ['nao', 'menos_1m', '1_6m', 'mais_6m'],
   continuousDistance: ['ate_50', '50_100', '100_200', '200_400', '400_1000', '1000_2000', 'mais_2000'],
   strokes: ['crawl', 'costas', 'peito', 'borboleta'],
-  sessionMinutes: [30, 45, 60, 75, 90, 120],
+  sessionMinutes: [30, 40, 45, 60, 75, 90, 120],
   poolLength: [25, 50],
   equipment: ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas'],
   modality: ['triatlo', 'maratona_aquatica', 'piscina_25', 'piscina_50'],
@@ -71,7 +72,11 @@ export function computeLevel(profile, time400) {
   const returning = profile.recentBreak === 'mais_6m'
   if (returning) index = Math.max(index - 1, 0)
 
-  return { level: LEVELS[index], returning }
+  // Recém intermediário: está na metade de baixo da faixa do intermediário
+  // (PROVISÓRIO). Usa o descanso por intensidade, como o iniciante.
+  const recemIntermediario = LEVELS[index] === 'intermediario' && ratio < 0.525
+
+  return { level: LEVELS[index], returning, recemIntermediario }
 }
 
 // ---------- Validação ----------
@@ -287,7 +292,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     const row = findProfile.get(userId)
     const profile = row ? publicProfile(row) : null
     const time400 = time400Of(userId, profile)
-    return { profile, time400, level: profile ? computeLevel(profile, time400) : null }
+    // Tabela de tempos (A1, A2, A3 de cada distância), pelo teste de 400 m
+    const tempos = time400 && rules ? timeTable(rules, time400.hundredths / 100) : null
+    return { profile, time400, level: profile ? computeLevel(profile, time400) : null, tempos }
   }
 
   function preparationResponse(userId, today) {
@@ -363,9 +370,14 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
 
       // Dia que já tem treino concluído não ganha outro
       const jaFeitos = new Set(completedDates.all(user.id, today).map((r) => r.date))
+      // Modalidade da prova alvo (ex.: triatlo), para a regra da recuperação
+      const preparacao = preparationResponse(user.id, today)
+      const modalidade = preparacao?.active ? preparacao.competition?.modality ?? null : null
       const trainings = generateTrainings({
         rules, library, today,
-        athlete: { ...profile, level: level.level, time400 },
+        athlete: {
+          ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
+        },
       }).filter((t) => !jaFeitos.has(t.date))
 
       const now = new Date().toISOString()

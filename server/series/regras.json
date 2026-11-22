@@ -70,12 +70,74 @@
       }
     }
   },
+  "intensidades": {
+    "A1": {
+      "esforco": { "iniciante": [60, 70], "avancado": [75, 75] },
+      "descanso": [0, 20],
+      "recuperacaoHoras": [0, 6]
+    },
+    "A2": {
+      "esforco": { "iniciante": [70, 80], "avancado": [80, 80] },
+      "descanso": [0, 30],
+      "recuperacaoHoras": [12, 24]
+    },
+    "A3": {
+      "esforco": { "iniciante": [80, 85], "avancado": [85, 85] },
+      "descanso": [0, 60],
+      "recuperacaoHoras": [24, 48],
+      "material": {
+        "opcoes": [["pe_de_pato"], ["pe_de_pato", "palmar"]],
+        "semMaterialSo": ["avancado"],
+        "pesoSemMaterial": 0.1
+      }
+    },
+    "AA": {
+      "nomes": ["forte"],
+      "esforco": { "iniciante": [95, 100], "intermediario": [95, 100], "avancado": [95, 100] },
+      "descanso": [0, 60],
+      "recuperacaoHoras": [6, 24]
+    }
+  },
+  "recuperacaoDispensada": {
+    "maxTreinosPorSemana": 2,
+    "aulaAbaixoDeMinutos": 60,
+    "excetoModalidades": ["triatlo"]
+  },
+  "intensidadesNaPrincipal": {
+    "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 },
+    "padroes": [
+      ["A1", "A2", "A3"],
+      ["A1", "A2", "A1", "A3"],
+      ["A1", "A2", "A1", "A2", "A3"],
+      ["A1", "A2", "A1", "A3", "A1", "A2", "A1"]
+    ],
+    "acimaDoMelhor": [20, 15, 10, 5],
+    "maxRepeticoesComIntensidade": 7,
+    "ritmoUnicoNasSimples": 50,
+    "ritmoPorRepeticao": {
+      "fases": ["acumulacao"],
+      "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]]
+    },
+    "ritmoPorDistancia": {
+      "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
+    }
+  },
+  "tabelaDeTempos": {
+    "50": { "divisor": 8, "ajustes": { "A1": [-3, -2], "A2": [-5, -4], "A3": [-7, -6] } },
+    "100": { "divisor": 4, "ajustes": { "A1": [0, 0], "A2": [-2, -2], "A3": [-4, -4] } },
+    "200": { "divisor": 2, "ajustes": { "A1": [4, 6], "A2": [0, 0], "A3": [-6, -4] } },
+    "400": { "divisor": 1, "ajustes": { "AC": [30, 30] } }
+  },
+  "descansoPorIntensidadePara": ["iniciante", "intermediarioInicio"],
   "descansos": {
     "iniciante": { "50": [25, 40], "100": [30, 40], "200": [40, 60], "400": [60, 60], "800": [120, 120] },
     "intermediario": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60], "800": [120, 120] },
     "avancado": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60], "800": [120, 120] }
   },
   "intervalos": {
+    "principal": {
+      "porNivel": { "iniciante": [120, 180], "intermediario": [120, 120], "avancado": [120, 120] }
+    },
     "velocidade": {
       "padrao": "saida",
       "excecoes": [
