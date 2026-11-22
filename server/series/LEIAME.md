@@ -160,7 +160,7 @@ Nos treinos com duas séries principais, **se a 1ª for de estilo, a 2ª é obri
 
 O número escrito é uma sugestão: o gerador escolhe **quantas séries** o atleta faz, para caber no tempo da aula. Vale para o aquecimento, a velocidade, a série principal e a perna (`seriesAjustaveis` no `regras.json`).
 
-- **Iniciante:** só **diminui** (ex.: (4x) 4 x 100 vira (3x) 4 x 100). Nunca menos de (2x).
+- **Iniciante:** só **diminui** (ex.: (4x) 4 x 100 vira (3x) 4 x 100) e pode fazer **uma série só** (ex.: (2x) 10 x 100 vira 10 x 100).
 - **Intermediário e avançado:** podem fazer de (2x) até **1 série a mais** que o escrito (no máximo (6x)).
 - A metragem, as intensidades (A1/A2/A3...), o material e a mistura de estilos acompanham o número de séries.
 - Para a série ficar sempre como está escrita, tire a parte da lista `partes` ou mude `aumentarAte` e `minimo`.
@@ -458,6 +458,15 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 - **NEG, POS e final forte:** tempo do A2 + **20" a 30"** (usa 25") nos 50 e 100 m. Nas outras distâncias, a tabela de descanso.
 - **Velocidade:** avançado nos 25 m **cd 30"**. Intermediário (e nas outras distâncias): **1/1**, descansa o mesmo tempo que nada; o tempo forte vem do melhor dos 50 estimado (proporcional à distância).
 - **Grupos** (ex.: 3x(1x100; 2x75; 3x50; 4x25)): cada distância com a sua saída. Se a saída é a mesma em todas as séries, vai na linha da distância; se muda, vai na linha de cada série (`100 cd 1'45" / 75 cd 1'30" / ...`).
+
+### Sem tempos de referência (sem teste de 400 m)
+
+Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), não dá para montar a saída:
+
+- No lugar do `cd`, o card mostra o **descanso entre as repetições** (`c/20" de descanso`), pela tabela de descanso.
+- Na velocidade, o intermediário fica com **1/1**. O avançado nos 25 m continua com cd 30".
+- Não usa **AC**, porque o atleta ainda não sabe o melhor tempo.
+- O **primeiro treino é o teste**: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
 
 ### Como a série aparece no card
 

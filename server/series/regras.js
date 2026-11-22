@@ -107,7 +107,10 @@ export function validateRules(rules) {
 
     const ajustaveis = rules.seriesAjustaveis
     if (ajustaveis !== undefined) {
-        const { partes, minimo, maximo, aumentarAte = {} } = ajustaveis
+        const { partes, minimo, maximo, aumentarAte = {}, minimoPorNivel = {} } = ajustaveis
+        if (Object.entries(minimoPorNivel).some(([nivel, n]) => !NIVEIS.includes(nivel) || !(Number.isInteger(n) && n >= 1))) {
+            problems.push(`seriesAjustaveis.minimoPorNivel: use os níveis (${NIVEIS.join(', ')}) com um número inteiro, ex.: { "iniciante": 1 }.`)
+        }
         if (!Array.isArray(partes)) problems.push('seriesAjustaveis.partes precisa ser uma lista de partes.')
         if (!(Number.isInteger(minimo) && Number.isInteger(maximo) && minimo >= 1 && maximo >= minimo)) {
             problems.push('seriesAjustaveis: "minimo" e "maximo" precisam ser números inteiros, com o mínimo menor que o máximo.')
@@ -961,7 +964,8 @@ function pickWeighted(pesos, random) {
 // NEG, POS ou final forte), nunca dois juntos. Devolve { tipo, unidade, valores }
 // (um valor por série, bloco ou repetição) e a variação com o material ajustado:
 // A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM), trocando material só entre séries.
-// `proibidas` (ex.: ['A3']) vem da recuperação do treino anterior.
+// `proibidas` (ex.: ['A3']) vem da recuperação do treino anterior; 'AC' fica de
+// fora quando o atleta ainda não tem tempos de referência (não sabe o melhor tempo).
 export function drawIntensities(rules, serie, variation, athlete, { proibidas = [], random = Math.random, fase = null } = {}) {
     const regra = rules.intensidadesNaPrincipal
     if (!regra) return null
@@ -978,7 +982,7 @@ export function drawIntensities(rules, serie, variation, athlete, { proibidas = 
     // Ritmo próprio da distância nas séries simples (ex.: 400 = 30 AC c/PÉ + PALM,
     // a série toda num ritmo só)
     const proprio = unidade === 'repeticao' ? regra.ritmoPorDistancia?.[String(distancias[0])] : null
-    if (proprio && random() * 100 < (proprio.chance ?? 100)) {
+    if (proprio && !proibidas.includes('AC') && random() * 100 < (proprio.chance ?? 100)) {
         const material = proprio.material.find((m) => m.every((x) => has.has(x)))
         if (material) {
             return {
@@ -991,6 +995,7 @@ export function drawIntensities(rules, serie, variation, athlete, { proibidas = 
     // Tipos possíveis (NEG, POS e final forte precisam de repetições de pelo menos 50 m)
     const tipos = { ...regra.tipos }
     if (todasAsDistancias.some((d) => d < 50)) delete tipos.NEG, delete tipos.POS, delete tipos.finalForte
+    if (proibidas.includes('AC')) delete tipos.AC
     const tipo = pickWeighted(tipos, random)
 
     let valores

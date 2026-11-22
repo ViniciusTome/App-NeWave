@@ -65,10 +65,13 @@ const casos = [
   ['piscina de 50 m', { ...avancado, poolLength: 50, sessionMinutes: 90 }],
 ]
 
+// O treino do teste de 400 m (atleta sem tempos) tem a estrutura dele
+const semTeste = (treinos) => treinos.filter((t) => !t.partes.some((p) => p.parte === 'teste'))
+
 for (const [nome, athlete] of casos) {
   test(`${nome}: segue a estrutura e as regras`, () => {
     for (let seed = 1; seed <= 5; seed++) {
-      for (const treino of gerar(athlete, seed)) {
+      for (const treino of semTeste(gerar(athlete, seed))) {
         // Partes na ordem da estrutura do nível e do tempo de aula
         const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes).map((p) =>
           p === 'hidratacao' ? 'hidratacao' : p)
@@ -105,7 +108,7 @@ for (const [nome, athlete] of casos) {
 
 test('o tempo do treino fica perto do tempo de aula', () => {
   for (const [nome, athlete] of casos.filter(([n]) => !n.startsWith('iniciante'))) {
-    for (const treino of gerar(athlete)) {
+    for (const treino of semTeste(gerar(athlete))) {
       const razao = treino.minutos / athlete.sessionMinutes
       assert.ok(razao > 0.7 && razao < 1.2, `${nome}: ${treino.minutos} min para aula de ${athlete.sessionMinutes}`)
     }
@@ -648,20 +651,24 @@ test('iniciante nada no máximo 50 minutos, mesmo em aulas mais longas', () => {
 })
 
 test('séries (2x), (3x), (4x): o gerador escolhe quantas séries o atleta faz', () => {
-  const vezes = (opcoes) => opcoes.map((s) => /^\((\d+)x\)/.exec(s.texto)[1]).map(Number)
+  const vezes = (opcoes) => opcoes.map((s) => Number(/^\((\d+)x\)/.exec(s.texto)?.[1] ?? 1))
   // (3x) 3 x 200: avançado de 2 a 4; iniciante só diminui (2 ou 3)
   assert.deepEqual(vezes(setOptions(rules, 'principal', serieById('pri-3x3x200'), 'avancado')), [3, 2, 4])
-  assert.deepEqual(vezes(setOptions(rules, 'principal', serieById('pri-3x3x200'), 'iniciante')), [3, 2])
+  assert.deepEqual(vezes(setOptions(rules, 'principal', serieById('pri-3x3x200'), 'iniciante')).slice(0, 2), [3, 1])
   // A metragem acompanha: (2x) 3 x 200 = 1.200 m
-  const duas = setOptions(rules, 'principal', serieById('pri-3x3x200'), 'iniciante')[1]
+  const duas = setOptions(rules, 'principal', serieById('pri-3x3x200'), 'avancado')[1]
   assert.equal(duas.volume, 1200)
   assert.equal(duas.texto, '(2x) 3 x 200')
   // Grupos: (3x) 1 x 100, 2 x 75, 3 x 50, 4 x 25 -> (2x) = 1.000 m
-  const grupo = setOptions(rules, 'principal', serieById('pri-3x-100-75-50-25'), 'iniciante')[1]
+  const grupo = setOptions(rules, 'principal', serieById('pri-3x-100-75-50-25'), 'avancado')[1]
   assert.equal(grupo.vezes, 2)
   assert.equal(grupo.volume, 1000)
+  // Iniciante pode fazer uma série só: (2x) 10 x 100 -> 10 x 100
+  const uma = setOptions(rules, 'principal', serieById('pri-2x10x100'), 'iniciante')
+  assert.deepEqual(uma.map((s) => s.texto), ['(2x) 10 x 100', '10 x 100'])
+  assert.equal(uma[1].volume, 1000)
+  assert.equal(setOptions(rules, 'principal', serieById('pri-2x10x100'), 'avancado').length, 2)
   // Sem (Nx) não muda
-  assert.equal(setOptions(rules, 'principal', serieById('pri-2x10x100'), 'iniciante').length, 1)
   assert.equal(setOptions(rules, 'solto', { texto: '(2x) 100 solto', blocos: [] }, 'avancado').length, 1)
 })
 
@@ -679,4 +686,36 @@ test('iniciante: menos séries para caber no tempo', () => {
     return escrito && feito && Number(feito[1]) < Number(escrito[1])
   })
   assert.ok(reduzida, 'nenhuma série com menos séries')
+})
+
+// ---------- Sem tempos de referência ----------
+
+const semTempo = {
+  ...avancado, level: 'intermediario', sessionMinutes: 60, continuousDistance: '400_1000', time400: null,
+}
+
+test('sem tempos de referência: o primeiro treino é o teste de 400 m', () => {
+  const [primeiro, segundo] = gerar(semTempo)
+  assert.deepEqual(primeiro.partes.map((p) => p.parte), ['aquecimento', 'teste', 'soltura'])
+  const teste = primeiro.partes.find((p) => p.parte === 'teste')
+  assert.equal(teste.titulo, 'Teste de 400 m')
+  assert.match(teste.observacao, /registre o tempo/)
+  assert.ok(!segundo.partes.some((p) => p.parte === 'teste'))
+  // Quem não nada 400 sem parar pode parar na borda
+  const iniciante = { ...semTempo, level: 'iniciante', continuousDistance: '100_200', strokes: ['crawl'] }
+  assert.match(gerar(iniciante)[0].partes.find((p) => p.parte === 'teste').texto, /pode parar na borda/)
+  // Com o tempo, não há teste
+  assert.ok(!gerar(avancado).some((t) => t.partes.some((p) => p.parte === 'teste')))
+})
+
+test('sem tempos de referência: o descanso entre as repetições no lugar da saída', () => {
+  const textos = [1, 2, 3, 4, 5].flatMap((seed) => semTeste(gerar(semTempo, seed)))
+    .flatMap((t) => t.partes.filter((p) => p.parte === 'principal' && p.intensidades).map((p) => p.texto))
+  assert.ok(textos.length > 0)
+  for (const t of textos) assert.ok(!/cd \d/.test(t) && !/AC\)/.test(t), t)
+  assert.ok(textos.some((t) => /c\/\d+"? de descanso|c\/\d+' de descanso/.test(t)), textos.join('\n'))
+  // Velocidade do intermediário: 1/1
+  const velocidade = [1, 2, 3].flatMap((seed) => semTeste(gerar(semTempo, seed)))
+    .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
+  assert.ok(velocidade.every((t) => /1\/1/.test(t)), velocidade.join('\n'))
 })

@@ -108,14 +108,42 @@ export function saidaFor(rules, athlete, bloco, valor) {
 // (o tempo forte estimado + o mesmo tempo de descanso).
 export function saidaVelocidade(rules, athlete, bloco) {
     const cfg = rules.saidas?.velocidade
-    if (!cfg || !athlete.tabela) return null
+    if (!cfg) return null
     const fixa = cfg[athlete.level]?.[String(bloco.distancia)]
     if (fixa) return fixa
+    if (!athlete.tabela) return null
     const melhor50 = bestTimeFor(rules, athlete, 50)
     if (melhor50 === null) return null
     const nado = (melhor50 * bloco.distancia) / 50
     return Math.max(5, de5em5(nado * (1 + (cfg.descansoPorNado ?? 1))))
 }
+
+// Sem tempos de referência (sem teste de 400 m) não dá para montar a saída:
+// no lugar dela vai o descanso entre as repetições ("c/20\" de descanso").
+export function descansoFor(rules, athlete, bloco, valor) {
+    const intensidade = /^A[123]$/.test(valor ?? '') ? valor : null
+    const ritmoLivre = valor === 'NEG' || valor === 'POS' || / NAD x 25 fo$/.test(valor ?? '')
+    const regra = rules.saidas?.negPosFinalForte
+    const segundos = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
+        ? (regra.descanso[0] + regra.descanso[1]) / 2
+        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : (valor ? 'A3' : bloco.intensidade)) }, athlete)
+    return Math.max(5, de5em5(segundos))
+}
+const descansoText = (segundos) =>
+    `c/${segundos >= 60 ? minutosCurto(segundos) : `${segundos}"`} de descanso`
+
+// Os descansos de cada parte com intensidade, no mesmo formato das saídas
+function descansosDaSerie(rules, athlete, serie, intensidades) {
+    if (!intensidades) return null
+    const { unidade, valores } = intensidades
+    const marca = (b, v) => descansoText(descansoFor(rules, athlete, b, v))
+    if (unidade === 'bloco') return serie.blocos.map((b, i) => marca(b, valores[i]))
+    if (serie.blocos.length > 1) return { porBloco: serie.blocos.map((b) => valores.map((v) => marca(b, v))) }
+    return valores.map((v) => marca(serie.blocos[0], v))
+}
+
+// Saída (segundos) ou descanso (texto) do jeito que vai no card
+const marcaText = (x) => (typeof x === 'number' ? `cd ${saidaText(x)}` : x)
 
 // 90 -> 1'30"; 45 -> 45"
 export const saidaText = (segundos) =>
@@ -280,7 +308,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     const I = intensidades
     const fmt = (v) => (/^A\d$/.test(v) ? v : `(${v})`)
     // Intensidade com a saída (quando dá para calcular): "A1 · cd 1'30\""
-    const comSaida = (v, i) => [fmt(v), saidas?.[i] ? `cd ${saidaText(saidas[i])}` : null].filter(Boolean).join(' · ')
+    const comSaida = (v, i) => [fmt(v), saidas?.[i] ? marcaText(saidas[i]) : null].filter(Boolean).join(' · ')
     const sequencia = I ? (I.valores.every((v) => v === I.valores[0]) ? comSaida(I.valores[0], 0) : I.valores.map(fmt).join(' / ')) : null
     // Série simples com um ritmo por repetição e saídas: uma linha por repetição
     const porRepeticao = I?.unidade === 'repeticao' && Array.isArray(saidas) && saidas.some(Boolean)
@@ -302,7 +330,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
             if (material?.length > 0) linha += ` · ${materialAbbrev(material)}`
             else if (alternada) linha += ' · NAD'
             if (I?.unidade === 'bloco') linha += ` · ${comSaida(I.valores[i], i)}`
-            else if (blocoIgual?.[i] && !saidaNaSerie) linha += ` · cd ${saidaText(blocoIgual[i])}`
+            else if (blocoIgual?.[i] && !saidaNaSerie) linha += ` · ${marcaText(blocoIgual[i])}`
             linhas.push(linha)
         })
         const resto = [nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null].filter(Boolean).join(' · ')
@@ -312,7 +340,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
             I.valores.forEach((v, i) => {
                 const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
                 // Saídas diferentes em cada série: "100 cd 1'55" / 75 cd 1'25""
-                const cds = saidaNaSerie ? serie.blocos.map((b, j) => (porBloco[j][i] ? `${b.distancia} cd ${saidaText(porBloco[j][i])}` : null))
+                const cds = saidaNaSerie ? serie.blocos.map((b, j) => (porBloco[j][i] ? `${b.distancia} ${marcaText(porBloco[j][i])}` : null))
                     .filter(Boolean).join(' / ') : null
                 linhas.push(`${ORDINAIS[i]} série: ${[material, fmt(v), cds].filter(Boolean).join(' · ')}`)
             })
@@ -322,7 +350,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
 
     const base = abbreviate(withMeters(serie.texto))
     // Sem intensidade (velocidade): a saída, quando tem
-    const cd = !I && Array.isArray(saidas) && saidas[0] ? `cd ${saidaText(saidas[0])}` : null
+    const cd = !I && Array.isArray(saidas) && saidas[0] ? marcaText(saidas[0]) : null
     const porSerie = materialPorSerie || variation.nados || variation.porSerie || (I?.unidade === 'serie' ? I.valores : null)
     if (!porSerie) {
         // Sem intensidade (velocidade): a saída, quando tem
@@ -419,11 +447,13 @@ export function setOptions(rules, parte, serie, level) {
     if (!doGrupo && !doBloco) return [serie]
     const ate = Math.min(cfg.maximo, n + (cfg.aumentarAte?.[level] ?? 0))
     const opcoes = [serie]
-    for (let vezes = Math.min(cfg.minimo, n); vezes <= ate; vezes++) {
+    const minimo = cfg.minimoPorNivel?.[level] ?? cfg.minimo
+    for (let vezes = Math.min(minimo, n); vezes <= ate; vezes++) {
         if (vezes === n) continue
         opcoes.push(describe({
             ...serie,
-            texto: serie.texto.replace(escrito[0], `(${vezes}x) `),
+            // Uma série só: sem o "(1x)"
+            texto: serie.texto.replace(escrito[0], vezes === 1 ? '' : `(${vezes}x) `),
             ...(doGrupo ? { vezes } : { blocos: [{ ...serie.blocos[0], vezes }] }),
         }))
     }
@@ -524,7 +554,9 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         if (escolha && !primeiraPrincipal) primeiraPrincipal = escolha
         // Como nadar a série principal (A1/A2/A3, AC, NEG, POS ou final forte)
         if (escolha) {
-            const sorteio = drawIntensities(rules, escolha.serie, escolha.variation, athlete, { proibidas, random })
+            const sorteio = drawIntensities(rules, escolha.serie, escolha.variation, athlete, {
+                proibidas: athlete.tabela ? proibidas : [...proibidas, 'AC'], random,
+            })
             if (sorteio) {
                 escolha.variation = sorteio.variation
                 escolha.intensidades = { tipo: sorteio.tipo, unidade: sorteio.unidade, valores: sorteio.valores }
@@ -544,10 +576,16 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         if (!escolha) return // nenhuma série da biblioteca serve para esse atleta
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
         const intervalo = intervalText(intervalRangeFor(rules, parte, escolha.serie, athlete.level))
-        const saidas = parte === 'velocidade'
+        let saidas = parte === 'velocidade'
             ? (escolha.serie.blocos.length === 1 ? [saidaVelocidade(rules, athlete, escolha.serie.blocos[0])] : null)
             : saidasDaSerie(rules, athlete, escolha.serie, escolha.intensidades)
         const aviso = avisoComEquipamento(rules, athlete, escolha, saidas)
+        // Sem tempos de referência: o descanso no lugar da saída (velocidade: 1/1)
+        if (!athlete.tabela) {
+            saidas = parte === 'velocidade'
+                ? (saidas?.[0] ? saidas : ['1/1'])
+                : descansosDaSerie(rules, athlete, escolha.serie, escolha.intensidades)
+        }
         partes.push({
             parte,
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
@@ -567,6 +605,38 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
     return partes
 }
 
+// Treino do teste de 400 m (quando o atleta ainda não tem tempos de referência):
+// aquecimento do teste, o teste e a soltura.
+function buildTestTraining({ rules, library, athlete, pace, random, recentes }) {
+    const partes = []
+    const aquecimento = (library.aquecimento ?? []).find((s) => s.usos.includes('teste'))
+    if (aquecimento) {
+        partes.push({
+            parte: 'aquecimento', titulo: 'Aquecimento', serieId: aquecimento.id, texto: abbreviate(withMeters(aquecimento.texto)),
+            metros: aquecimento.volume, minutos: aquecimento.duracaoMinutos ?? 15,
+        })
+    }
+    const comParadas = (SEM_PARAR[athlete.continuousDistance] ?? Infinity) < 400
+    partes.push({
+        parte: 'teste',
+        titulo: 'Teste de 400 m',
+        texto: `400 m CR · o mais rápido que conseguir${comParadas ? ' · pode parar na borda se precisar (o cronômetro não para)' : ''}`,
+        observacao: 'Cronometre e registre o tempo no app (bloco Tempos). Com ele, o app calcula as suas saídas (cd) e periodiza melhor os seus treinos.',
+        metros: 400,
+        minutos: Math.round((pace * 4) / 60),
+    })
+    const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes)
+    const ultima = estrutura[estrutura.length - 1]
+    const soltura = pickForPart({ rules, library, parte: ultima, budget: 5 * 60, athlete, pace, random, recentes })
+    if (soltura) {
+        partes.push({
+            parte: ultima, titulo: NOMES_DAS_PARTES[ultima], serieId: soltura.serie.id,
+            texto: cardText(soltura.serie, soltura.variation), metros: soltura.serie.volume, minutos: Math.round(soltura.segundos / 60),
+        })
+    }
+    return partes
+}
+
 // Gera os treinos dos próximos dias para o atleta.
 // `athlete` = respostas da anamnese + { level } (nível calculado) + { time400 }.
 // `random` permite repetir o sorteio nos testes.
@@ -577,7 +647,12 @@ export function generateTrainings({
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
     // Tabela de tempos do atleta (método do treinador)
-    athlete = { ...athlete, tabela: timeTable(rules, tempo400 / 100), teste400: tempo400 / 100 }
+    // Tabela de tempos do atleta (método do treinador). Sem o teste de 400 m (nem o
+    // tempo informado na anamnese) não há tempos de referência: o card mostra o
+    // descanso no lugar da saída e o primeiro treino é o teste.
+    const semReferencia = !athlete.time400?.hundredths
+    athlete = semReferencia ? { ...athlete, tabela: null, teste400: null }
+        : { ...athlete, tabela: timeTable(rules, tempo400 / 100), teste400: tempo400 / 100 }
     // Tempo de treino: o da aula, até o máximo do nível (iniciante nada no máximo 50 min)
     const maximo = rules.niveis[athlete.level]?.maxMinutosDeTreino
     if (maximo && athlete.sessionMinutes > maximo) {
@@ -600,9 +675,12 @@ export function generateTrainings({
             const recuperacao = rules.intensidades?.A3?.recuperacaoHoras?.[1] ?? 48
             if (horasEntre(anterior.date, date) < recuperacao) proibidas.push('A3')
         }
-        const partes = buildTraining({ rules, library, athlete, pace, random, recentes, proibidas, bloqueadas })
+        const partes = semReferencia && i === 0
+            ? buildTestTraining({ rules, library, athlete, pace, random, recentes })
+            : buildTraining({ rules, library, athlete, pace, random, recentes, proibidas, bloqueadas })
         bloqueadas = new Set(partes.map((p) => p.serieId).filter(Boolean))
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
+        if (partes.some((p) => p.parte === 'teste')) intensidades.push('A3') // o teste é forte
         anterior = { date, intensidade: intensidades.includes('A3') ? 'A3' : intensidades.includes('A2') ? 'A2' : 'A1' }
         return {
             date,
@@ -621,7 +699,7 @@ export function legacyFields(partes) {
     return {
         warmUp: juntar(['aquecimento']),
         speed: juntar(['velocidade', 'solto']),
-        mainSeries: juntar(['principal', 'hidratacao', 'perna']),
+        mainSeries: juntar(['teste', 'principal', 'hidratacao', 'perna']),
         release: juntar(['soltura']),
     }
 }

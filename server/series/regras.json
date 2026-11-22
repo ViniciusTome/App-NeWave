@@ -125,9 +125,10 @@
     }
   },
   "seriesAjustaveis": {
-    "_comentario": "Nas séries (2x), (3x), (4x)... o gerador escolhe quantas séries o atleta faz, para caber no tempo da aula: de 'minimo' até o número escrito + 'aumentarAte' do nível (sem passar de 'maximo'). O iniciante só diminui.",
+    "_comentario": "Nas séries (2x), (3x), (4x)... o gerador escolhe quantas séries o atleta faz, para caber no tempo da aula: de 'minimo' até o número escrito + 'aumentarAte' do nível (sem passar de 'maximo'). O iniciante só diminui e pode fazer uma série só ('minimoPorNivel').",
     "partes": ["aquecimento", "velocidade", "principal", "perna"],
     "minimo": 2,
+    "minimoPorNivel": { "iniciante": 1 },
     "maximo": 6,
     "aumentarAte": { "iniciante": 0, "intermediario": 1, "avancado": 1 }
   },
