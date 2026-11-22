@@ -68,13 +68,15 @@ server/
 ├── http.js       # funções HTTP comuns (JSON, cookies, erros)
 ├── swimming.js   # rotas de testes e treinos (agendados e realizados)
 ├── athlete.js    # anamnese, nível, calendário de competições e prova alvo
+├── series/       # biblioteca de séries (um JSON por parte do treino); guia em series/LEIAME.md
 ├── seed.js       # dados de exemplo (npm run seed)
 ├── db.js         # banco SQLite e tabelas
 ├── security.js   # hash de senha, tokens e limite de tentativas
 ├── mailer.js     # envio de email (por enquanto só imprime no terminal)
 ├── app.test.js   # testes de autenticação
 ├── swimming.test.js  # testes de testes/treinos
-└── athlete.test.js   # testes da anamnese, competições e preparação
+├── athlete.test.js   # testes da anamnese, competições e preparação
+└── series.test.js    # conferência da biblioteca de séries
 ```
 
 ## Rotas

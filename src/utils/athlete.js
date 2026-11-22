@@ -48,10 +48,12 @@ export const POOL_LENGTH = options([[25, '25 m'], [50, '50 m']])
 
 export const EQUIPMENT = options([
     ['pe_de_pato', 'Pé de pato'],
+    ['pe_de_pato_peito', 'Pé de pato de peito'],
     ['palmar', 'Palmar'],
     ['prancha', 'Prancha'],
     ['pull_buoy', 'Pull buoy'],
     ['snorkel', 'Snorkel'],
+    ['paraquedas', 'Paraquedas'],
 ])
 
 export const MODALITY = options([
@@ -101,12 +103,21 @@ export const time400Text = (time400) => {
     return `${formatSwimTime(time400.hundredths)} (${origin})`
 }
 
+// Melhor estilo: quem só nada crawl não tem; quem respondeu a anamnese antes
+// dessa pergunta existir ainda não escolheu
+const bestStrokeText = (profile) => {
+    if (profile.bestStroke) return labelOf(STROKES, profile.bestStroke)
+    const nadaEstilo = profile.strokes.some((s) => s !== 'crawl')
+    return nadaEstilo ? 'Ainda não respondido (edite as respostas)' : 'Só nada crawl'
+}
+
 // Respostas da anamnese em pares [pergunta, resposta], para resumos
 export const profileSummary = (profile, time400) => [
     ['Nada há', labelOf(SWIMMING_SINCE, profile.swimmingSince)],
     ['Parado recentemente', labelOf(RECENT_BREAK, profile.recentBreak)],
     ['Nada sem parar', labelOf(CONTINUOUS_DISTANCE, profile.continuousDistance)],
     ['Estilos', labelsOf(STROKES, profile.strokes)],
+    ['Melhor estilo', bestStrokeText(profile)],
     ['Dias de treino', labelsOf(WEEK_DAYS, profile.trainingDays)],
     ['Tempo por treino', labelOf(SESSION_MINUTES, profile.sessionMinutes)],
     ['Piscina onde treina', labelOf(POOL_LENGTH, profile.poolLength)],

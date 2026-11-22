@@ -64,9 +64,10 @@ const sampleProfile = {
   trainingDays: [5, 1, 3],
   sessionMinutes: 60,
   poolLength: 25,
-  equipment: ['palmar', 'pe_de_pato'],
+  equipment: ['palmar', 'pe_de_pato', 'pe_de_pato_peito', 'paraquedas'],
   injuries: '  Dor no ombro direito  ',
   reported400Hundredths: null,
+  bestStroke: 'peito',
 }
 
 const saveProfile = (cookie, body = sampleProfile) =>
@@ -113,12 +114,21 @@ test('salva a anamnese, organiza as listas e calcula o nível', async () => {
   assert.deepEqual(profile.strokes, ['crawl', 'peito']) // na ordem das opções
   assert.deepEqual(profile.trainingDays, [1, 3, 5])
   assert.equal(profile.injuries, 'Dor no ombro direito')
+  assert.equal(profile.bestStroke, 'peito')
+  assert.deepEqual(profile.equipment, ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'paraquedas'])
   assert.equal(level.level, 'avancado')
   assert.equal(level.returning, false)
 
   // Fica guardada: na próxima vez não precisa responder de novo
   const again = await api('/api/athlete-profile', { cookie })
   assert.deepEqual(again.body.profile, profile)
+})
+
+test('quem só nada crawl não tem melhor estilo', async () => {
+  const cookie = await userFor('anamnese')
+  const res = await saveProfile(cookie, { ...sampleProfile, strokes: ['crawl'], bestStroke: null })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.profile.bestStroke, null)
 })
 
 test('atualizar a anamnese troca as respostas', async () => {
@@ -147,6 +157,10 @@ test('valida as respostas da anamnese', async () => {
     { injuries: 'x'.repeat(501) },
     { reported400Hundredths: 1000 },
     { reported400Hundredths: 33245.5 },
+    { bestStroke: 'costas' }, // não marcou costas
+    { bestStroke: 'crawl' },
+    { bestStroke: undefined }, // nada peito: precisa escolher
+    { strokes: ['crawl'], bestStroke: 'peito' }, // só crawl: não tem melhor estilo
   ]
   for (const change of invalid) {
     const res = await saveProfile(cookie, { ...sampleProfile, ...change })

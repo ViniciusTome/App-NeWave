@@ -1,0 +1,62 @@
+[
+  {
+    "id": "vel-4x25-forte",
+    "texto": "4 x 25 forte",
+    "blocos": [{ "repeticoes": 4, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
+  },
+  {
+    "id": "vel-2x4x25-forte",
+    "texto": "(2x) 4 x 25 forte",
+    "blocos": [{ "vezes": 2, "repeticoes": 4, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
+  },
+  {
+    "id": "vel-8x25-forte",
+    "texto": "8 x 25 forte",
+    "outrosNados": ["medley"],
+    "blocos": [{ "repeticoes": 8, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
+  },
+  {
+    "id": "vel-2x8x25-forte",
+    "texto": "(2x) 8 x 25 forte",
+    "outrosNados": ["medley"],
+    "blocos": [{ "vezes": 2, "repeticoes": 8, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
+  },
+  {
+    "id": "vel-16x25-forte",
+    "texto": "16 x 25 forte",
+    "outrosNados": ["medley"],
+    "blocos": [{ "repeticoes": 16, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
+  },
+  {
+    "id": "vel-4x4x25-forte",
+    "texto": "(4x) 4 x 25 forte",
+    "outrosNados": ["medley", "estilo"],
+    "blocos": [{ "vezes": 4, "repeticoes": 4, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
+  },
+  {
+    "id": "vel-8x25-15-forte-10-solto",
+    "texto": "8 x 25 (15 m forte, 10 m solto)",
+    "blocos": [{
+      "repeticoes": 8, "distancia": 25, "nado": "livre",
+      "trechos": [{ "metros": 15, "intensidade": "forte" }, { "metros": 10, "intensidade": "solto" }]
+    }]
+  },
+  {
+    "id": "vel-4x25-15-forte-10-solto",
+    "texto": "4 x 25 (15 m forte, 10 m solto)",
+    "blocos": [{
+      "repeticoes": 4, "distancia": 25, "nado": "livre",
+      "trechos": [{ "metros": 15, "intensidade": "forte" }, { "metros": 10, "intensidade": "solto" }]
+    }]
+  },
+  {
+    "id": "vel-4x15",
+    "texto": "4 x 15 m",
+    "blocos": [{ "repeticoes": 4, "distancia": 15, "nado": "livre", "intensidade": "forte" }]
+  },
+  {
+    "id": "vel-8x15",
+    "texto": "8 x 15 m",
+    "blocos": [{ "repeticoes": 8, "distancia": 15, "nado": "livre", "intensidade": "forte" }]
+  }
+]

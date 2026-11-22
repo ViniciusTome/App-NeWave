@@ -1,0 +1,87 @@
+{
+  "niveis": {
+    "iniciante": {
+      "estruturas": [
+        { "partes": ["aquecimento", "principal", "solto"] }
+      ]
+    },
+    "intermediario": {
+      "estruturas": [
+        { "ateMinutos": 50, "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
+        { "ateMinutos": 75, "partes": ["aquecimento", "velocidade", "solto", "principal", "perna", "soltura"] },
+        { "partes": ["aquecimento", "velocidade", "solto", "principal", "hidratacao", "perna", "principal", "soltura"] }
+      ]
+    },
+    "avancado": {
+      "estruturas": [
+        { "ateMinutos": 50, "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
+        { "ateMinutos": 75, "partes": ["aquecimento", "velocidade", "solto", "principal", "perna", "soltura"] },
+        { "partes": ["aquecimento", "velocidade", "solto", "principal", "hidratacao", "perna", "principal", "soltura"] }
+      ]
+    }
+  },
+  "misturaDeNados": {
+    "partes": ["principal"],
+    "minimoDeSeries": 3,
+    "formatos": ["igual", "espelhado", "diferentes"],
+    "pesoMelhorEstilo": 2
+  },
+  "segundaPrincipal": {
+    "alternarCrawlEEstilo": true
+  },
+  "pausas": {
+    "hidratacao": { "minutos": 5, "texto": "5 min de hidratação e reposição (comer uma fruta)" }
+  },
+  "limitesPorNivel": {
+    "borboleta": { "iniciante": 100, "intermediario": 100 }
+  },
+  "materialObrigatorio": [
+    { "distanciaAcimaDe": 400, "emPiramidesAPartirDe": 400, "material": ["pe_de_pato", "palmar"] }
+  ],
+  "material": {
+    "perna": {
+      "opcoes": [["pe_de_pato"]],
+      "pesoComMaterial": 3
+    },
+    "principal": {
+      "opcoes": [
+        ["pe_de_pato"],
+        ["palmar"],
+        ["pe_de_pato", "palmar"],
+        ["palmar", "pull_buoy"]
+      ],
+      "piramides": "material_diferente_por_distancia"
+    },
+    "velocidade": {
+      "opcoes": [
+        ["pe_de_pato"],
+        ["palmar"],
+        ["pe_de_pato", "palmar"],
+        ["palmar", "pull_buoy"]
+      ],
+      "porSerie": {
+        "2": [
+          ["material", "nadando"],
+          ["nadando", "material"]
+        ],
+        "4": [
+          [["pe_de_pato"], ["pe_de_pato", "palmar"], ["palmar"], ["palmar", "pull_buoy"]]
+        ]
+      }
+    }
+  },
+  "descansos": {
+    "iniciante": { "50": [25, 40], "100": [30, 40], "200": [40, 60], "400": [60, 60], "800": [120, 120] },
+    "intermediario": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60], "800": [120, 120] },
+    "avancado": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60], "800": [120, 120] }
+  },
+  "intervalos": {
+    "velocidade": {
+      "padrao": "saida",
+      "excecoes": [
+        { "fase": "realizacao", "segundos": 60 },
+        { "repeticoesPorSerie": 8, "segundos": 60 }
+      ]
+    }
+  }
+}

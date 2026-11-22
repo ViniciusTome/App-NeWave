@@ -35,6 +35,7 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
         recentBreak: profile?.recentBreak ?? null,
         continuousDistance: profile?.continuousDistance ?? null,
         strokes: profile?.strokes ?? [],
+        bestStroke: profile?.bestStroke ?? null,
         trainingDays: profile?.trainingDays ?? [],
         sessionMinutes: profile?.sessionMinutes ?? null,
         poolLength: profile?.poolLength ?? null,
@@ -55,6 +56,18 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
 
     const hasTestTime = time400?.source === 'teste'
 
+    // Melhor estilo: só entre borboleta, costas e peito que o atleta marcou
+    const bestStrokeOptions = STROKES.filter((s) => s.value !== 'crawl' && answers.strokes.includes(s.value))
+    const setStrokes = (strokes) => {
+        setAnswers((current) => ({
+            ...current,
+            strokes,
+            // Se desmarcou o estilo que era o melhor, a resposta deixa de valer
+            bestStroke: strokes.includes(current.bestStroke) ? current.bestStroke : null,
+        }))
+        setError('')
+    }
+
     // Cada etapa: título, campos e o que precisa estar respondido para seguir
     const steps = [
         {
@@ -62,7 +75,8 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
             check: () =>
                 !answers.swimmingSince || !answers.recentBreak || !answers.continuousDistance
                     ? 'Responda as três primeiras perguntas.'
-                    : answers.strokes.length === 0 ? 'Escolha pelo menos um estilo.' : '',
+                    : answers.strokes.length === 0 ? 'Escolha pelo menos um estilo.'
+                        : bestStrokeOptions.length > 0 && !answers.bestStroke ? 'Escolha o seu melhor estilo.' : '',
             fields: (
                 <>
                     <ChoiceGroup label='Há quanto tempo você nada?' options={SWIMMING_SINCE}
@@ -72,7 +86,12 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
                     <ChoiceGroup label='Quanto você nada sem parar?' options={CONTINUOUS_DISTANCE}
                         value={answers.continuousDistance} onChange={set('continuousDistance')} />
                     <ChoiceGroup label='Quais estilos você nada bem?' hint='Pode marcar mais de um.'
-                        options={STROKES} value={answers.strokes} onChange={set('strokes')} multiple />
+                        options={STROKES} value={answers.strokes} onChange={setStrokes} multiple />
+                    {bestStrokeOptions.length > 0 && (
+                        <ChoiceGroup label='Qual é o seu melhor estilo?'
+                            hint='Sem contar o crawl: o estilo em que você é mais rápido.'
+                            options={bestStrokeOptions} value={answers.bestStroke} onChange={set('bestStroke')} />
+                    )}
                 </>
             ),
         },
@@ -180,6 +199,7 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
                     recentBreak: answers.recentBreak,
                     continuousDistance: answers.continuousDistance,
                     strokes: answers.strokes,
+                    bestStroke: bestStrokeOptions.length > 0 ? answers.bestStroke : null,
                     trainingDays: answers.trainingDays,
                     sessionMinutes: answers.sessionMinutes,
                     poolLength: answers.poolLength,

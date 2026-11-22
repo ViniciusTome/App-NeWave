@@ -11,6 +11,22 @@ if (major < 22 || (major === 22 && minor < 13)) {
 
 const { createApp } = await import('./app.js')
 const { createConsoleMailer } = await import('./mailer.js')
+const { loadLibrary } = await import('./series/index.js')
+const { loadRules } = await import('./series/regras.js')
+
+// Confere a biblioteca de séries e as regras (server/series/) antes de subir:
+// se alguém digitou algo errado, o terminal mostra qual série e qual campo.
+try {
+  const library = loadLibrary()
+  const counts = Object.entries(library)
+    .filter(([, series]) => series.length > 0)
+    .map(([part, series]) => `${series.length} de ${part}`)
+  console.log(`Biblioteca de séries: ${counts.join(', ') || 'vazia'}.`)
+  loadRules() // confere server/series/regras.json
+} catch (err) {
+  console.error(err.message)
+  process.exit(1)
+}
 
 const port = Number(process.env.PORT ?? 3001)
 const host = process.env.HOST ?? '127.0.0.1' // só aceita conexões da sua própria máquina
