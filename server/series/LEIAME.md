@@ -171,6 +171,16 @@ Com isso, a mesma série vira treinos diferentes. Por exemplo, para um atleta qu
 
 Toda série pode ser feita **sem equipamento**, e só aparece o material que o atleta marcou na anamnese.
 
+### Material obrigatório em repetições longas
+
+```json
+"materialObrigatorio": [
+  { "distanciaAcimaDe": 400, "material": ["pe_de_pato", "palmar"] }
+]
+```
+
+Séries com repetições **acima de 400 m** (ex.: `3 x 800`) sempre usam **pé de pato + palmar**, em qualquer parte do treino. Quem não tem os dois materiais não recebe a série. Uma repetição de 400 m não entra (não é "acima").
+
 ### Medley e estilo
 
 As séries com `outrosNados` também podem sair em medley ou no estilo, **com ou sem material**, mas só com os estilos que o atleta marcou na anamnese:

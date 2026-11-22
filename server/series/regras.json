@@ -26,6 +26,9 @@
   "pausas": {
     "hidratacao": { "minutos": 5, "texto": "5 min de hidratação e reposição (comer uma fruta)" }
   },
+  "materialObrigatorio": [
+    { "distanciaAcimaDe": 400, "material": ["pe_de_pato", "palmar"] }
+  ],
   "material": {
     "velocidade": {
       "opcoes": [

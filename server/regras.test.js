@@ -181,6 +181,20 @@ test('séries agrupadas, como (2x) 1 x 200, 4 x 50, também trocam material entr
   assert.ok(lista.some((v) => v.texto === '(2x) 1 x 200, 4 x 50 · 1ª série com pé de pato, 2ª série nadando'))
 })
 
+test('repetições acima de 400 m sempre com pé de pato + palmar', () => {
+  const principalSeries = loadPart('principal')
+  const atleta = (equipment) => ({ equipment, strokes: ['crawl'] })
+  const de = (id, equipment) => seriesVariations(rules, 'principal', principalSeries.find((s) => s.id === id), atleta(equipment))
+
+  assert.deepEqual(de('pri-3x800', TODO_MATERIAL).map((v) => v.texto), ['3 x 800 · com pé de pato + palmar'])
+  assert.equal(de('pri-3x800', TODO_MATERIAL)[0].padrao, 'obrigatorio')
+  // Sem os dois materiais, o atleta não recebe a série
+  assert.deepEqual(de('pri-3x800', ['pe_de_pato']), [])
+  // 400 m não é "acima de 400": continua podendo ser nadando
+  assert.ok(de('pri-5x400', []).some((v) => v.padrao === 'sem_material'))
+  assert.ok(de('pri-piramide-400-50', []).some((v) => v.padrao === 'sem_material'))
+})
+
 // ---------- Intervalo entre as séries ----------
 
 test('intervalo entre séries: uma saída do 25; 1 minuto na Realização ou entre séries de 8 x 25', () => {
@@ -247,6 +261,8 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.niveis.avancado.estruturas[2].ateMinutos = 120 }, 'a última estrutura não leva "ateMinutos"'],
     [(r) => { r.pausas.hidratacao.minutos = 0 }, 'pausas.hidratacao.minutos'],
     [(r) => { r.segundaPrincipal.alternarCrawlEEstilo = 'sim' }, 'segundaPrincipal.alternarCrawlEEstilo'],
+    [(r) => { r.materialObrigatorio[0].distanciaAcimaDe = '400m' }, '"distanciaAcimaDe"'],
+    [(r) => { r.materialObrigatorio[0].material = ['nadadeira'] }, 'materialObrigatorio, regra 1: "material"'],
     [(r) => { r.pausas.hidratacao.texto = '' }, 'pausas.hidratacao.texto'],
     [(r) => { r.pausas.principal = { minutos: 5, texto: 'x' } }, 'já é uma parte do treino'],
     [(r) => { delete r.pausas }, 'niveis.avancado.estruturas, estrutura 3'],

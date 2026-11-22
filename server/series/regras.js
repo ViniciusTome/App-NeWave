@@ -84,6 +84,23 @@ export function validateRules(rules) {
         }
     }
 
+    if (rules.materialObrigatorio !== undefined) {
+        if (!Array.isArray(rules.materialObrigatorio)) {
+            problems.push('materialObrigatorio precisa ser uma lista, ex.: [{ "distanciaAcimaDe": 400, "material": ["pe_de_pato", "palmar"] }].')
+        } else {
+            rules.materialObrigatorio.forEach((regra, i) => {
+                const label = `materialObrigatorio, regra ${i + 1}`
+                if (!(Number.isInteger(regra?.distanciaAcimaDe) && regra.distanciaAcimaDe > 0)) {
+                    problems.push(`${label}: "distanciaAcimaDe" precisa ser um número de metros, ex.: 400.`)
+                }
+                const material = regra?.material
+                if (!Array.isArray(material) || material.length === 0 || material.some((m) => !MATERIAIS.includes(m))) {
+                    problems.push(`${label}: "material" precisa ser uma lista com: ${MATERIAIS.join(', ')}.`)
+                }
+            })
+        }
+    }
+
     for (const [parte, regra] of Object.entries(rules.material ?? {})) {
         const where = `material.${parte}`
         if (!PARTS.includes(parte)) {
@@ -211,17 +228,27 @@ const cycle = (list, n) => Array.from({ length: n }, (_, i) => list[i % list.len
 // - "serie_inteira": a série toda com o mesmo material;
 // - "por_serie": muda entre as séries de "(2x)", "(4x)"... conforme os modelos
 //   (`series` tem o material de cada série);
-// - "fixo": a série tem material escrito no próprio JSON, e o gerador não mexe.
+// - "fixo": a série tem material escrito no próprio JSON, e o gerador não mexe;
+// - "obrigatorio": repetição longa, que sempre usa o material das regras.
 function materialOptions(rules, parte, serie, athleteEquipment) {
     if (serie.exige.material.length > 0) {
         return [{ padrao: 'fixo', material: serie.exige.material }]
+    }
+
+    // Repetições longas sempre com o mesmo material (ex.: acima de 400 m, pé de
+    // pato + palmar). Quem não tem esse material não recebe a série.
+    const has = new Set(athleteEquipment)
+    const obrigatorio = (rules.materialObrigatorio ?? []).find((r) => serie.maiorDistancia > r.distanciaAcimaDe)
+    if (obrigatorio) {
+        return obrigatorio.material.every((m) => has.has(m))
+            ? [{ padrao: 'obrigatorio', material: obrigatorio.material }]
+            : []
     }
 
     const options = [{ padrao: 'sem_material', material: [] }]
     const regra = rules.material[parte]
     if (!regra || serie.porSensacao) return options
 
-    const has = new Set(athleteEquipment)
     const hasAll = (material) => material.every((m) => has.has(m))
     const opcoes = regra.opcoes.filter(hasAll)
 
@@ -279,7 +306,9 @@ function strokeOptions(serie, athleteStrokes) {
 function variationText(serie, stroke, option) {
     const parts = [serie.texto]
     if (!stroke.nados && stroke.nado !== 'livre') parts.push(stroke.nado)
-    if (option.padrao === 'serie_inteira') parts.push(`com ${materialText(option.material)}`)
+    if (option.padrao === 'serie_inteira' || option.padrao === 'obrigatorio') {
+        parts.push(`com ${materialText(option.material)}`)
+    }
 
     if (stroke.nados || option.series) {
         const sets = (stroke.nados ?? option.series).length
