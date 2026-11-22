@@ -36,6 +36,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"`, `"estilo"` (borboleta, costas ou peito) e/ou `"melhorEstiloEMedley"` (repetições alternando melhor estilo e medley), respeitando as provas de piscina (veja abaixo). |
 | `aulaAcimaDeMinutos` | Opcional. A série só entra em aulas mais longas que isso. Ex.: `90` = só acima de 1h30. |
 | `materialPorSerie` | Opcional, nas séries com `vezes`. O material de cada série. Ex.: `[[], ["pe_de_pato"]]` = 1ª série nadando, 2ª com pé de pato. |
+| `familia` | Opcional. Séries parecidas com o mesmo nome (ex.: `"150-pe-palmar"` nas 4, 5 e 6 x 150 com pé de pato e palmar) contam como a mesma: nunca saem em treinos seguidos. |
 | `paraQuemNadaAte` | Opcional. A série só entra para quem nada até essa distância sem parar. Ex.: `100` = séries curtas (4 x 50, 8 x 25) para quem nada pouco. |
 | `peso` | Opcional. Frequência no sorteio: `1` é o normal (padrão), `0.25` sai bem menos (de vez em quando), `3` sai mais vezes. |
 | `porSensacao` + `duracaoMinutos` | Para séries sem metragem, como "aqueça até sentir o corpo aquecido". Aí `blocos` fica `[]`. |
@@ -166,6 +167,15 @@ O número escrito é uma sugestão: o gerador escolhe **quantas séries** o atle
 - **Intermediário e avançado:** podem fazer de (2x) até **1 série a mais** que o escrito (no máximo (6x)).
 - A metragem, as intensidades (A1/A2/A3...), o material e a mistura de estilos acompanham o número de séries.
 - Para a série ficar sempre como está escrita, tire a parte da lista `partes` ou mude `aumentarAte` e `minimo`.
+
+### Material diferente em cada série (2x), (3x), (4x)...
+
+Nas séries com várias séries (ex.: (3x) 4 x 50, (4x) 4 x 100), **cada série usa um material diferente da anterior e da seguinte**. Pode repetir o material, só não em seguida. Exemplos: nadando, c/PÉ, c/PÉ + PALM, c/PALM + BOIA; ou nadando, c/PÉ, nadando, c/PÉ + PALM. Fica em `materialEntreAsSeries` no `regras.json`.
+
+- **Iniciante e intermediário** começam **nadando** quase sempre (85%) e vão colocando ou trocando material, porque têm menos condicionamento. O avançado começa nadando em 30% das vezes.
+- Série com **A3** continua com pé de pato.
+- Feedback "faltou força": a escolha puxa para palmar e palmar + pull buoy.
+- Séries com o material escrito no JSON ficam como estão. Para escolher o material de cada série, use `materialPorSerie` (ex.: a (2x) 4 x 75 do condicionamento: 1ª c/PÉ + PALM, 2ª c/PÉ). As repetições longas com material obrigatório também ficam como estão.
 
 ### Não repetir a série no treino seguinte
 
@@ -433,7 +443,7 @@ Fica em `condicionamento` no `regras.json`.
 
 - **Não faz o teste de 400 m** (nem o de 1 mês, nem o da periodização) enquanto não nadar 400 m sem parar.
 - **A metragem da série principal aumenta devagar:** começa com 70% do tempo normal da principal e ganha 2% a cada treino, até 100%. O feedback pode frear ou acelerar (veja abaixo).
-- **Séries do condicionamento** (`pri-cond-...` na biblioteca, só para quem nada até 200 m sem parar): (2x) 4 x 75 com pé de pato e palmar; 8 x 25, (2x) 8 x 25, 16 x 25 e (4x) 4 x 25 (as de velocidade, sempre em ritmo leve); (2x) 1 x 100, 1 x 75, 1 x 50, 1 x 25 (1ª série nadando, 2ª com pé de pato); (2x) 1 x 100, 2 x 50; 4, 5 e 6 x 150 com pé de pato e palmar. A (3x) 4 x 50 já vem da (4x) 4 x 50.
+- **Séries do condicionamento** (`pri-cond-...` na biblioteca, só para quem nada até 200 m sem parar): (2x) 4 x 75 (1ª série c/PÉ + PALM, 2ª c/PÉ); 8 x 25, (2x) 8 x 25, 16 x 25 e (4x) 4 x 25 (as de velocidade, sempre em ritmo leve); (2x) 1 x 100, 1 x 75, 1 x 50, 1 x 25 (1ª série nadando, 2ª com pé de pato); (2x) 1 x 100, 2 x 50; 4, 5 e 6 x 150 com pé de pato e palmar. A (3x) 4 x 50 já vem da (4x) 4 x 50.
 
 ### Feedback do atleta
 
@@ -456,7 +466,35 @@ Vale para todos os níveis. A nota (e o motivo) aparece na página **Desempenho/
 
 Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia da preparação até a **prova alvo** (sem prova, **8 semanas**). Fica em `periodizacao` no `regras.json`.
 
-- **Fases** (PROVISÓRIO, até você definir): **Acumulação 50%** do período, **Transição 30%**, **Realização 20%**. Cada fase já muda as regras que dependem dela (saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação).
+- **Etapas do ATR** (`periodizacao.etapas` e `modelo` no `regras.json`):
+
+  | Etapa | Dias | O que tem |
+  |---|---|---|
+  | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), intervalos maiores: +1' entre as séries e +10" de descanso |
+  | Acumulação 2 | 14 a 45 | Séries aeróbicas A1/A2, intervalos ajustados (os normais) |
+  | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 85% |
+  | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 85% |
+  | Semana de recuperação | 7 | Depois de cada Transição: só ritmo leve, volume 60%, sem velocidade |
+  | Realização | 6 a 8 | Ritmo de prova e velocidade: mais AC e final forte, volume caindo de 85% no 1º treino a 60% no último, velocidade do avançado nos 25 m cd 25". **Só uma semana:** com duas, o atleta perde condicionamento e sofre mais na volta aos treinos |
+
+  - **Montada de trás para frente**, como o treinador faz: primeiro a **Realização** (antes da prova), depois a **semana de recuperação**, a **Transição** e a **Acumulação**, repetindo o ciclo do nível até encaixar tudo (`periodizacao.ciclo`):
+    - **Iniciante e intermediário:** **duas Acumulações para cada Transição** (A1-A2-T).
+    - **Avançado:** **uma de cada** (A-T), porque suporta mais pancada.
+  - **Semana de recuperação** depois de cada Transição (`recuperacaoDepoisDaTransicao`, 7 dias): só ritmo leve, volume 60%, sem velocidade.
+  - **Antes da Realização** a recuperação só entra para quem treina **mais de 3 vezes por semana** (`recuperacaoAntesDaRealizacaoAcimaDe`): a Realização já é de volume baixo e descansos longos.
+  - Na Acumulação, o 400 com 30 AC (com pé de pato e palmar) continua valendo: é aeróbio.
+  - Cada etapa começa com os dias ideais (`diasIdeais`: Acumulação 21, Transição 21, Realização 7) e os dias que sobram vão primeiro para a Acumulação, sem passar do máximo. A periodização **sempre começa pela Acumulação** (a base).
+  - Se o primeiro ciclo fica incompleto (ex.: iniciante com uma Acumulação só antes da Transição), o começo vira Acumulação: mais base.
+  - Exemplos: iniciante, 3 treinos por semana, 12 semanas = A1 → A2 → A2 → T1 → R; com 5 treinos por semana = A1 → A2 → T1 → recuperação → R. Iniciante com 5 meses = A1 → A2 → T1 → recuperação → A1 → A2 → T2 → recuperação → R. Avançado com 5 meses = A1 → T1 → recuperação → A2 → T2 → recuperação → A2 → T2 → recuperação → R.
+  - **Prova importante no meio da preparação** (prioridade A ou B, que não é a prova alvo): na semana da prova o volume cai aos poucos, até cerca de 12,5% a menos no dia da prova. Nada mais muda (`provaIntermediaria`). A prova C não muda o treino.
+  - **Importância das provas** (o app guarda A, B e C; o atleta vê os nomes):
+    - **Prova alvo** (A): **só uma**, a da preparação. Ao escolher outra, a antiga vira Importante.
+    - **Importante** (B): várias; na semana dela o volume diminui.
+    - **Participação** (C): várias; não muda o treino. Prova cadastrada sem escolher entra assim.
+  - **Minhas provas** (no Perfil): lista as próximas provas, troca entre Importante e Participação, remove, **+ Adicionar prova** e **Tornar prova alvo**. Trocar a prova alvo (aqui ou em "Gerar treinos") refaz a periodização e os treinos não feitos para o tempo que falta até a nova prova.
+  - **Sem prova** (condicionamento ou saúde/emagrecimento): periodização padrão **A-T-R** (`modeloSemProva`). Ex.: 8 semanas = Acumulação 1 (28 dias) → Transição 1 (21) → Realização (7).
+  - **Condicionamento** (não nada 400 m sem parar): fica na Acumulação o tempo todo.
+  - As fases também ligam as regras que já existiam: saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação.
 - **Teste de 400 m** no 1º treino da Transição (veja "Teste de 400 m na periodização").
 - **Plano interno de cada treino** (fica só no banco, o atleta não vê): número do treino, fase e semana da fase, intensidade, esforço esperado (ritmo leve/A1 = 4, A2 = 6, A3 = 8, teste = 9), metros e minutos da principal, tipo da principal (intensidades, AC, NEG, POS, final forte), se é dia de teste, se vem depois de um treino forte (recuperação), material da principal, tempo da principal, carga e foco do feedback.
 - Os treinos já feitos ficam como estão; os que ainda não foram feitos são refeitos quando o atleta gera de novo ou quando o feedback pede (3 seguidos).
@@ -539,6 +577,19 @@ O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, 
 - O intervalo entre as séries da série principal vai no cabeçalho (`c/2'`).
 
 Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
+
+### Teste de estresse
+
+Para conferir todas as regras de uma vez, com centenas de atletas diferentes (iniciante, intermediário e avançado; com e sem tempo; com e sem prova; piscinas, materiais, estilos, dias e tempos de aula):
+
+```
+npm run stress -- 600        # o gerador: 600 atletas, periodização inteira de cada um
+npm run stress:api -- 54     # o app inteiro (cadastro, anamnese, provas, gerar, feedback, trocar prova alvo)
+```
+
+Cada regra aparece como OK ou FALHA, com exemplos do que falhou. Rode depois de mudar o `regras.json` ou a biblioteca de séries.
+
+- **Aula de 30 min:** qualquer nível pode fazer uma série só nas (2x), (3x)... para caber no tempo (`seriesAjustaveis.aulaCurtaAteMinutos`).
 
 ### A decidir
 

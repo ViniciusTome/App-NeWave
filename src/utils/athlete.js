@@ -68,7 +68,17 @@ export const NO_COMPETITION_GOALS = options([
     ['saude', 'Saúde / emagrecimento'],
 ])
 
-export const PRIORITY = { A: 'Prova alvo', B: 'Importante', C: 'Teste' }
+// Importância das provas (o app guarda A, B e C; o atleta vê os nomes)
+// - Prova alvo: só uma, a da preparação (escolhida em "Gerar treinos")
+// - Importante: na semana dela o volume do treino diminui um pouco
+// - Participação: não muda o treino
+export const PRIORITY = { A: 'Prova alvo', B: 'Importante', C: 'Participação' }
+export const IMPORTANCE_OPTIONS = [
+    { value: 'B', label: 'Importante' },
+    { value: 'C', label: 'Participação' },
+]
+export const IMPORTANCE_NOTICE = 'Prova importante: na semana dela o volume do treino diminui um pouco (o resto continua igual). ' +
+    'Participação: o treino não muda. A prova alvo (só uma) é escolhida em "Gerar treinos" ou em "Tornar prova alvo".'
 
 export const LEVEL = { iniciante: 'Iniciante', intermediario: 'Intermediário', avancado: 'Avançado' }
 

@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:server": "node --test server/app.test.js server/swimming.test.js server/athlete.test.js server/series.test.js server/regras.test.js server/generator.test.js",
-    "seed": "node server/seed.js"
+    "seed": "node server/seed.js",
+    "stress": "node scripts/stress.mjs",
+    "stress:api": "node scripts/stress-api.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

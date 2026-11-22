@@ -3,7 +3,7 @@ import { AnamnesisForm } from './AnamnesisForm'
 import { ChoiceGroup } from '../ChoiceGroup'
 import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
-    MODALITY, NO_COMPETITION_GOALS, competitionLabel, daysUntil, daysUntilText,
+    IMPORTANCE_OPTIONS, MODALITY, NO_COMPETITION_GOALS, competitionLabel, daysUntil, daysUntilText,
     goalLabel, levelText, profileSummary,
 } from '../../utils/athlete'
 import { formatDate, todayIso } from '../../utils/format'
@@ -76,6 +76,20 @@ export const GenerateTrainings = ({ onClose }) => {
         if (mode === 'calendario') return { goal: 'competir', competitionId: chosenId }
         if (mode === 'nova') return { goal: 'competir', competition: newCompetition }
         return { goal: noCompetitionGoal }
+    }
+
+    // Provas do calendário que não são a alvo escolhida (as intermediárias)
+    const targetId = mode === 'atual' ? preparation?.competition?.id : mode === 'calendario' ? chosenId : null
+    const intermediateCompetitions = competitions.filter((c) => c.id !== targetId)
+    const [priorityError, setPriorityError] = useState('')
+    const changePriority = async (competition, priority) => {
+        setPriorityError('')
+        try {
+            const { competition: updated } = await api(`/competitions/${competition.id}`, { method: 'PATCH', body: { priority } })
+            setCompetitions((list) => list.map((c) => (c.id === updated.id ? updated : c)))
+        } catch (err) {
+            setPriorityError(err.message)
+        }
     }
 
     // Texto da prova alvo escolhida, para o resumo
@@ -278,6 +292,22 @@ export const GenerateTrainings = ({ onClose }) => {
                 <button type='button' className={styles.link} onClick={() => setPhase('anamnese')}>
                     Algo mudou? Atualizar meus dados
                 </button>
+
+                {intermediateCompetitions.length > 0 && (
+                    <div className={styles.intermediate}>
+                        <p className={styles.question}>Outras provas no seu calendário</p>
+                        <p className={styles.notice} role='note'>
+                            ⚠️ Prova de <strong>participação</strong> não muda o treino. Se ela for importante para
+                            você, marque <strong>Importante</strong>: na semana dela, o volume do treino diminui um
+                            pouco (o resto continua igual).
+                        </p>
+                        {intermediateCompetitions.map((c) => (
+                            <ChoiceGroup key={c.id} label={competitionLabel(c)} options={IMPORTANCE_OPTIONS}
+                                value={c.priority === 'A' ? 'B' : c.priority} onChange={(priority) => changePriority(c, priority)} />
+                        ))}
+                        {priorityError && <p className={styles.error} role='alert'>{priorityError}</p>}
+                    </div>
+                )}
 
                 <p className={styles.hint}>
                     Vamos montar todos os treinos da sua preparação: até a prova alvo ou, sem prova, das

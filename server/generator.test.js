@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, periodPhases, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -640,6 +640,8 @@ test('a mesma série nunca se repete de um treino para o seguinte', () => {
           assert.ok(!antes.some((a) => a.serieId === p.serieId), `${p.serieId} repetiu em ${treinos[i].date} e ${t.date}`)
           // Nem a mesma série escrita igual (ex.: (4x) 4 x 50 e (6x) 4 x 50 reduzidas para (3x) 4 x 50)
           assert.ok(!antes.some((a) => a.serieTexto === p.serieTexto), `${p.serieTexto} repetiu em ${treinos[i].date} e ${t.date}`)
+          // Nem da mesma família (4, 5 e 6 x 150 com pé de pato e palmar)
+          if (p.serieFamilia) assert.ok(!antes.some((a) => a.serieFamilia === p.serieFamilia), `${p.serieFamilia} repetiu`)
         }
       })
     }
@@ -903,7 +905,8 @@ test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () =
     historico: [9, 9, 9].map((difficulty) => ({ difficulty, reason, plan: plano })),
   })).map((t) => t.partes.find((p) => p.parte === 'principal'))
   const curtas = (ps) => ps.filter((p) => Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) <= 50).length
-  const palmar = (ps) => ps.filter((p) => p.material.includes('palmar') && !p.material.includes('pe_de_pato')).length
+  // Séries (ou a série toda) com palmar ou palmar + pull buoy, sem pé de pato
+  const palmar = (ps) => ps.reduce((s, p) => s + (p.texto.match(/c\/PALM/g) ?? []).length, 0)
   const ar = comFoco('respiracao')
   const forca = comFoco('forca')
   assert.ok(curtas(ar) > curtas(forca), `curtas ${curtas(ar)} x ${curtas(forca)}`)
@@ -912,14 +915,85 @@ test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () =
 
 // ---------- Periodização inteira ----------
 
-test('periodização: fases na proporção das regras, com a semana de cada fase', () => {
-  const faseDe = periodPhases(rules, '2026-01-01', '2026-03-31') // 90 dias: 45 A, 27 T, 18 R
-  assert.deepEqual(faseDe('2026-01-01'), { fase: 'acumulacao', semanaDaFase: 1 })
-  assert.deepEqual(faseDe('2026-01-08'), { fase: 'acumulacao', semanaDaFase: 2 })
-  assert.equal(faseDe('2026-02-14').fase, 'acumulacao')
-  assert.deepEqual(faseDe('2026-02-15'), { fase: 'transicao', semanaDaFase: 1 })
-  assert.deepEqual(faseDe('2026-03-14'), { fase: 'realizacao', semanaDaFase: 1 })
-  assert.equal(faseDe('2026-03-31').fase, 'realizacao')
+test('periodização: montada de trás para frente, com o ciclo do nível e a recuperação', () => {
+  const etapas = rules.periodizacao.etapas
+  const soma = (plano) => plano.reduce((s, p) => s + p.dias, 0)
+  const nomes = (plano) => plano.map((p) => p.etapa).join(' ')
+  // Iniciante: duas Acumulações para cada Transição; depois da Transição, 1 semana de recuperação
+  assert.equal(nomes(planStages(rules, 84, 'iniciante', 5)), 'acumulacao1 acumulacao2 transicao1 recuperacao realizacao')
+  // Antes da Realização, a recuperação só para quem treina mais de 3 vezes por semana
+  assert.match(nomes(planStages(rules, 84, 'iniciante', 3)), /^acumulacao1 (acumulacao2 )+transicao1 realizacao$/)
+  assert.equal(nomes(planStages(rules, 150, 'iniciante', 3)),
+    'acumulacao1 acumulacao2 transicao1 recuperacao acumulacao1 acumulacao2 transicao2 realizacao')
+  // Avançado: uma de cada (suporta mais pancada)
+  assert.match(nomes(planStages(rules, 150, 'avancado')), /transicao1 recuperacao acumulacao2 transicao2 recuperacao acumulacao2 transicao2 recuperacao realizacao$/)
+  // Iniciante com a prova mais longe: A1-A2-T-(rec)-A1-A2-T-(rec)-R
+  assert.equal(nomes(planStages(rules, 150, 'iniciante')),
+    'acumulacao1 acumulacao2 transicao1 recuperacao acumulacao1 acumulacao2 transicao2 recuperacao realizacao')
+  // Realização: uma semana só (6 a 8 dias)
+  for (const level of ['iniciante', 'avancado']) {
+    for (const total of [45, 84, 150]) {
+      const r = planStages(rules, total, level).at(-1)
+      assert.ok(r.dias >= 6 && r.dias <= 8, `${level} ${total}: ${r.dias}`)
+    }
+  }
+  for (const level of ['iniciante', 'intermediario', 'avancado']) {
+    for (const total of [28, 45, 56, 70, 84, 120, 180, 240]) {
+      const plano = planStages(rules, total, level)
+      const texto = `${level} ${total}: ${JSON.stringify(plano)}`
+      assert.equal(soma(plano), total, texto)
+      // Sempre termina na Realização (antes da prova) e começa na Acumulação (base)
+      assert.equal(plano.at(-1).etapa, 'realizacao', texto)
+      assert.equal(etapas[plano[0].etapa].fase, 'acumulacao', texto)
+      plano.forEach((p, k) => {
+        assert.ok(p.dias <= etapas[p.etapa].dias[1], texto)
+        // Toda Transição é seguida da semana de recuperação
+        if (etapas[p.etapa].fase === 'transicao') assert.equal(plano[k + 1].etapa, 'recuperacao', texto)
+        if (p.etapa === 'recuperacao') assert.equal(p.dias, 7)
+      })
+    }
+  }
+  // Curtíssimo: só a Realização
+  assert.equal(nomes(planStages(rules, 10, 'avancado')), 'realizacao')
+  // A semana dentro da etapa
+  const etapaDe = periodPhases(rules, '2026-01-01', '2026-03-31', 'avancado')
+  assert.deepEqual(etapaDe('2026-01-01'), { etapa: 'acumulacao1', nome: 'Acumulação 1', fase: 'acumulacao', semanaDaFase: 1 })
+  assert.equal(etapaDe('2026-01-08').semanaDaFase, 2)
+  assert.equal(etapaDe('2026-03-31').etapa, 'realizacao')
+})
+
+test('periodização: cada etapa muda o treino', () => {
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-02-20', testeNaTransicao: false }
+  // 5 treinos por semana: tem a semana de recuperação antes da Realização
+  const treinos = [1, 2, 3].flatMap((seed) => generateTrainings({
+    rules, library, athlete: { ...avancado, trainingDays: [1, 2, 3, 4, 5] }, today: '2026-11-23', random: seeded(seed), periodizacao,
+  }))
+  const daEtapa = (e) => treinos.filter((t) => t.plano.etapa === e)
+  const principais = (e) => daEtapa(e).flatMap((t) => t.partes.filter((p) => p.parte === 'principal'))
+  // Acumulação: só A1/A2 (nada de A3, AC, NEG, POS, final forte). O 400 com 30 AC
+  // (30" acima do melhor, com pé de pato e palmar) é aeróbio: pode
+  for (const p of [...principais('acumulacao1'), ...principais('acumulacao2')]) {
+    assert.ok(!/A3|(?<!30 )AC\)|NEG|POS|NAD x 25 fo/.test(p.texto), p.texto)
+  }
+  // Acumulação 1: intervalo maior entre as séries
+  const intervalos = (e) => principais(e).map((p) => p.intervalo).filter(Boolean)
+  assert.ok(intervalos('acumulacao1').every((i) => i.startsWith("3'")), intervalos('acumulacao1').join(', '))
+  assert.ok(intervalos('acumulacao2').every((i) => i.startsWith("2'")))
+  // Transição: entra o A3; Realização: menos volume
+  assert.ok([...principais('transicao1'), ...principais('transicao2')].some((p) => /A3|AC\)|fo\)/.test(p.texto)))
+  const media = (e) => daEtapa(e).reduce((s, t) => s + t.plano.fatorPrincipal, 0) / daEtapa(e).length
+  assert.ok(media('realizacao') < media('acumulacao2'))
+  // Realização: o avançado faz a velocidade nos 25 m a cada 25"
+  const velocidade = daEtapa('realizacao').flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade'))
+  assert.ok(velocidade.filter((p) => /25 m/.test(p.texto)).every((p) => /cd 25"/.test(p.texto)))
+  // Semana de recuperação: só ritmo leve, volume baixo, sem velocidade
+  for (const t of daEtapa('recuperacao')) {
+    assert.ok(!t.partes.some((p) => p.parte === 'velocidade'))
+    for (const p of t.partes.filter((x) => x.parte === 'principal')) assert.deepEqual(p.intensidades.valores, ['A1'])
+  }
+  assert.ok(daEtapa('recuperacao').length > 0)
+  // Plano guarda a etapa
+  assert.ok(treinos.every((t) => t.plano.nomeDaEtapa))
 })
 
 test('periodização: gera todos os treinos até a prova, com o plano de cada um', () => {
@@ -930,6 +1004,7 @@ test('periodização: gera todos os treinos até a prova, com o plano de cada um
   assert.equal(treinos.at(-1).date <= '2027-01-31', true)
   assert.deepEqual(treinos.map((t) => t.plano.numero), treinos.map((_, i) => i + 1))
   const fases = treinos.map((t) => t.plano.fase)
+  // 3 treinos por semana: sem a recuperação antes da Realização
   assert.deepEqual([...new Set(fases)], ['acumulacao', 'transicao', 'realizacao'])
   for (const t of treinos) {
     for (const campo of ['semanaDaFase', 'intensidade', 'esforcoEsperado', 'metrosPrincipal', 'tipoPrincipal', 'diaDeTeste', 'recuperacao', 'material']) {
@@ -950,4 +1025,89 @@ test('periodização: gera todos os treinos até a prova, com o plano de cada um
     rules, library, athlete: { ...condicionando, time400: { hundredths: 54000 } }, today: '2026-11-23', random: seeded(1), periodizacao,
   })
   assert.ok(cond.every((t) => !t.plano.diaDeTeste))
+})
+
+// ---------- Material entre as séries ----------
+
+test('(2x), (3x), (4x)...: cada série com um material diferente da anterior', () => {
+  const athletes = [
+    avancado,
+    { ...avancado, level: 'intermediario' },
+    { ...condicionando, continuousDistance: '200_400' },
+    { ...condicionando, continuousDistance: '50_100' },
+  ]
+  let vistas = 0
+  let comecaNadando = 0
+  let iniciantes = 0
+  for (const athlete of athletes) {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      for (const p of gerar(athlete, seed).flatMap((t) => t.partes)) {
+        if (!['principal', 'velocidade'].includes(p.parte)) continue
+        const linhas = p.texto.split('\n').filter((l) => /^\d+ª série:/.test(l))
+        if (linhas.length < 2) continue
+        const serie = serieById(p.serieId)
+        if (serie?.exige.material.length > 0 || serie?.materialPorSerie) continue
+        vistas++
+        const materiais = linhas.map((l) => (l.match(/(NAD|c\/[A-ZÉ+ ]+?)(?= ·|$)/) ?? [''])[0].trim())
+        materiais.slice(1).forEach((m, i) => assert.notEqual(m, materiais[i], p.texto))
+        if (athlete.level !== 'avancado') {
+          iniciantes++
+          if (materiais[0] === 'NAD') comecaNadando++
+        }
+      }
+    }
+  }
+  assert.ok(vistas > 10, `poucas séries: ${vistas}`)
+  // Iniciante e intermediário: quase sempre começam nadando
+  assert.ok(comecaNadando / iniciantes > 0.6, `${comecaNadando} de ${iniciantes}`)
+})
+
+test('periodização: volume da Transição 85%; Realização caindo de 85% a 60%', () => {
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-02-20', testeNaTransicao: false }
+  const treinos = generateTrainings({
+    rules, library, athlete: { ...avancado, trainingDays: [0, 1, 2, 3, 4, 5, 6] }, today: '2026-11-23', random: seeded(1), periodizacao,
+  })
+  const fatores = (etapa) => treinos.filter((t) => t.plano.etapa === etapa).map((t) => t.plano.fatorPrincipal)
+  assert.ok([...fatores('transicao1'), ...fatores('transicao2')].every((f) => f === 0.85))
+  const r = fatores('realizacao')
+  assert.ok(r.length >= 6)
+  assert.equal(r[0], 0.85)
+  assert.equal(r.at(-1), 0.6)
+  for (let i = 1; i < r.length; i++) assert.ok(r[i] < r[i - 1], r.join(', '))
+  assert.ok(fatores('acumulacao1').every((f) => f === 1))
+})
+
+test('prova importante no meio da preparação: o volume cai aos poucos na semana dela, nada mais muda', () => {
+  const base = { inicio: '2026-11-23', fim: '2027-02-20', testeNaTransicao: false }
+  const athlete = { ...avancado, trainingDays: [0, 1, 2, 3, 4, 5, 6] }
+  const gerar2 = (provas) => generateTrainings({
+    rules, library, athlete, today: '2026-11-23', random: seeded(1), periodizacao: { ...base, provas },
+  })
+  const sem = gerar2([])
+  const com = gerar2(['2026-12-20'])
+  const fator = (ts, date) => ts.find((t) => t.date === date).plano.fatorPrincipal
+  // Antes da semana da prova: igual
+  assert.equal(fator(com, '2026-12-13'), fator(sem, '2026-12-13'))
+  // Na semana: vai caindo, até uns 12,5% a menos no dia da prova
+  const semana = ['2026-12-14', '2026-12-15', '2026-12-16', '2026-12-17', '2026-12-18', '2026-12-19', '2026-12-20']
+  const f = semana.map((d) => fator(com, d) / fator(sem, d))
+  for (let i = 1; i < f.length; i++) assert.ok(f[i] <= f[i - 1], f.join(', '))
+  assert.ok(f.at(-1) >= 0.85 && f.at(-1) <= 0.9, `${f.at(-1)}`)
+  // Depois da prova volta ao normal; a etapa e as intensidades não mudam
+  assert.equal(fator(com, '2026-12-21'), fator(sem, '2026-12-21'))
+  assert.deepEqual(com.map((t) => t.plano.etapa), sem.map((t) => t.plano.etapa))
+})
+
+test('sem prova: periodização padrão A-T-R (8 semanas = A 28, T 21, R 7)', () => {
+  for (const level of ['iniciante', 'avancado']) {
+    assert.deepEqual(planStages(rules, 56, level, 5, true), [
+      { etapa: 'acumulacao1', dias: 28 }, { etapa: 'transicao1', dias: 21 }, { etapa: 'realizacao', dias: 7 },
+    ])
+  }
+})
+
+test('aula de 30 min: qualquer nível pode fazer uma série só, para caber no tempo', () => {
+  const opcoes = (minutos) => setOptions(rules, 'principal', serieById('pri-2x10x100'), 'avancado', minutos).map((s) => s.texto)
+  assert.ok(opcoes(30).includes('10 x 100'))
+  assert.ok(!opcoes(60).includes('10 x 100'))
 })
