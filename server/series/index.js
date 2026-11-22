@@ -83,7 +83,7 @@ export function describe(serie) {
         usos: serie.usos ?? ['treino'],
         outrosNados: serie.outrosNados ?? [],
         // Metragem total da série ("vezes" repete o bloco inteiro: (2x) 4 x 25 = 200 m)
-        // "vezes" na série repete o grupo de blocos: (3x) 100, 2 x 75, 3 x 100, 4 x 25
+        // "vezes" na série repete o grupo de blocos: (3x) 1 x 100, 2 x 75, 3 x 50, 4 x 25
         volume: (serie.vezes ?? 1) * blocos.reduce((sum, b) => sum + (b.vezes ?? 1) * b.repeticoes * b.distancia, 0),
         // Maior distância nadada sem parar (o atleta precisa aguentar isso)
         maiorDistancia: blocos.reduce((max, b) => Math.max(max, b.distancia), 0),
