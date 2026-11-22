@@ -242,7 +242,7 @@
     "partes": ["aquecimento", "velocidade", "principal", "perna"],
     "minimo": 2,
     "minimoPorNivel": { "iniciante": 1 },
-    "_comentarioAulaCurta": "Aula de até 'aulaCurtaAteMinutos' minutos: qualquer nível pode fazer uma série só, para caber no tempo (PROVISÓRIO).",
+    "_comentarioAulaCurta": "Aula de até 'aulaCurtaAteMinutos' minutos: qualquer nível pode fazer uma série só, para caber no tempo.",
     "aulaCurtaAteMinutos": 30,
     "maximo": 6,
     "aumentarAte": { "iniciante": 0, "intermediario": 1, "avancado": 1 }

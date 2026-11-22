@@ -589,7 +589,7 @@ npm run stress:api -- 54     # o app inteiro (cadastro, anamnese, provas, gerar,
 
 Cada regra aparece como OK ou FALHA, com exemplos do que falhou. Rode depois de mudar o `regras.json` ou a biblioteca de séries.
 
-- **Aula de 30 min:** qualquer nível pode fazer uma série só nas (2x), (3x)... para caber no tempo (`seriesAjustaveis.aulaCurtaAteMinutos`, PROVISÓRIO).
+- **Aula de 30 min:** qualquer nível pode fazer uma série só nas (2x), (3x)... para caber no tempo (`seriesAjustaveis.aulaCurtaAteMinutos`).
 
 ### A decidir
 
