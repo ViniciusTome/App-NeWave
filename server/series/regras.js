@@ -190,9 +190,10 @@ export function seriesVariations(rules, parte, serie, athlete) {
     const variations = []
     for (const stroke of strokeOptions(serie, athlete.strokes)) {
         for (const option of materialOptions(rules, parte, serie, athlete.equipment)) {
-            const texto = [serie.texto, stroke.sufixo, option.sufixo].filter(Boolean).join(' · ')
-            variations.push({ nado: stroke.nado, ...option, texto })
+            const { sufixo, ...materialInfo } = option
+            const texto = [serie.texto, stroke.sufixo, sufixo].filter(Boolean).join(' · ')
+            variations.push({ nado: stroke.nado, ...materialInfo, texto })
         }
     }
-    return variations.map(({ sufixo: _sufixo, ...variation }) => variation)
+    return variations
 }
