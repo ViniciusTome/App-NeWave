@@ -12,6 +12,12 @@ const SECTIONS = [
     ['release', 'Soltura'],
 ]
 
+// Metragem e tempo estimado embaixo de cada parte ("100 m · ~2 min").
+// Desligado para sobrar espaço no card; o total do treino vai aparecer em outro
+// lugar. Os números continuam guardados em cada parte: troque para true para
+// voltar a mostrar.
+const MOSTRAR_METRAGEM_E_TEMPO = false
+
 // Sem `training`: mostra o treino de exemplo (usado nos cartões).
 // Com `training` (vindo do banco): mostra as partes preenchidas desse treino.
 export const Training = ({ training }) => {
@@ -26,7 +32,7 @@ export const Training = ({ training }) => {
                         <p className={styles.text}>{parte.texto}</p>
                         {parte.intervalo && <p className={styles.note}>{parte.intervalo}</p>}
                         {parte.observacao && <p className={styles.note}>{parte.observacao}</p>}
-                        {parte.metros > 0 && (
+                        {MOSTRAR_METRAGEM_E_TEMPO && parte.metros > 0 && (
                             <p className={styles.estimate}>{parte.metros} m · ~{parte.minutos} min</p>
                         )}
                     </div>
