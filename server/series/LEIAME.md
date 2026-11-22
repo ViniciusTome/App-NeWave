@@ -175,11 +175,13 @@ Toda série pode ser feita **sem equipamento**, e só aparece o material que o a
 
 ```json
 "materialObrigatorio": [
-  { "distanciaAcimaDe": 400, "material": ["pe_de_pato", "palmar"] }
+  { "distanciaAcimaDe": 400, "emPiramidesAPartirDe": 400, "material": ["pe_de_pato", "palmar"] }
 ]
 ```
 
-Séries com repetições **acima de 400 m** (ex.: `3 x 800`) sempre usam **pé de pato + palmar**, em qualquer parte do treino. Quem não tem os dois materiais não recebe a série. Uma repetição de 400 m não entra (não é "acima").
+- Repetições **acima de 400 m** (ex.: `3 x 800`) sempre usam **pé de pato + palmar**, em qualquer parte do treino. O `5 x 400` não entra (400 não é "acima").
+- Nas **pirâmides** (séries com vários blocos), as repetições **a partir de 400 m** usam o material, e o resto é nadando: `1 x 400, 2 x 200, 4 x 100, 8 x 50 · os 400 com pé de pato + palmar`.
+- Quem não tem os dois materiais não recebe a série.
 
 ### Medley e estilo
 

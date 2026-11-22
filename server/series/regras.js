@@ -93,6 +93,10 @@ export function validateRules(rules) {
                 if (!(Number.isInteger(regra?.distanciaAcimaDe) && regra.distanciaAcimaDe > 0)) {
                     problems.push(`${label}: "distanciaAcimaDe" precisa ser um número de metros, ex.: 400.`)
                 }
+                if (regra?.emPiramidesAPartirDe !== undefined &&
+                    !(Number.isInteger(regra.emPiramidesAPartirDe) && regra.emPiramidesAPartirDe > 0)) {
+                    problems.push(`${label}: "emPiramidesAPartirDe" precisa ser um número de metros, ex.: 400.`)
+                }
                 const material = regra?.material
                 if (!Array.isArray(material) || material.length === 0 || material.some((m) => !MATERIAIS.includes(m))) {
                     problems.push(`${label}: "material" precisa ser uma lista com: ${MATERIAIS.join(', ')}.`)
@@ -229,20 +233,32 @@ const cycle = (list, n) => Array.from({ length: n }, (_, i) => list[i % list.len
 // - "por_serie": muda entre as séries de "(2x)", "(4x)"... conforme os modelos
 //   (`series` tem o material de cada série);
 // - "fixo": a série tem material escrito no próprio JSON, e o gerador não mexe;
-// - "obrigatorio": repetição longa, que sempre usa o material das regras.
+// - "obrigatorio": repetição longa, que sempre usa o material das regras;
+// - "obrigatorio_por_bloco": só alguns blocos usam (ex.: os 400 de uma pirâmide).
 function materialOptions(rules, parte, serie, athleteEquipment) {
     if (serie.exige.material.length > 0) {
         return [{ padrao: 'fixo', material: serie.exige.material }]
     }
 
-    // Repetições longas sempre com o mesmo material (ex.: acima de 400 m, pé de
-    // pato + palmar). Quem não tem esse material não recebe a série.
+    // Repetições longas sempre com o mesmo material, bloco por bloco: acima de
+    // 400 m, e nas pirâmides (séries com vários blocos) a partir de 400 m.
+    // Ex.: na pirâmide 1 x 400, 2 x 200, ... só os 400 usam pé de pato + palmar.
+    // Quem não tem esse material não recebe a série.
     const has = new Set(athleteEquipment)
-    const obrigatorio = (rules.materialObrigatorio ?? []).find((r) => serie.maiorDistancia > r.distanciaAcimaDe)
-    if (obrigatorio) {
-        return obrigatorio.material.every((m) => has.has(m))
-            ? [{ padrao: 'obrigatorio', material: obrigatorio.material }]
-            : []
+    const piramide = serie.blocos.length > 1
+    for (const regra of rules.materialObrigatorio ?? []) {
+        const precisa = serie.blocos.map((bloco) =>
+            bloco.distancia > regra.distanciaAcimaDe ||
+            (piramide && regra.emPiramidesAPartirDe !== undefined && bloco.distancia >= regra.emPiramidesAPartirDe))
+        if (!precisa.some(Boolean)) continue
+        if (!regra.material.every((m) => has.has(m))) return []
+        if (precisa.every(Boolean)) return [{ padrao: 'obrigatorio', material: regra.material }]
+        return [{
+            padrao: 'obrigatorio_por_bloco',
+            material: regra.material,
+            porBloco: precisa.map((p) => (p ? regra.material : [])),
+            distancias: [...new Set(serie.blocos.filter((_, i) => precisa[i]).map((b) => b.distancia))],
+        }]
     }
 
     const options = [{ padrao: 'sem_material', material: [] }]
@@ -308,6 +324,9 @@ function variationText(serie, stroke, option) {
     if (!stroke.nados && stroke.nado !== 'livre') parts.push(stroke.nado)
     if (option.padrao === 'serie_inteira' || option.padrao === 'obrigatorio') {
         parts.push(`com ${materialText(option.material)}`)
+    }
+    if (option.padrao === 'obrigatorio_por_bloco') {
+        parts.push(`os ${option.distancias.join(' e os ')} com ${materialText(option.material)}`)
     }
 
     if (stroke.nados || option.series) {
