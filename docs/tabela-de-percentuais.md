@@ -120,4 +120,4 @@ Melhores tempos de 20 segundos a 3 minutos, de 2 em 2 segundos.
 
 - As linhas coloridas na foto original (amarelo, verde, azul e laranja) são marcações do treinador e não mudam o cálculo.
 - Na foto, a linha de 1.08 na coluna de 80% aparece como `1'21.6`; pelo cálculo é `1.21.6` (mesmo valor).
-- Na **coluna de 95%**, a foto mostra valores até 0,2" menores que o cálculo a partir de uns 1'40" (ex.: linha 2.30: foto `2.37.3`, cálculo `2.37.5`; linha 2.00: foto `2.05.8`, cálculo `2.06.0`). As outras colunas batem exatamente. A tabela acima segue o cálculo; se a da foto for a certa, é só ajustar.
+- Na **coluna de 95%**, a foto mostra valores até 0,2" menores que o cálculo a partir de uns 1'40" (ex.: linha 2.30: foto `2.37.3`, cálculo `2.37.5`; linha 2.00: foto `2.05.8`, cálculo `2.06.0`). As outras colunas batem exatamente. O treinador confirmou que vale o cálculo: a tabela acima já está corrigida.
