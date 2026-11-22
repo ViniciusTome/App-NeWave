@@ -21,7 +21,11 @@ export const MATERIAIS = ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snork
 export const PISCINAS = [25, 50]
 
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
-const SERIE_KEYS = ['id', 'texto', 'blocos', 'usos', 'porSensacao', 'duracaoMinutos']
+const SERIE_KEYS = ['id', 'texto', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos']
+// Além do nado escrito nos blocos, a série também pode ser feita em:
+// "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
+// "estilo" (toda no estilo do atleta: borboleta, costas ou peito).
+export const OUTROS_NADOS = ['medley', 'estilo']
 const BLOCO_KEYS = ['vezes', 'repeticoes', 'distancia', 'nado', 'intensidade', 'trechos', 'descanso', 'material']
 const TRECHO_KEYS = ['metros', 'intensidade']
 
@@ -76,6 +80,7 @@ export function describe(serie) {
     return {
         ...serie,
         usos: serie.usos ?? ['treino'],
+        outrosNados: serie.outrosNados ?? [],
         // Metragem total da série ("vezes" repete o bloco inteiro: (2x) 4 x 25 = 200 m)
         volume: blocos.reduce((sum, b) => sum + (b.vezes ?? 1) * b.repeticoes * b.distancia, 0),
         // Maior distância nadada sem parar (o atleta precisa aguentar isso)
@@ -122,6 +127,16 @@ export function validate(series) {
         if (serie.usos !== undefined) {
             if (!Array.isArray(serie.usos) || serie.usos.length === 0 || serie.usos.some((u) => !USOS.includes(u))) {
                 report(`"usos" precisa ser uma lista com: ${USOS.join(', ')}.`)
+            }
+        }
+
+        if (serie.outrosNados !== undefined) {
+            const list = serie.outrosNados
+            if (!Array.isArray(list) || list.length === 0 || list.some((n) => !OUTROS_NADOS.includes(n))) {
+                report(`"outrosNados" precisa ser uma lista com: ${OUTROS_NADOS.join(', ')}.`)
+            } else if (list.includes('medley') && Array.isArray(serie.blocos) &&
+                serie.blocos.some((b) => !Number.isInteger(b?.repeticoes) || b.repeticoes % 4 !== 0)) {
+                report('"medley" precisa de repetições em múltiplo de 4 (uma para cada estilo).')
             }
         }
 

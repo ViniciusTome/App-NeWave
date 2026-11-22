@@ -24,6 +24,12 @@ function listText(indexes) {
 
 // ---------- Validação ----------
 
+// Item de um modelo "porSerie": "material" (o material escolhido entre as opções),
+// "nadando" (sem material) ou uma lista fixa, ex.: ["palmar", "pull_buoy"]
+const isModelItem = (item) =>
+    item === 'material' || item === 'nadando' ||
+    (Array.isArray(item) && item.length > 0 && item.every((m) => MATERIAIS.includes(m)))
+
 export function validateRules(rules) {
     const problems = []
     if (rules === null || typeof rules !== 'object' || Array.isArray(rules)) {
@@ -64,12 +70,14 @@ export function validateRules(rules) {
                 continue
             }
             modelos.forEach((modelo, i) => {
-                const valid = Array.isArray(modelo) && modelo.length === n &&
-                    modelo.every((m) => m === 'material' || m === 'nadando')
+                const valid = Array.isArray(modelo) && modelo.length === n && modelo.every(isModelItem)
                 if (!valid) {
-                    problems.push(`${where}.porSerie.${vezes}, modelo ${i + 1}: precisa ter ${n} itens, cada um "material" ou "nadando".`)
-                } else if (!modelo.includes('material') || !modelo.includes('nadando')) {
-                    problems.push(`${where}.porSerie.${vezes}, modelo ${i + 1}: precisa de pelo menos uma série com material e uma nadando.`)
+                    problems.push(
+                        `${where}.porSerie.${vezes}, modelo ${i + 1}: precisa ter ${n} itens, cada um "material", ` +
+                        `"nadando" ou uma lista de materiais (ex.: ["palmar", "pull_buoy"]).`,
+                    )
+                } else if (modelo.every((m) => m === 'nadando')) {
+                    problems.push(`${where}.porSerie.${vezes}, modelo ${i + 1}: precisa de pelo menos uma série com material.`)
                 }
             })
         }
@@ -96,48 +104,95 @@ export function loadRules(file = new URL('./regras.json', import.meta.url)) {
 // Partes do treino que o nível faz (ex.: iniciante não faz velocidade)
 export const partsForLevel = (rules, nivel) => rules.niveis[nivel].partes
 
-// Todas as formas de nadar a série com o material que o atleta tem.
-// `serie` vem de describe() (index.js). Devolve [{ padrao, material, series, texto }]:
+// "1ª série com pé de pato, 2ª série com pé de pato + palmar, 3ª e 4ª séries nadando".
+// Séries seguidas com o mesmo material são agrupadas, na ordem em que aparecem.
+function perSetText(series) {
+    const groups = []
+    series.forEach((material, i) => {
+        const key = material.join('+')
+        const group = groups.find((g) => g.key === key)
+        if (group) group.indexes.push(i)
+        else groups.push({ key, material, indexes: [i] })
+    })
+    return groups
+        .map(({ material, indexes }) => {
+            const what = material.length === 0 ? 'nadando' : `com ${materialText(material)}`
+            return `${listText(indexes)} ${indexes.length > 1 ? 'séries' : 'série'} ${what}`
+        })
+        .join(', ')
+}
+
+// Formas de usar o material na série, com o que o atleta tem. Devolve
+// [{ padrao, material, series?, sufixo }]:
 // - "sem_material": a série como está (sempre possível);
 // - "serie_inteira": a série toda com o mesmo material;
-// - "por_serie": muda entre as séries de "(2x)", "(4x)"... conforme os modelos.
-// Série com material escrito no próprio JSON é fixa: o gerador não mexe.
-export function materialVariations(rules, parte, serie, athleteEquipment) {
+// - "por_serie": muda entre as séries de "(2x)", "(4x)"... conforme os modelos;
+// - "fixo": a série tem material escrito no próprio JSON, e o gerador não mexe.
+function materialOptions(rules, parte, serie, athleteEquipment) {
     if (serie.exige.material.length > 0) {
-        return [{ padrao: 'fixo', material: serie.exige.material, texto: serie.texto }]
+        return [{ padrao: 'fixo', material: serie.exige.material, sufixo: '' }]
     }
 
-    const variations = [{ padrao: 'sem_material', material: [], texto: serie.texto }]
+    const options = [{ padrao: 'sem_material', material: [], sufixo: '' }]
     const regra = rules.material[parte]
-    if (!regra || serie.porSensacao) return variations
+    if (!regra || serie.porSensacao) return options
 
     const has = new Set(athleteEquipment)
-    const opcoes = regra.opcoes.filter((opcao) => opcao.every((m) => has.has(m)))
+    const hasAll = (material) => material.every((m) => has.has(m))
+    const opcoes = regra.opcoes.filter(hasAll)
 
     for (const opcao of opcoes) {
-        variations.push({
-            padrao: 'serie_inteira',
-            material: opcao,
-            texto: `${serie.texto} · com ${materialText(opcao)}`,
-        })
+        options.push({ padrao: 'serie_inteira', material: opcao, sufixo: `com ${materialText(opcao)}` })
     }
 
     // Troca entre séries só existe com um bloco repetido ("vezes")
     const vezes = serie.blocos.length === 1 ? serie.blocos[0].vezes ?? 1 : 1
-    const modelos = regra.porSerie?.[String(vezes)] ?? []
-    for (const opcao of opcoes) {
-        for (const modelo of modelos) {
-            const com = modelo.flatMap((m, i) => (m === 'material' ? [i] : []))
-            const sem = modelo.flatMap((m, i) => (m === 'nadando' ? [i] : []))
-            const plural = (list) => (list.length > 1 ? 'séries' : 'série')
-            variations.push({
-                padrao: 'por_serie',
-                material: opcao,
-                series: modelo.map((m) => (m === 'material' ? opcao : [])),
-                texto: `${serie.texto} · ${listText(com)} ${plural(com)} com ${materialText(opcao)}, ` +
-                    `${listText(sem)} ${plural(sem)} nadando`,
-            })
+    for (const modelo of regra.porSerie?.[String(vezes)] ?? []) {
+        // Modelo com "material": um para cada opção. Modelo com listas fixas: um só.
+        const usesOption = modelo.includes('material')
+        for (const opcao of usesOption ? opcoes : [null]) {
+            const series = modelo.map((m) => (m === 'material' ? opcao : m === 'nadando' ? [] : m))
+            if (!series.every(hasAll)) continue
+            const material = MATERIAIS.filter((m) => series.some((s) => s.includes(m)))
+            options.push({ padrao: 'por_serie', material, series, sufixo: perSetText(series) })
         }
     }
-    return variations
+    return options
+}
+
+// ---------- Variações de nado ----------
+
+const ESTILOS = ['borboleta', 'costas', 'peito'] // "estilo" = qualquer um que não seja o crawl
+const QUATRO = ['crawl', 'costas', 'peito', 'borboleta']
+
+// Nados possíveis para a série, com os estilos que o atleta nada.
+// A série como está ("livre") sempre entra; "medley" exige os quatro estilos;
+// "estilo" vira uma opção para cada estilo (borboleta, costas, peito) que ele nada.
+function strokeOptions(serie, athleteStrokes) {
+    const has = new Set(athleteStrokes)
+    const options = [{ nado: 'livre', sufixo: '' }]
+    for (const outro of serie.outrosNados) {
+        if (outro === 'medley' && QUATRO.every((s) => has.has(s))) {
+            options.push({ nado: 'medley', sufixo: 'medley' })
+        }
+        if (outro === 'estilo') {
+            for (const estilo of ESTILOS.filter((s) => has.has(s))) options.push({ nado: estilo, sufixo: estilo })
+        }
+    }
+    return options
+}
+
+// Todas as formas de nadar a série para esse atleta: cada nado possível
+// combinado com cada forma de usar o material. O texto já sai pronto, ex.:
+// "(4x) 4 x 25 forte · medley · 1ª série com pé de pato, 2ª série com pé de pato + palmar, ..."
+// `serie` vem de describe() (index.js); `athlete` é { equipment, strokes } da anamnese.
+export function seriesVariations(rules, parte, serie, athlete) {
+    const variations = []
+    for (const stroke of strokeOptions(serie, athlete.strokes)) {
+        for (const option of materialOptions(rules, parte, serie, athlete.equipment)) {
+            const texto = [serie.texto, stroke.sufixo, option.sufixo].filter(Boolean).join(' · ')
+            variations.push({ nado: stroke.nado, ...option, texto })
+        }
+    }
+    return variations.map(({ sufixo: _sufixo, ...variation }) => variation)
 }

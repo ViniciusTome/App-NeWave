@@ -14,11 +14,11 @@
       ],
       "porSerie": {
         "2": [
-          ["material", "nadando"]
+          ["material", "nadando"],
+          ["nadando", "material"]
         ],
         "4": [
-          ["material", "nadando", "material", "nadando"],
-          ["material", "material", "nadando", "nadando"]
+          [["pe_de_pato"], ["pe_de_pato", "palmar"], ["palmar"], ["palmar", "pull_buoy"]]
         ]
       }
     }

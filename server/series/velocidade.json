@@ -12,21 +12,25 @@
   {
     "id": "vel-8x25-forte",
     "texto": "8 x 25 forte",
+    "outrosNados": ["medley"],
     "blocos": [{ "repeticoes": 8, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
   },
   {
     "id": "vel-2x8x25-forte",
     "texto": "(2x) 8 x 25 forte",
+    "outrosNados": ["medley"],
     "blocos": [{ "vezes": 2, "repeticoes": 8, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
   },
   {
     "id": "vel-16x25-forte",
     "texto": "16 x 25 forte",
+    "outrosNados": ["medley"],
     "blocos": [{ "repeticoes": 16, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
   },
   {
     "id": "vel-4x4x25-forte",
     "texto": "(4x) 4 x 25 forte",
+    "outrosNados": ["medley", "estilo"],
     "blocos": [{ "vezes": 4, "repeticoes": 4, "distancia": 25, "nado": "livre", "intensidade": "forte" }]
   },
   {

@@ -1,15 +1,18 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { loadPart } from './series/index.js'
-import { loadRules, materialVariations, partsForLevel, validateRules } from './series/regras.js'
+import { loadPart, validate } from './series/index.js'
+import { loadRules, partsForLevel, seriesVariations, validateRules } from './series/regras.js'
 
 const rules = loadRules()
 const velocidade = loadPart('velocidade')
 const serie = (id) => velocidade.find((s) => s.id === id)
-const textos = (id, equipment) =>
-  materialVariations(rules, 'velocidade', serie(id), equipment).map((v) => v.texto)
 
 const TODO_MATERIAL = ['pe_de_pato', 'palmar', 'pull_buoy', 'prancha', 'snorkel']
+const QUATRO_ESTILOS = ['crawl', 'costas', 'peito', 'borboleta']
+
+const variations = (id, equipment, strokes = ['crawl']) =>
+  seriesVariations(rules, 'velocidade', serie(id), { equipment, strokes })
+const textos = (...args) => variations(...args).map((v) => v.texto)
 
 // ---------- Níveis ----------
 
@@ -21,6 +24,13 @@ test('iniciante não faz velocidade; intermediário e avançado fazem', () => {
 
 // ---------- Material na velocidade ----------
 
+test('toda série de velocidade pode ser feita sem equipamento', () => {
+  for (const s of velocidade) {
+    const lista = seriesVariations(rules, 'velocidade', s, { equipment: TODO_MATERIAL, strokes: QUATRO_ESTILOS })
+    assert.ok(lista.some((v) => v.padrao === 'sem_material' && v.nado === 'livre' && v.texto === s.texto), s.id)
+  }
+})
+
 test('série sem intervalo entre séries: material na série inteira ou nadando, nunca trocando no meio', () => {
   assert.deepEqual(textos('vel-8x25-forte', TODO_MATERIAL), [
     '8 x 25 forte',
@@ -29,71 +39,106 @@ test('série sem intervalo entre séries: material na série inteira ou nadando,
     '8 x 25 forte · com pé de pato + palmar',
     '8 x 25 forte · com palmar + pull buoy',
   ])
-  // Nenhuma variação muda o material entre as repetições
   for (const id of ['vel-4x25-forte', 'vel-16x25-forte', 'vel-8x25-15-forte-10-solto', 'vel-4x15']) {
-    const variations = materialVariations(rules, 'velocidade', serie(id), TODO_MATERIAL)
-    assert.ok(variations.every((v) => v.padrao !== 'por_serie'), id)
+    assert.ok(variations(id, TODO_MATERIAL, QUATRO_ESTILOS).every((v) => v.padrao !== 'por_serie'), id)
   }
 })
 
-test('(2x): troca o material entre a 1ª e a 2ª série', () => {
-  const lista = textos('vel-2x4x25-forte', ['pe_de_pato'])
-  assert.deepEqual(lista, [
+test('(2x): material na 1ª série e nadando na 2ª, ou o contrário', () => {
+  assert.deepEqual(textos('vel-2x4x25-forte', ['pe_de_pato']), [
     '(2x) 4 x 25 forte',
     '(2x) 4 x 25 forte · com pé de pato',
     '(2x) 4 x 25 forte · 1ª série com pé de pato, 2ª série nadando',
+    '(2x) 4 x 25 forte · 1ª série nadando, 2ª série com pé de pato',
   ])
-  assert.ok(textos('vel-2x8x25-forte', ['pe_de_pato']).includes(
-    '(2x) 8 x 25 forte · 1ª série com pé de pato, 2ª série nadando',
-  ))
 })
 
-test('(4x): troca o material entre as séries, conforme os modelos das regras', () => {
-  const variations = materialVariations(rules, 'velocidade', serie('vel-4x4x25-forte'), ['palmar', 'pull_buoy'])
-  const porSerie = variations.filter((v) => v.padrao === 'por_serie').map((v) => v.texto)
-  assert.deepEqual(porSerie, [
-    '(4x) 4 x 25 forte · 1ª e 3ª séries com palmar, 2ª e 4ª séries nadando',
-    '(4x) 4 x 25 forte · 1ª e 2ª séries com palmar, 3ª e 4ª séries nadando',
-    '(4x) 4 x 25 forte · 1ª e 3ª séries com palmar + pull buoy, 2ª e 4ª séries nadando',
-    '(4x) 4 x 25 forte · 1ª e 2ª séries com palmar + pull buoy, 3ª e 4ª séries nadando',
-  ])
+test('(4x): pé de pato, pé de pato + palmar, palmar, palmar + pull buoy', () => {
+  const porSerie = variations('vel-4x4x25-forte', TODO_MATERIAL).filter((v) => v.padrao === 'por_serie')
+  assert.equal(porSerie.length, 1)
+  assert.equal(
+    porSerie[0].texto,
+    '(4x) 4 x 25 forte · 1ª série com pé de pato, 2ª série com pé de pato + palmar, ' +
+      '3ª série com palmar, 4ª série com palmar + pull buoy',
+  )
   // O material de cada série fica registrado, para o cálculo da duração
-  assert.deepEqual(variations.find((v) => v.padrao === 'por_serie').series, [['palmar'], [], ['palmar'], []])
+  assert.deepEqual(porSerie[0].series, [['pe_de_pato'], ['pe_de_pato', 'palmar'], ['palmar'], ['palmar', 'pull_buoy']])
+  // Sem pull buoy, essa sequência não aparece
+  assert.ok(variations('vel-4x4x25-forte', ['pe_de_pato', 'palmar']).every((v) => v.padrao !== 'por_serie'))
 })
 
 test('só oferece o material que o atleta tem', () => {
-  // Sem nenhum material: a série sai como está
   assert.deepEqual(textos('vel-2x4x25-forte', []), ['(2x) 4 x 25 forte'])
-  // Só pull buoy não basta: as opções com pull buoy exigem palmar junto
+  // Só pull buoy não basta: a opção com pull buoy exige palmar junto
   assert.deepEqual(textos('vel-8x25-forte', ['pull_buoy']), ['8 x 25 forte'])
-  // Pé de pato + palmar só aparece se tiver os dois
   assert.ok(!textos('vel-8x25-forte', ['pe_de_pato']).some((t) => t.includes('palmar')))
 })
 
 test('série com material escrito no JSON é fixa', () => {
-  const fixa = { ...serie('vel-8x25-forte'), exige: { estilos: [], outroEstilo: false, material: ['palmar'] } }
-  const variations = materialVariations(rules, 'velocidade', fixa, TODO_MATERIAL)
-  assert.deepEqual(variations.map((v) => v.padrao), ['fixo'])
+  const fixa = { ...serie('vel-8x25-forte'), outrosNados: [], exige: { estilos: [], outroEstilo: false, material: ['palmar'] } }
+  const lista = seriesVariations(rules, 'velocidade', fixa, { equipment: TODO_MATERIAL, strokes: ['crawl'] })
+  assert.deepEqual(lista.map((v) => v.padrao), ['fixo'])
 })
 
 test('parte sem regra de material: a série sai como está', () => {
   const aquecimento = loadPart('aquecimento')
-  const variations = materialVariations(rules, 'aquecimento', aquecimento[0], TODO_MATERIAL)
-  assert.deepEqual(variations.map((v) => v.padrao), ['sem_material'])
+  const lista = seriesVariations(rules, 'aquecimento', aquecimento[0], { equipment: TODO_MATERIAL, strokes: QUATRO_ESTILOS })
+  assert.deepEqual(lista.map((v) => v.texto), ['100 livre'])
+})
+
+// ---------- Medley e estilo ----------
+
+test('8 x 25, (2x) 8 x 25 e 16 x 25 também podem ser medley, com ou sem material', () => {
+  for (const id of ['vel-8x25-forte', 'vel-2x8x25-forte', 'vel-16x25-forte']) {
+    const lista = textos(id, ['pe_de_pato'], QUATRO_ESTILOS)
+    assert.ok(lista.includes(`${serie(id).texto} · medley`), id)
+    assert.ok(lista.includes(`${serie(id).texto} · medley · com pé de pato`), id)
+  }
+  assert.ok(textos('vel-2x8x25-forte', ['pe_de_pato'], QUATRO_ESTILOS).includes(
+    '(2x) 8 x 25 forte · medley · 1ª série com pé de pato, 2ª série nadando',
+  ))
+  // As outras séries de velocidade não viram medley
+  assert.ok(!textos('vel-4x25-forte', [], QUATRO_ESTILOS).some((t) => t.includes('medley')))
+})
+
+test('(4x) 4 x 25 pode ser medley ou no estilo do atleta, com ou sem material', () => {
+  const lista = textos('vel-4x4x25-forte', TODO_MATERIAL, QUATRO_ESTILOS)
+  for (const nado of ['medley', 'borboleta', 'costas', 'peito']) {
+    assert.ok(lista.includes(`(4x) 4 x 25 forte · ${nado}`), nado)
+    assert.ok(lista.some((t) => t.startsWith(`(4x) 4 x 25 forte · ${nado} · 1ª série com pé de pato`)), nado)
+  }
+  // "Estilo" é borboleta, costas ou peito: crawl não entra como estilo
+  assert.ok(!lista.some((t) => t.includes('· crawl')))
+})
+
+test('medley só para quem nada os quatro estilos; estilo só os que o atleta nada', () => {
+  const crawlECostas = textos('vel-4x4x25-forte', [], ['crawl', 'costas'])
+  assert.deepEqual(crawlECostas, ['(4x) 4 x 25 forte', '(4x) 4 x 25 forte · costas'])
+  assert.deepEqual(textos('vel-8x25-forte', [], ['crawl', 'costas', 'peito']), ['8 x 25 forte'])
+})
+
+test('medley precisa de repetições em múltiplo de 4', () => {
+  const problems = validate([{
+    id: 'x-1', texto: '6 x 25', outrosNados: ['medley'],
+    blocos: [{ repeticoes: 6, distancia: 25, nado: 'livre', intensidade: 'forte' }],
+  }])
+  assert.ok(problems.some((p) => p.includes('múltiplo de 4')), JSON.stringify(problems))
+  const invalid = validate([{ id: 'x-2', texto: '4 x 25', outrosNados: ['golfinho'], blocos: [{ repeticoes: 4, distancia: 25, nado: 'livre', intensidade: 'forte' }] }])
+  assert.ok(invalid.some((p) => p.includes('"outrosNados"')))
 })
 
 // ---------- Validação do arquivo de regras ----------
 
 test('a validação das regras aponta os erros', () => {
-  const ok = structuredClone(rules)
-  assert.deepEqual(validateRules(ok), [])
+  assert.deepEqual(validateRules(structuredClone(rules)), [])
 
   const cases = [
     [(r) => { r.niveis.iniciante.partes = ['nado'] }, 'niveis.iniciante.partes'],
     [(r) => { delete r.niveis.avancado }, 'niveis.avancado.partes'],
     [(r) => { r.material.velocidade.opcoes.push(['nadadeira']) }, 'opção 5'],
-    [(r) => { r.material.velocidade.porSerie['2'] = [['material', 'material']] }, 'pelo menos uma série com material e uma nadando'],
+    [(r) => { r.material.velocidade.porSerie['2'] = [['nadando', 'nadando']] }, 'pelo menos uma série com material'],
     [(r) => { r.material.velocidade.porSerie['4'] = [['material', 'nadando']] }, 'precisa ter 4 itens'],
+    [(r) => { r.material.velocidade.porSerie['4'] = [[['pe_de_pato'], ['nadadeira'], 'nadando', 'material']] }, 'lista de materiais'],
     [(r) => { r.material.velocidade.porSerie['1'] = [['material']] }, 'número de séries'],
     [(r) => { r.material.natacao = { opcoes: [['palmar']] } }, 'não é uma parte do treino'],
   ]

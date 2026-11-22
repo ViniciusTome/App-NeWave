@@ -29,6 +29,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | `texto` | Como a série aparece no treino do atleta, escrita do seu jeito. |
 | `blocos` | As partes da série. A maioria tem um bloco só; uma série que muda no meio (ex.: 4 x 25 com pé de pato + 4 x 25 sem) tem dois. |
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
+| `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"` (cada repetição num estilo; repetições em múltiplo de 4) e/ou `"estilo"` (toda em borboleta, costas ou peito). |
 | `porSensacao` + `duracaoMinutos` | Para séries sem metragem, como "aqueça até sentir o corpo aquecido". Aí `blocos` fica `[]`. |
 
 Cada bloco:
@@ -110,19 +111,35 @@ O material **só muda onde existe intervalo entre séries**. Dentro de uma séri
   "velocidade": {
     "opcoes": [["pe_de_pato"], ["palmar"], ["pe_de_pato", "palmar"], ["palmar", "pull_buoy"]],
     "porSerie": {
-      "2": [["material", "nadando"]],
-      "4": [["material", "nadando", "material", "nadando"], ["material", "material", "nadando", "nadando"]]
+      "2": [["material", "nadando"], ["nadando", "material"]],
+      "4": [[["pe_de_pato"], ["pe_de_pato", "palmar"], ["palmar"], ["palmar", "pull_buoy"]]]
     }
   }
 }
 ```
 
 - `opcoes`: os materiais (ou combinações) que podem entrar nessa parte. Só aparecem para quem tem todos os itens da opção.
-- `porSerie`: como trocar o material entre as séries de um `(2x)`, `(4x)`... Cada modelo diz, série por série, se é com material ou nadando.
+- `porSerie`: como trocar o material entre as séries de um `(2x)`, `(4x)`... Cada modelo diz, série por série:
+  - `"material"`: uma das `opcoes` (o gerador escolhe);
+  - `"nadando"`: sem material;
+  - uma lista fixa, ex.: `["palmar", "pull_buoy"]`.
+
+  O `(4x)` é sempre: 1ª série com pé de pato, 2ª com pé de pato + palmar, 3ª com palmar, 4ª com palmar + pull buoy.
 
 Com isso, a mesma série vira treinos diferentes. Por exemplo, para um atleta que tem pé de pato:
 
 - `8 x 25 forte` → nadando, ou com pé de pato na série inteira.
-- `(2x) 4 x 25 forte` → nadando, com pé de pato nas duas séries, ou **1ª série com pé de pato, 2ª série nadando**.
+- `(2x) 4 x 25 forte` → nadando, com pé de pato nas duas séries, **1ª série com pé de pato, 2ª série nadando**, ou **1ª série nadando, 2ª série com pé de pato**.
+
+Toda série pode ser feita **sem equipamento**, e só aparece o material que o atleta marcou na anamnese.
+
+### Medley e estilo
+
+As séries com `outrosNados` também podem sair em medley ou no estilo, **com ou sem material**, mas só com os estilos que o atleta marcou na anamnese:
+
+- `medley`: só para quem nada os quatro estilos.
+- `estilo`: uma opção para cada estilo que o atleta nada, entre borboleta, costas e peito.
+
+Hoje: `8 x 25`, `(2x) 8 x 25` e `16 x 25` podem ser medley; o `(4x) 4 x 25` pode ser medley ou estilo.
 
 Se uma série tiver `material` escrito no próprio JSON, ela é fixa e o gerador não muda.
