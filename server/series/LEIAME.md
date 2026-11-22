@@ -431,15 +431,16 @@ As fases são `acumulacao`, `transicao` e `realizacao`.
 
 ### Saída (cd)
 
-A saída é **o tempo que o atleta tem que fazer na intensidade + o descanso**, arredondada de 5 em 5 segundos (para o mais perto). Aparece no card como `cd 1'50"`.
+A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 5 em 5 segundos (para o mais perto). Aparece no card como `cd 1'50"`. Os números ficam em `saidas` no `regras.json`.
 
-- O tempo vem da **tabela de tempos** (teste de 400 m). O descanso segue a tabela de descanso: por distância para o avançado e o intermediário, por intensidade para o iniciante e o recém-intermediário.
-- Ex. (teste em 6'00", avançado): 100 m A1 = 1'30" + 25" = **cd 1'55"**; A3 = 1'26" + 25" = **cd 1'50"**.
-- **30 AC nos 400:** melhor tempo + 30" + 1' de descanso. Ex.: 6'00" + 30" + 1' = **cd 7'30"**.
-- **Perto do A1, fica a saída do A1:** se a saída do A2 ou do A3 é até 10" menor que a do A1, usa a do A1. Na fase de **Transição** cada intensidade fica com a sua. Enquanto a fase da temporada não é definida, vale a da Acumulação.
-- **Iniciante:** como o descanso do A3 é maior, a saída do A3 pode ficar acima da do A1, mas **no máximo 10" acima** (ele sempre faz A3 com equipamento). Ex.: 1'40" / 1'45" / 1'50" (sem o limite seria 1'55").
-- Os 10" são provisórios: mude em `saidas` no `regras.json` (`igualarAoA1Ate`, `maximoAcimaDoA1`, `fasesComSaidaPorIntensidade`).
-- Ainda **sem saída**: AC em outras distâncias, NEG, POS, final forte, 75 NAD x 25 fo, velocidade e grupos com vários blocos e uma intensidade por série.
+- **A1, A2, A3:** o tempo vem da **tabela de tempos** (teste de 400 m). O descanso segue a tabela de descanso: por distância para o avançado e o intermediário, por intensidade para o iniciante e o recém-intermediário. Ex. (teste em 6'00", avançado): 100 m A1 = 1'30" + 25" = **cd 1'55"**.
+- **Perto do A1, fica a saída do A1:** se a saída do A2 ou do A3 é até 10" menor que a do A1 (20" nas repetições de 300 m ou mais), usa a do A1. Na fase de **Transição** cada intensidade fica com a sua. Enquanto a fase da temporada não é definida, vale a da Acumulação.
+- **Iniciante:** como o descanso do A3 é maior, a saída do A3 pode ficar acima da do A1, mas **no máximo 20" acima**. O A2 fica com a sua (ex.: 1'40" / 1'45" / 1'55").
+- **Iniciante com equipamento:** a saída não diminui com pé de pato ou palmar. O card mostra um aviso: se fizer muito abaixo do tempo proposto, descanse o tempo de descanso antes da próxima.
+- **AC (acima do melhor):** nos 400, melhor tempo do teste + o AC. Nas outras distâncias, o melhor tempo é **estimado pela tabela de percentuais** a partir do A1: melhor = tempo do A1 ÷ (1 + (100 − esforço do A1) ÷ 100). Ex. (avançado, A1 a 75%): 100 m A1 1'30" → melhor 1'12"; 10 AC = 1'22" + 25" = **cd 1'45"**.
+- **NEG, POS e final forte:** tempo do A2 + **20" a 30"** (usa 25") nos 50 e 100 m. Nas outras distâncias, a tabela de descanso.
+- **Velocidade:** avançado nos 25 m **cd 30"**. Intermediário (e nas outras distâncias): **1/1**, descansa o mesmo tempo que nada; o tempo forte vem do melhor dos 50 estimado (proporcional à distância).
+- **Grupos** (ex.: 3x(1x100; 2x75; 3x50; 4x25)): cada distância com a sua saída. Se a saída é a mesma em todas as séries, vai na linha da distância; se muda, vai na linha de cada série (`100 cd 1'45" / 75 cd 1'30" / ...`).
 
 ### Como a série aparece no card
 
@@ -462,8 +463,7 @@ Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `de
 - **Iniciante em treinos mais longos:** por enquanto, a mesma estrutura em qualquer tempo de aula.
 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
-- **Saída com pé de pato/palmar:** hoje a saída não muda com o material.
-- **Saídas que ainda faltam:** AC em outras distâncias (precisa do melhor tempo em cada uma), NEG/POS/final forte, velocidade e grupos.
-- **Saída do 25 forte de cada atleta**: como calcular a partir do ritmo dele.
+- **Saída com pé de pato/palmar no intermediário e avançado:** hoje não muda com o material.
+- **Velocidade com cd 25":** quando forçar mais (ex.: na fase de Realização).
 - **Melhor estilo pelos testes**: comparar os tempos de cada estilo (hoje os testes não guardam o estilo).
 - **Mistura de nados com material**: por enquanto a mistura sai sem material (material + estilo depende da fase).

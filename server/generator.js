@@ -67,19 +67,54 @@ function blockRest(rules, bloco, athlete) {
 
 // ---------- Saída ----------
 
-// Saída de uma repetição: o tempo que o atleta tem que fazer na intensidade
-// (tabela de tempos) + o descanso, arredondada de 5 em 5 segundos (para o mais perto).
-// "30 AC" nos 400: o melhor tempo (teste) + 30" + o descanso.
-// null quando ainda não dá para calcular (AC em outras distâncias, NEG, POS...).
+const de5em5 = (s) => Math.round(s / 5) * 5
+
+// Melhor tempo estimado numa distância (100%), pela tabela de percentuais:
+// tempo = melhor × (1 + (100 − esforço) ÷ 100). Parte do tempo do A1 e do esforço do A1.
+export function bestTimeFor(rules, athlete, distancia) {
+    if (distancia === 400 && athlete.teste400) return athlete.teste400
+    const a1 = repSeconds(rules, athlete.tabela, distancia, 'A1')
+    const esforco = effortFor(rules, 'A1', athlete.level)
+    if (a1 === null || !esforco) return null
+    return a1 / (1 + (100 - esforco) / 100)
+}
+
+// Saída de uma repetição: o tempo que o atleta tem que fazer + o descanso,
+// arredondada de 5 em 5 segundos (para o mais perto).
+// - A1/A2/A3: tabela de tempos.
+// - "30 AC": melhor tempo (teste nos 400; estimado nas outras distâncias) + 30".
+// - NEG, POS e final forte: tempo do A2 + 20" a 30" (50 e 100 m).
+// null quando não dá para calcular.
 export function saidaFor(rules, athlete, bloco, valor) {
     if (!athlete.tabela || !valor) return null
-    let nado = null
+    const intensidade = /^A[123]$/.test(valor) ? valor : null
     const ac = /^(\d+) AC$/.exec(valor)
-    if (/^A[123]$/.test(valor)) nado = repSeconds(rules, athlete.tabela, bloco.distancia, valor)
-    else if (ac && bloco.distancia === 400 && athlete.teste400) nado = athlete.teste400 + Number(ac[1])
+    const ritmoLivre = valor === 'NEG' || valor === 'POS' || / NAD x 25 fo$/.test(valor)
+    let nado = null
+    if (intensidade) nado = repSeconds(rules, athlete.tabela, bloco.distancia, intensidade)
+    else if (ac) {
+        const melhor = bestTimeFor(rules, athlete, bloco.distancia)
+        if (melhor !== null) nado = melhor + Number(ac[1])
+    } else if (ritmoLivre) nado = repSeconds(rules, athlete.tabela, bloco.distancia, 'A2')
     if (nado === null) return null
-    const descanso = blockRest(rules, { ...bloco, intensidade: /^A[123]$/.test(valor) ? valor : 'A3' }, athlete)
-    return Math.round((nado + descanso) / 5) * 5
+    const regra = rules.saidas?.negPosFinalForte
+    const descanso = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
+        ? (regra.descanso[0] + regra.descanso[1]) / 2
+        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : 'A3') }, athlete)
+    return de5em5(nado + descanso)
+}
+
+// Saída da velocidade: avançado nos 25 m a cada 30"; nos outros casos 1/1
+// (o tempo forte estimado + o mesmo tempo de descanso).
+export function saidaVelocidade(rules, athlete, bloco) {
+    const cfg = rules.saidas?.velocidade
+    if (!cfg || !athlete.tabela) return null
+    const fixa = cfg[athlete.level]?.[String(bloco.distancia)]
+    if (fixa) return fixa
+    const melhor50 = bestTimeFor(rules, athlete, 50)
+    if (melhor50 === null) return null
+    const nado = (melhor50 * bloco.distancia) / 50
+    return Math.max(5, de5em5(nado * (1 + (cfg.descansoPorNado ?? 1))))
 }
 
 // 90 -> 1'30"; 45 -> 45"
@@ -91,25 +126,47 @@ export function saidasDaSerie(rules, athlete, serie, intensidades, fase = null) 
     if (!intensidades) return null
     const { unidade, valores } = intensidades
     if (unidade === 'bloco') return serie.blocos.map((b, i) => saidaFor(rules, athlete, b, valores[i]))
-    // Grupos com vários blocos e intensidade por série: cada bloco teria uma saída diferente (por enquanto, sem)
-    if (serie.blocos.length > 1) return null
+    // Grupos: cada distância com a sua saída -> { porBloco: [[saídas de cada série] de cada bloco] }
+    if (serie.blocos.length > 1) {
+        return {
+            porBloco: serie.blocos.map((b) => ajustarAoA1(rules, valores,
+                valores.map((v) => saidaFor(rules, athlete, b, v)), saidaFor(rules, athlete, b, 'A1'), fase, b.distancia)),
+        }
+    }
     const bloco = serie.blocos[0]
     return ajustarAoA1(rules, valores, valores.map((v) => saidaFor(rules, athlete, bloco, v)),
-        saidaFor(rules, athlete, bloco, 'A1'), fase)
+        saidaFor(rules, athlete, bloco, 'A1'), fase, bloco.distancia)
 }
 
 // A2/A3 perto do A1: mesma saída do A1 (na transição, cada intensidade com a sua).
 // Acima do A1 (iniciante, que descansa mais no A3): só um pouco acima.
-function ajustarAoA1(rules, valores, saidas, saidaA1, fase) {
+function ajustarAoA1(rules, valores, saidas, saidaA1, fase, distancia) {
     const cfg = rules.saidas
     if (!cfg || !saidaA1) return saidas
     const porIntensidade = (cfg.fasesComSaidaPorIntensidade ?? []).includes(fase)
+    const longas = cfg.igualarAoA1AteNasLongas
+    const igualarAte = longas && distancia >= longas.aPartirDeMetros ? longas.segundos : (cfg.igualarAoA1Ate ?? 0)
     return saidas.map((s, i) => {
         if (!s || !['A2', 'A3'].includes(valores[i])) return s
         if (s > saidaA1) return Math.min(s, saidaA1 + (cfg.maximoAcimaDoA1 ?? Infinity))
-        if (!porIntensidade && saidaA1 - s <= (cfg.igualarAoA1Ate ?? 0)) return saidaA1
+        if (!porIntensidade && saidaA1 - s <= igualarAte) return saidaA1
         return s
     })
+}
+
+// Iniciante com pé de pato ou palmar nada bem mais rápido que o tempo proposto:
+// a saída continua a mesma, com o aviso para descansar o intervalo de descanso.
+function avisoComEquipamento(rules, athlete, escolha, saidas) {
+    const temSaida = Array.isArray(saidas) ? saidas.some(Boolean) : saidas?.porBloco?.some((c) => c.some(Boolean))
+    if (athlete.level !== 'iniciante' || !temSaida) return null
+    const v = escolha.variation
+    const materiais = [v.material, ...(v.series ?? []), ...(v.porBloco ?? [])].flat()
+    if (!materiais.some((m) => ['pe_de_pato', 'pe_de_pato_peito', 'palmar'].includes(m))) return null
+    const meio = (f) => (f[0] + f[1]) / 2
+    const usadas = [...new Set((escolha.intensidades?.valores ?? []).filter((x) => /^A[123]$/.test(x)))].sort()
+    const descansos = usadas.map((x) => `${meio(rules.intensidades[x].descanso)}" no ${x}`).join(', ')
+    return 'Com equipamento você pode chegar bem antes da saída (cd). Se fizer muito abaixo do tempo proposto, ' +
+        `descanse o tempo de descanso${descansos ? ` (${descansos})` : ''} antes da próxima.`
 }
 
 // Segundos que o atleta leva na série, com os descansos. `pace` = segundos por
@@ -226,7 +283,11 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     const comSaida = (v, i) => [fmt(v), saidas?.[i] ? `cd ${saidaText(saidas[i])}` : null].filter(Boolean).join(' · ')
     const sequencia = I ? (I.valores.every((v) => v === I.valores[0]) ? comSaida(I.valores[0], 0) : I.valores.map(fmt).join(' / ')) : null
     // Série simples com um ritmo por repetição e saídas: uma linha por repetição
-    const porRepeticao = I?.unidade === 'repeticao' && saidas?.some(Boolean)
+    const porRepeticao = I?.unidade === 'repeticao' && Array.isArray(saidas) && saidas.some(Boolean)
+    // Grupos: a saída de cada distância (igual em todas as séries -> vai na linha do bloco)
+    const porBloco = saidas?.porBloco
+    const blocoIgual = porBloco?.map((col) => (col[0] && col.every((s) => s === col[0]) ? col[0] : null))
+    const saidaNaSerie = porBloco && blocoIgual.some((s) => s === null) && porBloco.some((col) => col.some(Boolean))
 
     // Pirâmides e grupos
     if (serie.blocos.length > 1) {
@@ -241,6 +302,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
             if (material?.length > 0) linha += ` · ${materialAbbrev(material)}`
             else if (alternada) linha += ' · NAD'
             if (I?.unidade === 'bloco') linha += ` · ${comSaida(I.valores[i], i)}`
+            else if (blocoIgual?.[i] && !saidaNaSerie) linha += ` · cd ${saidaText(blocoIgual[i])}`
             linhas.push(linha)
         })
         const resto = [nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null].filter(Boolean).join(' · ')
@@ -249,16 +311,22 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
         if (I?.unidade === 'serie') {
             I.valores.forEach((v, i) => {
                 const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
-                linhas.push(`${ORDINAIS[i]} série: ${[material, fmt(v)].filter(Boolean).join(' · ')}`)
+                // Saídas diferentes em cada série: "100 cd 1'55" / 75 cd 1'25""
+                const cds = saidaNaSerie ? serie.blocos.map((b, j) => (porBloco[j][i] ? `${b.distancia} cd ${saidaText(porBloco[j][i])}` : null))
+                    .filter(Boolean).join(' / ') : null
+                linhas.push(`${ORDINAIS[i]} série: ${[material, fmt(v), cds].filter(Boolean).join(' · ')}`)
             })
         }
         return linhas.join('\n')
     }
 
     const base = abbreviate(withMeters(serie.texto))
+    // Sem intensidade (velocidade): a saída, quando tem
+    const cd = !I && Array.isArray(saidas) && saidas[0] ? `cd ${saidaText(saidas[0])}` : null
     const porSerie = materialPorSerie || variation.nados || variation.porSerie || (I?.unidade === 'serie' ? I.valores : null)
     if (!porSerie) {
-        if (!I) return [abbreviate(withMeters(variation.texto)), c].filter(Boolean).join(' · ')
+        // Sem intensidade (velocidade): a saída, quando tem
+        if (!I) return [abbreviate(withMeters(variation.texto)), cd, c].filter(Boolean).join(' · ')
         if (porRepeticao) {
             // 5 x 400 m · c/PÉ + PALM
             // 1º: A1 · cd 6'50"
@@ -270,7 +338,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     }
 
     // Uma linha por série
-    const cabecalho = [base, nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null, c]
+    const cabecalho = [base, nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null, cd, c]
         .filter(Boolean).join(' · ')
     const linhas = porSerie.map((_, i) => {
         const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
@@ -439,12 +507,17 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         if (!escolha) return // nenhuma série da biblioteca serve para esse atleta
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
         const intervalo = intervalText(intervalRangeFor(rules, parte, escolha.serie, athlete.level))
+        const saidas = parte === 'velocidade'
+            ? (escolha.serie.blocos.length === 1 ? [saidaVelocidade(rules, athlete, escolha.serie.blocos[0])] : null)
+            : saidasDaSerie(rules, athlete, escolha.serie, escolha.intensidades)
+        const aviso = avisoComEquipamento(rules, athlete, escolha, saidas)
         partes.push({
             parte,
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
             serieId: escolha.serie.id,
             texto: cardText(escolha.serie, escolha.variation, intervalRangeFor(rules, parte, escolha.serie, athlete.level),
-                escolha.intensidades, saidasDaSerie(rules, athlete, escolha.serie, escolha.intensidades)),
+                escolha.intensidades, saidas),
+            ...(aviso && { aviso }),
             ...(escolha.intensidades && { intensidades: escolha.intensidades }),
             ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,

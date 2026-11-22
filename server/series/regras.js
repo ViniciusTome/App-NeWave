@@ -106,6 +106,10 @@ export function validateRules(rules) {
         for (const [k, v] of Object.entries({ igualarAoA1Ate, maximoAcimaDoA1 })) {
             if (v !== undefined && !(Number.isFinite(v) && v >= 0)) problems.push(`saidas.${k} precisa ser um número de segundos.`)
         }
+        const longas = rules.saidas.igualarAoA1AteNasLongas
+        if (longas !== undefined && !(Number.isFinite(longas.aPartirDeMetros) && Number.isFinite(longas.segundos))) {
+            problems.push('saidas.igualarAoA1AteNasLongas: use { "aPartirDeMetros": 300, "segundos": 20 }.')
+        }
         if (!Array.isArray(fasesComSaidaPorIntensidade) || fasesComSaidaPorIntensidade.some((f) => !FASES.includes(f))) {
             problems.push(`saidas.fasesComSaidaPorIntensidade: use fases entre ${FASES.join(', ')}.`)
         }

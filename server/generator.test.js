@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, cardText, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText, trainingDates, withMeters,
+  abbreviate, bestTimeFor, cardText, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  saidaVelocidade, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
 import {
@@ -505,8 +506,7 @@ test('saída = tempo da intensidade + descanso, de 5 em 5 segundos', () => {
   // Iniciante: descanso pela intensidade (A1 10", A2 15", A3 30")
   const iniciante = { level: 'iniciante', tabela: timeTable(rules, 360), teste400: 360 }
   assert.deepEqual(['A1', 'A2', 'A3'].map((v) => saidaFor(rules, iniciante, { distancia: 100 }, v)), [100, 105, 115])
-  // O que ainda não dá para calcular fica sem saída
-  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, 'NEG'), null)
+  // Sem o teste (sem tabela) fica sem saída
   assert.equal(saidaFor(rules, { level: 'avancado' }, { distancia: 100 }, 'A1'), null)
 })
 
@@ -532,10 +532,83 @@ test('na acumulação, A2/A3 perto do A1 ficam com a saída do A1; na transiçã
   assert.deepEqual(saidasDaSerie(rules, avancado, serie, I, 'transicao'), [115, 115, 115, 110])
 })
 
-test('iniciante: a saída do A3 fica só um pouco acima da do A1', () => {
-  const serie = { blocos: [{ repeticoes: 3, distancia: 100 }] }
+test('iniciante: a saída do A3 fica no máximo 20" acima da do A1', () => {
   const I = { unidade: 'repeticao', valores: ['A1', 'A2', 'A3'] }
   const iniciante = { level: 'iniciante', tabela: timeTable(rules, 360), teste400: 360 }
-  // Sem o limite seria 1'40" / 1'45" / 1'55"
-  assert.deepEqual(saidasDaSerie(rules, iniciante, serie, I), [100, 105, 110])
+  // 100 m: 1'40" / 1'45" / 1'55" (dentro do limite)
+  assert.deepEqual(saidasDaSerie(rules, iniciante, { blocos: [{ repeticoes: 3, distancia: 100 }] }, I), [100, 105, 115])
+  // Teste lento (9'): no 100 o A3 passaria 25" do A1; fica 20" acima
+  const lento = { level: 'iniciante', tabela: timeTable(rules, 540), teste400: 540 }
+  const [a1, , a3] = saidasDaSerie(rules, lento, { blocos: [{ repeticoes: 3, distancia: 100 }] }, I)
+  assert.ok(a3 - a1 <= 20, `${a1} ${a3}`)
+})
+
+test('repetições longas (300 m ou mais): A2/A3 até 20" abaixo do A1 ficam com a do A1', () => {
+  const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  const I = { unidade: 'repeticao', valores: ['A1', 'A2', 'A3'] }
+  const saidas = saidasDaSerie(rules, avancado, { blocos: [{ repeticoes: 3, distancia: 300 }] }, I)
+  assert.equal(new Set(saidas).size, 1)
+})
+
+test('AC em outras distâncias: melhor tempo estimado pela tabela de percentuais', () => {
+  const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  // A1 do 100 = 1'30" a 75%: melhor = 90 ÷ 1,25 = 72"
+  assert.equal(bestTimeFor(rules, avancado, 100), 72)
+  // 10 AC nos 100: 72 + 10 + 25" de descanso = 107 -> 1'45"
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '10 AC'), 105)
+  // Nos 400 vale o teste
+  assert.equal(bestTimeFor(rules, avancado, 400), 360)
+})
+
+test('NEG, POS e final forte: tempo do A2 + 20" a 30" nos 50 e 100 m', () => {
+  const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  // A2 do 100 = 1'28" + 25" = 1'53" -> 1'55"
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, 'NEG'), 115)
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, 'POS'), 115)
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '75 NAD x 25 fo'), 115)
+  // A2 do 50 = 40,5" + 25" -> 1'05"
+  assert.equal(saidaFor(rules, avancado, { distancia: 50 }, 'NEG'), 65)
+})
+
+test('velocidade: avançado nos 25 a cada 30"; intermediário 1/1', () => {
+  const tabela = timeTable(rules, 360)
+  assert.equal(saidaVelocidade(rules, { level: 'avancado', tabela, teste400: 360 }, { distancia: 25 }), 30)
+  // Intermediário: 25 forte ~16" + 16" de descanso -> 35"
+  assert.equal(saidaVelocidade(rules, { level: 'intermediario', tabela, teste400: 360 }, { distancia: 25 }), 35)
+  // O card mostra a saída
+  const textos = [1, 2, 3, 4].flatMap((seed) => gerar(avancado, seed))
+    .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
+  assert.ok(textos.length > 0 && textos.every((t) => /cd \d+"/.test(t)), textos.join('\n'))
+})
+
+test('grupos: cada distância com a sua saída', () => {
+  const serie = { vezes: 3, blocos: [{ repeticoes: 1, distancia: 100 }, { repeticoes: 2, distancia: 75 }, { repeticoes: 3, distancia: 50 }] }
+  const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  const I = { unidade: 'serie', valores: ['A1', 'A2', 'A3'] }
+  // Acumulação: tudo com a saída do A1, então vai na linha de cada distância
+  const acumulacao = saidasDaSerie(rules, avancado, serie, I)
+  assert.deepEqual(acumulacao.porBloco.map((col) => new Set(col).size), [1, 1, 1])
+  const variation = { texto: '', material: [], padrao: 'livre' }
+  const texto = cardText({ ...serie, texto: '' }, variation, null, I, acumulacao)
+  assert.match(texto, /1 x 100 m · cd 1'55"/)
+  // Transição: cada série com as suas saídas
+  const transicao = saidasDaSerie(rules, avancado, serie, I, 'transicao')
+  const texto2 = cardText({ ...serie, texto: '' }, variation, null, I, transicao)
+  assert.match(texto2, /3ª série: A3 · 100 cd \d'\d{2}" \/ 75 cd/)
+})
+
+test('iniciante com equipamento: aviso para descansar o intervalo', () => {
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 60, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '200_400',
+    strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar', 'pull_buoy'], time400: { hundredths: 54000 },
+  }
+  const partes = [1, 2, 3, 4, 5].flatMap((seed) => gerar(iniciante, seed)).flatMap((t) => t.partes)
+  const comAviso = partes.filter((p) => p.aviso)
+  assert.ok(comAviso.length > 0, 'nenhum aviso')
+  for (const p of comAviso) {
+    assert.match(p.texto, /cd /)
+    assert.match(p.aviso, /descanse o tempo de descanso/)
+  }
+  // Avançado não recebe o aviso
+  assert.ok([1, 2, 3].flatMap((seed) => gerar(avancado, seed)).flatMap((t) => t.partes).every((p) => !p.aviso))
 })
