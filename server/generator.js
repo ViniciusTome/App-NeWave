@@ -93,27 +93,27 @@ export function withMeters(texto) {
 // ---------- Abreviações do card (as mesmas do glossário) ----------
 
 const MATERIAL_ABREV = {
-    pe_de_pato: 'PÉ', pe_de_pato_peito: 'PÉ de peito', palmar: 'PAL', pull_buoy: 'BOIA',
+    pe_de_pato: 'PÉ', pe_de_pato_peito: 'PÉ de peito', palmar: 'PALM', pull_buoy: 'BOIA',
     snorkel: 'SNK', paraquedas: 'PARA', prancha: 'prancha',
 }
 const NADO_ABREV = { crawl: 'CR', costas: 'CO', peito: 'PE', borboleta: 'BO', medley: 'MD', livre: 'livre' }
 
-// ["pe_de_pato", "palmar"] -> "c/ PÉ + PAL"; [] -> "NAD"
+// ["pe_de_pato", "palmar"] -> "c/PÉ + PALM"; [] -> "NAD"
 export const materialAbbrev = (material) =>
-    material.length === 0 ? 'NAD' : `c/ ${material.map((m) => MATERIAL_ABREV[m]).join(' + ')}`
+    material.length === 0 ? 'NAD' : `c/${material.map((m) => MATERIAL_ABREV[m]).join(' + ')}`
 
 // Troca as palavras do texto pelas abreviações do treinador:
 // "100 indo crawl, voltando estilo" -> "100 indo CR, voltando estilo";
-// "com pé de pato + palmar" -> "c/ PÉ + PAL"; "nadando" -> "NAD"
+// "com pé de pato + palmar" -> "c/PÉ + PALM"; "nadando" -> "NAD"
 export function abbreviate(texto) {
     return texto
         .replace(/\bpé de pato de peito\b/g, 'PÉ de peito')
         .replace(/\bpé de pato\b/g, 'PÉ')
-        .replace(/\bpalmar\b/g, 'PAL')
+        .replace(/\bpalmar\b/g, 'PALM')
         .replace(/\bpull buoy\b/g, 'BOIA')
         .replace(/\bsnorkel\b/g, 'SNK')
         .replace(/\bparaquedas\b/g, 'PARA')
-        .replace(/\bcom (?=PÉ|PAL|BOIA|SNK|PARA|prancha)/g, 'c/ ')
+        .replace(/\bcom (?=PÉ|PALM|BOIA|SNK|PARA|prancha)/g, 'c/')
         .replace(/\bnadando\b/g, 'NAD')
         // "costas (melhor estilo)" -> "ME" (o glossário mostra qual é o do atleta)
         .replace(/\b(?:crawl|costas|peito|borboleta) \(melhor estilo\)/g, 'ME')
@@ -132,12 +132,12 @@ const intervalAbbrev = (faixa) =>
     faixa && `c/${faixa.min === faixa.max ? minutosCurto(faixa.min) : `${minutosCurto(faixa.min)} a ${minutosCurto(faixa.max)}`}`
 
 // Texto do card, abreviado como no caderno do treinador.
-// - Série simples: uma linha ("5 x 400 m · c/ PAL").
+// - Série simples: uma linha ("5 x 400 m · c/PALM").
 // - Quando o nado ou o material muda entre as séries de um (2x), (4x)...:
 //   cabeçalho e uma linha por série
 //     (4x) 3 x 200 m · c/2'
 //     1ª série: NAD · MD / PE / MD
-//     2ª série: c/ PÉ · ME / MD / ME
+//     2ª série: c/PÉ · ME / MD / ME
 // - Pirâmides e grupos: uma metragem por linha, com o material do bloco.
 // `intervalo` = { min, max } do intervalo entre as séries (ou null).
 export function cardText(serie, variation, intervalo = null) {

@@ -19,7 +19,7 @@
     "termos": [
       { "sigla": "CR", "nome": "Crawl", "explicacao": "Nado livre mais comum, o mais rápido." },
       { "sigla": "CO", "nome": "Costas", "explicacao": "Nado de costas." },
-      { "sigla": "PE", "nome": "Peito", "explicacao": "Nado de peito. Atenção: \"c/ PÉ\" é \"com pé de pato\"." },
+      { "sigla": "PE", "nome": "Peito", "explicacao": "Nado de peito. Atenção: \"c/PÉ\" é \"com pé de pato\"." },
       { "sigla": "BO", "nome": "Borboleta", "explicacao": "Nado borboleta." },
       { "sigla": "MD", "nome": "Medley", "explicacao": "Os quatro nados na ordem: borboleta, costas, peito e crawl. Em 150 m é sem crawl: borboleta, costas e peito." },
       { "sigla": "Medley alternado", "explicacao": "Cada repetição num nado, na ordem do medley (ex.: 8 x 25 m medley = 25 borboleta, 25 costas, 25 peito, 25 crawl, e de novo)." },
@@ -61,9 +61,9 @@
   {
     "categoria": "Materiais",
     "termos": [
-      { "sigla": "c/ PÉ", "nome": "Com pé de pato", "explicacao": "Nadadeiras nos pés. Deixam o nado mais rápido e fortalecem a pernada." },
+      { "sigla": "c/PÉ", "detectar": "PÉ(?! de peito)", "nome": "Com pé de pato", "explicacao": "Nadadeiras nos pés. Deixam o nado mais rápido e fortalecem a pernada." },
       { "sigla": "Pé de pato de peito", "detectar": "PÉ de peito", "explicacao": "Nadadeira própria para a pernada de peito." },
-      { "sigla": "PAL / PALM", "nome": "Palmar", "explicacao": "Placa nas mãos que aumenta a força da braçada." },
+      { "sigla": "c/PALM", "detectar": "PALM", "nome": "Com palmar", "explicacao": "Placa nas mãos que aumenta a força da braçada." },
       { "sigla": "BOIA", "nome": "Pull buoy", "explicacao": "Flutuador entre as pernas, para nadar só de braço." },
       { "sigla": "SNK", "nome": "Snorkel", "explicacao": "Tubo de respiração frontal: você nada sem virar a cabeça para respirar." },
       { "sigla": "PARA", "nome": "Paraquedas", "explicacao": "Preso na cintura, cria resistência na água para treinar força." },

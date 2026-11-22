@@ -146,10 +146,10 @@ test('nos treinos gerados, toda distância tem o "m"', () => {
 
 test('o card usa as abreviações do treinador', () => {
   assert.equal(abbreviate('100 m indo crawl, voltando estilo'), '100 m indo CR, voltando estilo')
-  assert.equal(abbreviate('8 x 25 m forte · medley · com pé de pato + palmar'), '8 x 25 m forte · MD · c/ PÉ + PAL')
-  assert.equal(abbreviate('com palmar + pull buoy'), 'c/ PAL + BOIA')
-  assert.equal(abbreviate('400 m perna com pé de pato · ida crawl, volta costas (melhor estilo)'), '400 m PR c/ PÉ · ida CR, volta ME')
-  assert.equal(abbreviate('ida crawl, volta peito (melhor estilo) · com pé de pato de peito'), 'ida CR, volta ME · c/ PÉ de peito')
+  assert.equal(abbreviate('8 x 25 m forte · medley · com pé de pato + palmar'), '8 x 25 m forte · MD · c/PÉ + PALM')
+  assert.equal(abbreviate('com palmar + pull buoy'), 'c/PALM + BOIA')
+  assert.equal(abbreviate('400 m perna com pé de pato · ida crawl, volta costas (melhor estilo)'), '400 m PR c/PÉ · ida CR, volta ME')
+  assert.equal(abbreviate('ida crawl, volta peito (melhor estilo) · com pé de pato de peito'), 'ida CR, volta ME · c/PÉ de peito')
   assert.equal(abbreviate('1ª série nadando'), '1ª série NAD')
   // Frases que não são termos ficam iguais
   assert.equal(abbreviate('Aqueça até sentir que o corpo está bem aquecido'), 'Aqueça até sentir que o corpo está bem aquecido')
@@ -158,7 +158,7 @@ test('o card usa as abreviações do treinador', () => {
 test('série com material ou nado mudando entre as séries: uma linha por série', () => {
   const vel = library.velocidade.find((s) => s.id === 'vel-2x4x25-forte')
   assert.equal(cardText(vel, { texto: 'x', padrao: 'por_serie', material: ['pe_de_pato'], series: [['pe_de_pato'], []] }),
-    '(2x) 4 x 25 m forte\n1ª série: c/ PÉ\n2ª série: NAD')
+    '(2x) 4 x 25 m forte\n1ª série: c/PÉ\n2ª série: NAD')
 
   // Mistura de nados: o melhor estilo aparece como ME, e série toda igual fica com um nado só
   const pri = library.principal.find((s) => s.id === 'pri-4x3x200')
@@ -180,20 +180,20 @@ test('pirâmides e grupos: uma metragem embaixo da outra, com o material na linh
     '(2x)\n1 x 200 m\n2 x 100 m\n1 x 200 m\n4 x 50 m')
   // Material na série toda: na última linha
   assert.equal(cardText(p('pri-2x-200-50'), { texto: '(2x) 1 x 200, 4 x 50 · com palmar + pull buoy', padrao: 'serie_inteira', material: ['palmar', 'pull_buoy'] }),
-    '(2x)\n1 x 200 m\n4 x 50 m\nc/ PAL + BOIA')
+    '(2x)\n1 x 200 m\n4 x 50 m\nc/PALM + BOIA')
   // Pirâmide alternando: cada bloco com o seu material
   assert.equal(cardText(p('pri-piramide-400-50'), {
     texto: 'ignorado · os 400 com ...', padrao: 'piramide_alternada', material: [],
     porBloco: [['pe_de_pato', 'palmar'], ['palmar'], [], ['pe_de_pato']],
-  }), '1 x 400 m · c/ PÉ + PAL\n2 x 200 m · c/ PAL\n4 x 100 m · NAD\n8 x 50 m · c/ PÉ')
+  }), '1 x 400 m · c/PÉ + PALM\n2 x 200 m · c/PALM\n4 x 100 m · NAD\n8 x 50 m · c/PÉ')
   // Só os 400 com material: o resto sem nada escrito
   assert.equal(cardText(p('pri-piramide-400-50'), {
     texto: 'x', padrao: 'obrigatorio_por_bloco', material: ['pe_de_pato', 'palmar'],
     porBloco: [['pe_de_pato', 'palmar'], [], [], []],
-  }), '1 x 400 m · c/ PÉ + PAL\n2 x 200 m\n4 x 100 m\n8 x 50 m')
+  }), '1 x 400 m · c/PÉ + PALM\n2 x 200 m\n4 x 100 m\n8 x 50 m')
   // Série de uma metragem só continua numa linha
   assert.equal(cardText(p('pri-5x400'), { texto: '5 x 400 · com palmar', padrao: 'serie_inteira', material: ['palmar'] }),
-    '5 x 400 m · c/ PAL')
+    '5 x 400 m · c/PALM')
 })
 
 test('nos treinos gerados, as séries com várias metragens têm uma por linha', () => {
