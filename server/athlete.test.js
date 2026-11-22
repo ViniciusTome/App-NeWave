@@ -134,8 +134,9 @@ test('quem só nada crawl não tem melhor estilo', async () => {
 test('atualizar a anamnese troca as respostas', async () => {
   const cookie = await userFor('anamnese')
   await saveProfile(cookie)
-  const res = await saveProfile(cookie, { ...sampleProfile, poolLength: 50, injuries: '' })
+  const res = await saveProfile(cookie, { ...sampleProfile, poolLength: 50, injuries: '', sessionMinutes: 40 })
   assert.equal(res.body.profile.poolLength, 50)
+  assert.equal(res.body.profile.sessionMinutes, 40) // aula de 40 minutos
   assert.equal(res.body.profile.injuries, '')
 })
 
@@ -152,6 +153,7 @@ test('valida as respostas da anamnese', async () => {
     { trainingDays: [] },
     { trainingDays: [7] },
     { sessionMinutes: 50 },
+    { sessionMinutes: 35 },
     { poolLength: 33 },
     { equipment: ['nadadeira'] },
     { injuries: 'x'.repeat(501) },

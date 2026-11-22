@@ -14,7 +14,7 @@ export const OPTIONS = {
   recentBreak: ['nao', 'menos_1m', '1_6m', 'mais_6m'],
   continuousDistance: ['ate_50', '50_100', '100_200', '200_400', '400_1000', '1000_2000', 'mais_2000'],
   strokes: ['crawl', 'costas', 'peito', 'borboleta'],
-  sessionMinutes: [30, 45, 60, 75, 90, 120],
+  sessionMinutes: [30, 40, 45, 60, 75, 90, 120],
   poolLength: [25, 50],
   equipment: ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas'],
   modality: ['triatlo', 'maratona_aquatica', 'piscina_25', 'piscina_50'],
@@ -370,9 +370,14 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
 
       // Dia que já tem treino concluído não ganha outro
       const jaFeitos = new Set(completedDates.all(user.id, today).map((r) => r.date))
+      // Modalidade da prova alvo (ex.: triatlo), para a regra da recuperação
+      const preparacao = preparationResponse(user.id, today)
+      const modalidade = preparacao?.active ? preparacao.competition?.modality ?? null : null
       const trainings = generateTrainings({
         rules, library, today,
-        athlete: { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 },
+        athlete: {
+          ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
+        },
       }).filter((t) => !jaFeitos.has(t.date))
 
       const now = new Date().toISOString()

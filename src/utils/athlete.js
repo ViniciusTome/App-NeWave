@@ -41,7 +41,7 @@ export const WEEK_DAYS = options([
 ])
 
 export const SESSION_MINUTES = options([
-    [30, '30 min'], [45, '45 min'], [60, '1 h'], [75, '1h15'], [90, '1h30'], [120, '2 h'],
+    [30, '30 min'], [40, '40 min'], [45, '45 min'], [60, '1 h'], [75, '1h15'], [90, '1h30'], [120, '2 h'],
 ])
 
 export const POOL_LENGTH = options([[25, '25 m'], [50, '50 m']])

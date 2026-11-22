@@ -114,6 +114,15 @@ export function validateRules(rules) {
         }
     }
 
+    if (rules.recuperacaoDispensada !== undefined) {
+        const r = rules.recuperacaoDispensada
+        if (!(Number.isInteger(r.maxTreinosPorSemana) && r.maxTreinosPorSemana >= 1) ||
+            !(Number.isInteger(r.aulaAbaixoDeMinutos) && r.aulaAbaixoDeMinutos > 0) ||
+            !Array.isArray(r.excetoModalidades)) {
+            problems.push('recuperacaoDispensada: use { "maxTreinosPorSemana": 2, "aulaAbaixoDeMinutos": 60, "excetoModalidades": ["triatlo"] }.')
+        }
+    }
+
     if (rules.intensidadesNaPrincipal !== undefined) {
         const r = rules.intensidadesNaPrincipal
         const where = 'intensidadesNaPrincipal'
@@ -1033,4 +1042,14 @@ export function hardestIntensity(intensidades) {
     if (!intensidades) return null
     const peso = (v) => (v === 'A3' || /^([5-9]|10) AC$/.test(v) ? 3 : v === 'A1' ? 1 : 2)
     return ['A1', 'A2', 'A3'][Math.max(...intensidades.valores.map(peso)) - 1]
+}
+
+// Quem treina pouco (até 2 vezes por semana e menos de 1 hora) não precisa da
+// regra da recuperação: pode ter A3 em qualquer treino. A não ser na
+// preparação para triatlo.
+export function recoveryWaived(rules, athlete) {
+    const r = rules.recuperacaoDispensada
+    if (!r) return false
+    if (r.excetoModalidades.includes(athlete.modalidade)) return false
+    return athlete.trainingDays.length <= r.maxTreinosPorSemana && athlete.sessionMinutes < r.aulaAbaixoDeMinutos
 }

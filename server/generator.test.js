@@ -374,6 +374,26 @@ test('série simples com um ritmo por repetição: sempre com equipamento, e só
   }
 })
 
+test('quem treina até 2x por semana e menos de 1 h pode ter A3 em qualquer treino (menos triatlo)', async () => {
+  const { recoveryWaived } = await import('./series/regras.js')
+  const pouco = { ...avancado, trainingDays: [2, 4], sessionMinutes: 40 }
+  assert.equal(recoveryWaived(rules, pouco), true)
+  assert.equal(recoveryWaived(rules, { ...pouco, modalidade: 'triatlo' }), false)
+  assert.equal(recoveryWaived(rules, { ...pouco, sessionMinutes: 60 }), false)
+  assert.equal(recoveryWaived(rules, { ...pouco, trainingDays: [1, 3, 5] }), false)
+  // Treinando terça e quinta (48 h), mas também em dias seguidos: sem a regra, A3 seguido aparece
+  const seguidos = { ...avancado, trainingDays: [2, 3], sessionMinutes: 45 }
+  let a3Seguido = false
+  for (let seed = 1; seed <= 20 && !a3Seguido; seed++) {
+    const t = gerar(seguidos, seed)
+    for (let i = 1; i < t.length; i++) {
+      const temA3 = (x) => x.partes.some((p) => p.intensidades?.valores.includes('A3'))
+      if (temA3(t[i - 1]) && temA3(t[i])) a3Seguido = true
+    }
+  }
+  assert.ok(a3Seguido, 'sem a regra da recuperação, deveria poder ter A3 em treinos seguidos')
+})
+
 test('padrões do treinador e escada; AC diminuindo; final forte por bloco', () => {
   const padroes = rules.intensidadesNaPrincipal.padroes.map((p) => p.join())
   const vistos = new Set()

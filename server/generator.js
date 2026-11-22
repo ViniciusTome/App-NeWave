@@ -13,7 +13,7 @@ import { fitsSession } from './series/index.js'
 import {
     allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, intervalRangeFor,
     partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
-    drawIntensities, hardestIntensity,
+    drawIntensities, hardestIntensity, recoveryWaived,
 } from './series/regras.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
@@ -419,7 +419,7 @@ export function generateTrainings({ rules, library, athlete, today, random = Mat
         // Só as séries dos últimos 2 treinos contam como "recentes"
         if (i % 2 === 0) recentes.clear()
         const proibidas = []
-        if (anterior?.intensidade === 'A3') {
+        if (anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)) {
             const recuperacao = rules.intensidades?.A3?.recuperacaoHoras?.[1] ?? 48
             if (horasEntre(anterior.date, date) < recuperacao) proibidas.push('A3')
         }

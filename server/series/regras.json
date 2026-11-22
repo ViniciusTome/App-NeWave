@@ -98,6 +98,11 @@
       "recuperacaoHoras": [6, 24]
     }
   },
+  "recuperacaoDispensada": {
+    "maxTreinosPorSemana": 2,
+    "aulaAbaixoDeMinutos": 60,
+    "excetoModalidades": ["triatlo"]
+  },
   "intensidadesNaPrincipal": {
     "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 },
     "padroes": [
