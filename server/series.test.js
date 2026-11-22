@@ -76,6 +76,36 @@ test('solto: 100 e 200 solto, com a observação do pull buoy', () => {
   }
 })
 
+test('principal: 25 séries, com a metragem calculada', () => {
+  const principal = loadPart('principal')
+  assert.equal(principal.length, 25)
+  const volume = (id) => byId(principal, id).volume
+  assert.equal(volume('pri-2x10x100'), 2000)
+  assert.equal(volume('pri-3x800'), 2400)
+  assert.equal(volume('pri-4x3x200'), 2400)
+  // Grupos que se repetem: (3x) 1 x 100, 2 x 75, 3 x 100, 4 x 25 = 3 x 650
+  assert.equal(volume('pri-3x-100-75-100-25'), 1950)
+  assert.equal(volume('pri-4x-100-75-100-25'), 2600)
+  assert.equal(volume('pri-2x-200-50'), 800)
+  assert.equal(volume('pri-2x-200-100-50'), 1200)
+  // Pirâmides
+  assert.equal(volume('pri-piramide-400-50'), 1600)
+  assert.equal(volume('pri-piramide-50-200-50'), 2000)
+  assert.equal(volume('pri-piramide-400-50-400'), 2800)
+})
+
+test('principal: séries com 75 m só fecham na piscina de 25 m', () => {
+  const principal = loadPart('principal')
+  assert.deepEqual(byId(principal, 'pri-4x4x75').piscinas, [25])
+  assert.deepEqual(byId(principal, 'pri-3x-100-75-100-25').piscinas, [25])
+  // 250 m = 5 piscinas de 50 m: funciona nas duas
+  assert.deepEqual(byId(principal, 'pri-6x250').piscinas, [25, 50])
+  assert.deepEqual(byId(principal, 'pri-6x150').piscinas, [25, 50])
+  assert.deepEqual(byId(principal, 'pri-5x400').piscinas, [25, 50])
+  // Distância sem parar exigida: a maior repetição
+  assert.equal(byId(principal, 'pri-piramide-400-50-400').maiorDistancia, 400)
+})
+
 // ---------- Validação (o que acontece quando alguém digita errado) ----------
 
 const trechos = (forte, solto) => [{ metros: forte, intensidade: 'forte' }, { metros: solto, intensidade: 'solto' }]
@@ -84,6 +114,9 @@ const ok = { id: 'x-1', texto: '4 x 50 crawl', blocos: [{ repeticoes: 4, distanc
 
 test('uma série correta não tem problemas', () => {
   assert.deepEqual(validate([ok]), [])
+  // Sem intensidade: fica em aberto, para ser definida na hora de gerar o treino
+  const { intensidade: _sem, ...semIntensidadeOk } = ok.blocos[0]
+  assert.deepEqual(validate([{ ...ok, blocos: [semIntensidadeOk] }]), [])
 })
 
 test('a validação aponta cada erro, dizendo a série e o campo', () => {
@@ -109,6 +142,8 @@ test('a validação aponta cada erro, dizendo a série e o campo', () => {
     [{ ...ok, blocos: [{ ...ok.blocos[0], distancia: 17 }] }, 'tiro curto'],
     [{ ...ok, blocos: [{ ...ok.blocos[0], vezes: 0 }] }, '"vezes"'],
     [{ ...ok, blocos: [{ ...ok.blocos[0], intensidade: 'rapido' }] }, '"intensidade"'],
+    [{ ...ok, vezes: 2 }, 'com um bloco só, coloque "vezes" dentro do bloco'],
+    [{ ...ok, vezes: 0, blocos: [ok.blocos[0], ok.blocos[0]] }, '"vezes" da série'],
     [{ ...ok, blocos: [{ ...ok.blocos[0], distancia: 25, trechos: trechos(15, 10) }] }, 'não os dois'],
     [{ ...ok, blocos: [{ ...semIntensidade, distancia: 25, trechos: trechos(15, 5) }] }, 'os trechos somam 20 m, mas a "distancia" é 25 m'],
     [{ ...ok, blocos: [{ ...semIntensidade, distancia: 25, trechos: [{ metros: 25, intensidade: 'forte' }] }] }, 'pelo menos dois trechos'],

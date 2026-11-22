@@ -22,7 +22,7 @@ export const MATERIAIS = ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snork
 export const PISCINAS = [25, 50]
 
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
-const SERIE_KEYS = ['id', 'texto', 'observacao', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos']
+const SERIE_KEYS = ['id', 'texto', 'observacao', 'vezes', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos']
 // Além do nado escrito nos blocos, a série também pode ser feita em:
 // "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
 // "estilo" (toda no estilo do atleta: borboleta, costas ou peito).
@@ -83,7 +83,8 @@ export function describe(serie) {
         usos: serie.usos ?? ['treino'],
         outrosNados: serie.outrosNados ?? [],
         // Metragem total da série ("vezes" repete o bloco inteiro: (2x) 4 x 25 = 200 m)
-        volume: blocos.reduce((sum, b) => sum + (b.vezes ?? 1) * b.repeticoes * b.distancia, 0),
+        // "vezes" na série repete o grupo de blocos: (3x) 100, 2 x 75, 3 x 100, 4 x 25
+        volume: (serie.vezes ?? 1) * blocos.reduce((sum, b) => sum + (b.vezes ?? 1) * b.repeticoes * b.distancia, 0),
         // Maior distância nadada sem parar (o atleta precisa aguentar isso)
         maiorDistancia: blocos.reduce((max, b) => Math.max(max, b.distancia), 0),
         exige: { ...requiredStrokes(blocos), material: MATERIAIS.filter((m) => material.has(m)) },
@@ -161,6 +162,15 @@ export function validate(series) {
         }
         if (serie.blocos.length === 0) return report('precisa de pelo menos um bloco.')
 
+        // "vezes" na série repete o grupo de blocos; com um bloco só, use "vezes" dentro do bloco
+        if (serie.vezes !== undefined) {
+            if (!isInt(serie.vezes, 1, 10)) {
+                report('"vezes" da série precisa ser um número de 1 a 10.')
+            } else if (serie.blocos.length < 2) {
+                report('"vezes" da série é para repetir vários blocos juntos; com um bloco só, coloque "vezes" dentro do bloco.')
+            }
+        }
+
         serie.blocos.forEach((bloco, b) => {
             const where = serie.blocos.length > 1 ? `bloco ${b + 1}, ` : ''
             if (bloco === null || typeof bloco !== 'object' || Array.isArray(bloco)) {
@@ -185,14 +195,15 @@ export function validate(series) {
             if (!nadoOk) {
                 report(`${where}"nado" precisa ser um de (${NADOS.join(', ')}) ou ida e volta: ["crawl", "estilo"].`)
             }
-            // Ou uma intensidade para a repetição inteira, ou trechos (ex.: 15 m forte + 10 m solto)
+            // Uma intensidade para a repetição inteira, ou trechos (ex.: 15 m forte + 10 m solto).
+            // Sem nenhum dos dois, a intensidade fica em aberto (definida na hora de gerar o treino).
             if (bloco.trechos !== undefined) {
                 if (bloco.intensidade !== undefined) {
                     report(`${where}use "intensidade" ou "trechos", não os dois.`)
                 }
                 validateTrechos(bloco, (message) => report(`${where}${message}`))
-            } else if (!INTENSIDADES.includes(bloco.intensidade)) {
-                report(`${where}"intensidade" precisa ser uma de: ${INTENSIDADES.join(', ')} (ou use "trechos").`)
+            } else if (bloco.intensidade !== undefined && !INTENSIDADES.includes(bloco.intensidade)) {
+                report(`${where}"intensidade" precisa ser uma de: ${INTENSIDADES.join(', ')} (ou use "trechos", ou deixe em aberto).`)
             }
             if (bloco.descanso !== undefined && !isInt(bloco.descanso, 0, 600)) {
                 report(`${where}"descanso" é em segundos (0 a 600).`)

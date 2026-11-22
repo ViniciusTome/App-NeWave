@@ -198,9 +198,9 @@ function groupSets(descriptions) {
         .join(', ')
 }
 
-// Número de séries de um bloco repetido ("(4x) 4 x 25" = 4). Séries com mais
-// de um bloco ou sem "vezes" contam como uma só.
-const setsOf = (serie) => (serie.blocos.length === 1 ? serie.blocos[0].vezes ?? 1 : 1)
+// Número de séries: "(4x) 4 x 25" = 4 (vezes no bloco); "(3x) 100, 2 x 75, ..." = 3
+// (vezes na série, repetindo o grupo de blocos). Sem "vezes", é uma só.
+const setsOf = (serie) => serie.vezes ?? (serie.blocos.length === 1 ? serie.blocos[0].vezes ?? 1 : 1)
 
 // Repete a lista até ter n itens: ["costas", "peito"] -> costas, peito, costas, peito
 const cycle = (list, n) => Array.from({ length: n }, (_, i) => list[i % list.length])

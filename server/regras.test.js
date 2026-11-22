@@ -174,6 +174,13 @@ test('séries mais longas alternam os estilos do atleta entre as séries', () =>
   assert.ok(!textos('vel-4x4x25-forte', [], ['crawl', 'costas']).some((t) => t.includes('séries')))
 })
 
+test('séries agrupadas, como (2x) 1 x 200, 4 x 50, também trocam material entre as séries', () => {
+  const grupo = loadPart('principal').find((s) => s.id === 'pri-2x-200-50')
+  // A série principal ainda não tem regra de material: usando as da velocidade só para conferir
+  const lista = seriesVariations(rules, 'velocidade', grupo, { equipment: ['pe_de_pato'], strokes: ['crawl'] })
+  assert.ok(lista.some((v) => v.texto === '(2x) 1 x 200, 4 x 50 · 1ª série com pé de pato, 2ª série nadando'))
+})
+
 // ---------- Intervalo entre as séries ----------
 
 test('intervalo entre séries: uma saída do 25; 1 minuto na Realização ou entre séries de 8 x 25', () => {

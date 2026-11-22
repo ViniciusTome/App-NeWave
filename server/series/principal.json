@@ -1,0 +1,203 @@
+[
+  {
+    "id": "pri-2x10x100",
+    "texto": "(2x) 10 x 100",
+    "blocos": [
+      { "vezes": 2, "repeticoes": 10, "distancia": 100, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-3x10x50",
+    "texto": "(3x) 10 x 50",
+    "blocos": [
+      { "vezes": 3, "repeticoes": 10, "distancia": 50, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-10x200",
+    "texto": "10 x 200",
+    "blocos": [
+      { "repeticoes": 10, "distancia": 200, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-6x300",
+    "texto": "6 x 300",
+    "blocos": [
+      { "repeticoes": 6, "distancia": 300, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-5x400",
+    "texto": "5 x 400",
+    "blocos": [
+      { "repeticoes": 5, "distancia": 400, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-2x10x50",
+    "texto": "(2x) 10 x 50",
+    "blocos": [
+      { "vezes": 2, "repeticoes": 10, "distancia": 50, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-16x100",
+    "texto": "16 x 100",
+    "blocos": [
+      { "repeticoes": 16, "distancia": 100, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-3x800",
+    "texto": "3 x 800",
+    "blocos": [
+      { "repeticoes": 3, "distancia": 800, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-3x4x100",
+    "texto": "(3x) 4 x 100",
+    "blocos": [
+      { "vezes": 3, "repeticoes": 4, "distancia": 100, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-4x4x100",
+    "texto": "(4x) 4 x 100",
+    "blocos": [
+      { "vezes": 4, "repeticoes": 4, "distancia": 100, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-3x3x200",
+    "texto": "(3x) 3 x 200",
+    "blocos": [
+      { "vezes": 3, "repeticoes": 3, "distancia": 200, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-3x2x200",
+    "texto": "(3x) 2 x 200",
+    "blocos": [
+      { "vezes": 3, "repeticoes": 2, "distancia": 200, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-6x150",
+    "texto": "6 x 150",
+    "blocos": [
+      { "repeticoes": 6, "distancia": 150, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-piramide-400-50",
+    "texto": "1 x 400, 2 x 200, 4 x 100, 8 x 50",
+    "blocos": [
+      { "repeticoes": 1, "distancia": 400, "nado": "livre" },
+      { "repeticoes": 2, "distancia": 200, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 8, "distancia": 50, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-3x-100-75-100-25",
+    "texto": "(3x) 1 x 100, 2 x 75, 3 x 100, 4 x 25",
+    "vezes": 3,
+    "blocos": [
+      { "repeticoes": 1, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 2, "distancia": 75, "nado": "livre" },
+      { "repeticoes": 3, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 25, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-4x-100-75-100-25",
+    "texto": "(4x) 1 x 100, 2 x 75, 3 x 100, 4 x 25",
+    "vezes": 4,
+    "blocos": [
+      { "repeticoes": 1, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 2, "distancia": 75, "nado": "livre" },
+      { "repeticoes": 3, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 25, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-4x3x200",
+    "texto": "(4x) 3 x 200",
+    "blocos": [
+      { "vezes": 4, "repeticoes": 3, "distancia": 200, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-4x4x50",
+    "texto": "(4x) 4 x 50",
+    "blocos": [
+      { "vezes": 4, "repeticoes": 4, "distancia": 50, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-6x250",
+    "texto": "6 x 250",
+    "blocos": [
+      { "repeticoes": 6, "distancia": 250, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-piramide-50-200-50",
+    "texto": "8 x 50, 4 x 100, 2 x 200, 4 x 100, 8 x 50",
+    "blocos": [
+      { "repeticoes": 8, "distancia": 50, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 2, "distancia": 200, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 8, "distancia": 50, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-piramide-400-50-400",
+    "texto": "1 x 400, 2 x 200, 4 x 100, 8 x 50, 4 x 100, 2 x 200, 1 x 400",
+    "blocos": [
+      { "repeticoes": 1, "distancia": 400, "nado": "livre" },
+      { "repeticoes": 2, "distancia": 200, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 8, "distancia": 50, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 2, "distancia": 200, "nado": "livre" },
+      { "repeticoes": 1, "distancia": 400, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-4x4x75",
+    "texto": "(4x) 4 x 75",
+    "blocos": [
+      { "vezes": 4, "repeticoes": 4, "distancia": 75, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-3x6x50",
+    "texto": "(3x) 6 x 50",
+    "blocos": [
+      { "vezes": 3, "repeticoes": 6, "distancia": 50, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-2x-200-50",
+    "texto": "(2x) 1 x 200, 4 x 50",
+    "vezes": 2,
+    "blocos": [
+      { "repeticoes": 1, "distancia": 200, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 50, "nado": "livre" }
+    ]
+  },
+  {
+    "id": "pri-2x-200-100-50",
+    "texto": "(2x) 1 x 200, 2 x 100, 4 x 50",
+    "vezes": 2,
+    "blocos": [
+      { "repeticoes": 1, "distancia": 200, "nado": "livre" },
+      { "repeticoes": 2, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 4, "distancia": 50, "nado": "livre" }
+    ]
+  }
+]

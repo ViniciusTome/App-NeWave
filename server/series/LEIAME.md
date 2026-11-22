@@ -8,7 +8,7 @@ Cada parte do treino tem o seu arquivo:
 | `velocidade.json` | Velocidade |
 | `solto.json` | Solto: nado de recuperação (entre a velocidade e a série principal; no iniciante, no final do treino) |
 | `perna.json` | Série de perna, nos treinos acima de 50 min (ainda não criado) |
-| `principal.json` | Série principal (ainda não criado) |
+| `principal.json` | Série principal |
 | `soltura.json` | Soltura (ainda não criado) |
 
 Não existem treinos prontos. O gerador escolhe uma série de cada arquivo conforme o atleta: nível, quanto nada sem parar, estilos, material, piscina e tempo disponível.
@@ -29,6 +29,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | --- | --- |
 | `id` | Nome único da série, em minúsculas, sem acento, com hífens. Ex.: `aq-livre-200`. |
 | `texto` | Como a série aparece no treino do atleta, escrita do seu jeito. |
+| `vezes` | Opcional. Repete **vários blocos juntos**: `"vezes": 3` com os blocos 1 x 100, 2 x 75, 3 x 100 e 4 x 25 é o `(3x) 1 x 100, 2 x 75, 3 x 100, 4 x 25`. Com um bloco só, o `vezes` vai dentro do bloco. |
 | `observacao` | Opcional. Um aviso que aparece junto da série, ex.: `"Pode ser feito com pull buoy."`. É só texto: não muda o material exigido. |
 | `blocos` | As partes da série. A maioria tem um bloco só; uma série que muda no meio (ex.: 4 x 25 com pé de pato + 4 x 25 sem) tem dois. |
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
@@ -43,7 +44,7 @@ Cada bloco:
 | `repeticoes` | Quantas vezes. `1` para um nado contínuo. |
 | `distancia` | Metros de cada repetição, múltiplo de 25. Tiros curtos (5 a 20 m, ex.: 15 m) também valem. |
 | `nado` | `livre`, `crawl`, `costas`, `peito`, `borboleta`, `estilo` ou `medley`. Para ida e volta diferentes, use a lista `["crawl", "estilo"]` (ida crawl, volta estilo). |
-| `intensidade` | `solto`, `A1`, `A2`, `A3` ou `forte`. |
+| `intensidade` | `solto`, `A1`, `A2`, `A3` ou `forte`. Opcional: sem ela, a intensidade fica em aberto e é definida na hora de gerar o treino (é o caso da série principal, por enquanto). |
 | `trechos` | No lugar de `intensidade`, quando a repetição muda no meio. Ex.: 15 m forte + 10 m solto: `[{ "metros": 15, "intensidade": "forte" }, { "metros": 10, "intensidade": "solto" }]`. Os trechos precisam somar a `distancia`. |
 | `descanso` | Opcional. Segundos de descanso entre as repetições. |
 | `material` | Opcional. Lista com `pe_de_pato`, `palmar`, `prancha`, `pull_buoy`, `snorkel`. |
