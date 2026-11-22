@@ -487,7 +487,11 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
   - Se o primeiro ciclo fica incompleto (ex.: iniciante com uma Acumulação só antes da Transição), o começo vira Acumulação: mais base.
   - Exemplos: iniciante, 3 treinos por semana, 12 semanas = A1 → A2 → A2 → T1 → R; com 5 treinos por semana = A1 → A2 → T1 → recuperação → R. Iniciante com 5 meses = A1 → A2 → T1 → recuperação → A1 → A2 → T2 → recuperação → R. Avançado com 5 meses = A1 → T1 → recuperação → A2 → T2 → recuperação → A2 → T2 → recuperação → R.
   - **Prova importante no meio da preparação** (prioridade A ou B, que não é a prova alvo): na semana da prova o volume cai aos poucos, até cerca de 12,5% a menos no dia da prova. Nada mais muda (`provaIntermediaria`). A prova C não muda o treino.
-  - Prova cadastrada **sem escolher a prioridade entra como C**. Na tela "Gerar treinos" o atleta vê as outras provas do calendário, com o aviso, e pode marcar A, B ou C.
+  - **Importância das provas** (o app guarda A, B e C; o atleta vê os nomes):
+    - **Prova alvo** (A): **só uma**, a da preparação. Ao escolher outra, a antiga vira Importante.
+    - **Importante** (B): várias; na semana dela o volume diminui.
+    - **Participação** (C): várias; não muda o treino. Prova cadastrada sem escolher entra assim.
+  - **Minhas provas** (no Perfil): lista as próximas provas, troca entre Importante e Participação, remove, **+ Adicionar prova** e **Tornar prova alvo**. Trocar a prova alvo (aqui ou em "Gerar treinos") refaz a periodização e os treinos não feitos para o tempo que falta até a nova prova.
   - **Sem prova** (condicionamento ou saúde/emagrecimento): periodização padrão **A-T-R** (`modeloSemProva`). Ex.: 8 semanas = Acumulação 1 (28 dias) → Transição 1 (21) → Realização (7).
   - **Condicionamento** (não nada 400 m sem parar): fica na Acumulação o tempo todo.
   - As fases também ligam as regras que já existiam: saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação.

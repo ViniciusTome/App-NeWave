@@ -433,7 +433,36 @@ test('muda a prioridade de uma prova do calendário', async () => {
   assert.equal(res.body.competition.priority, 'B')
   assert.equal((await api(`/api/competitions/${id}`, { method: 'PATCH', cookie, body: { priority: 'D' } })).status, 400)
   // A prova de outra pessoa não muda
-  assert.equal((await api(`/api/competitions/${id}`, { method: 'PATCH', cookie: outro, body: { priority: 'A' } })).status, 404)
+  assert.equal((await api(`/api/competitions/${id}`, { method: 'PATCH', cookie: outro, body: { priority: 'B' } })).status, 404)
+  // Principal (A) é só a prova alvo: não dá para marcar nem cadastrar como A
+  assert.equal((await api(`/api/competitions/${id}`, { method: 'PATCH', cookie, body: { priority: 'A' } })).status, 400)
+  assert.equal((await api('/api/competitions', { method: 'POST', cookie, body: { ...sampleCompetition, priority: 'A' } })).status, 400)
+  // Remove do calendário
+  assert.equal((await api(`/api/competitions/${id}`, { method: 'DELETE', cookie: outro })).status, 404)
+  assert.equal((await api(`/api/competitions/${id}`, { method: 'DELETE', cookie })).status, 200)
+  assert.equal((await api(`/api/competitions/${id}`, { method: 'DELETE', cookie })).status, 404)
+})
+
+test('só uma prova é a principal: a prova alvo', async () => {
+  const cookie = await userFor('feedback')
+  const nova = (name, date) => api('/api/competitions', { method: 'POST', cookie, body: { ...sampleCompetition, name, date } })
+  const a = (await nova('Prova 1', daysFromToday(30))).body.competition
+  const b = (await nova('Prova 2', daysFromToday(50))).body.competition
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competitionId: a.id } })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competitionId: b.id } })
+  const lista = (await api(`/api/competitions?today=${daysFromToday(0)}`, { cookie })).body.competitions
+  const prioridade = (id) => lista.find((c) => c.id === id).priority
+  // A nova alvo é a principal; a anterior vira importante
+  assert.equal(prioridade(b.id), 'A')
+  assert.equal(prioridade(a.id), 'B')
+  assert.equal(lista.filter((c) => c.priority === 'A').length, 1)
+  // A prova alvo não muda nem sai pelo calendário
+  assert.equal((await api(`/api/competitions/${b.id}`, { method: 'PATCH', cookie, body: { priority: 'C' } })).status, 409)
+  assert.equal((await api(`/api/competitions/${b.id}`, { method: 'DELETE', cookie })).status, 409)
+  // Sem prova alvo: nenhuma é a principal
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const depois = (await api(`/api/competitions?today=${daysFromToday(0)}`, { cookie })).body.competitions
+  assert.equal(depois.filter((c) => c.priority === 'A').length, 0)
 })
 
 test('sem prova (condicionamento ou saúde): periodização padrão A-T-R', async () => {
@@ -444,10 +473,34 @@ test('sem prova (condicionamento ou saúde): periodização padrão A-T-R', asyn
   await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
   const { DatabaseSync } = await import('node:sqlite')
   const db = new DatabaseSync(join(dir, 'test.db'))
+  const { user } = (await api('/api/auth/me', { cookie })).body
   const etapas = db.prepare(`
-    SELECT t.plan FROM trainings t JOIN preparations p ON p.user_id = t.user_id
-    WHERE p.goal = 'saude' AND t.plan IS NOT NULL AND t.completed_at IS NULL ORDER BY t.date
-  `).all().map((r) => JSON.parse(r.plan).etapa)
+    SELECT plan FROM trainings WHERE user_id = ? AND plan IS NOT NULL AND completed_at IS NULL ORDER BY date
+  `).all(user.id).map((r) => JSON.parse(r.plan).etapa)
   db.close()
   assert.deepEqual([...new Set(etapas)], ['acumulacao1', 'transicao1', 'realizacao'])
+})
+
+test('trocar a prova alvo refaz a periodização para o tempo que falta', async () => {
+  const cookie = await userFor('periodizacao')
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  const hoje = daysFromToday(0)
+  const nova = async (name, dias) => (await api('/api/competitions', {
+    method: 'POST', cookie, body: { ...sampleCompetition, name, date: daysFromToday(dias) },
+  })).body.competition
+  const longe = await nova('Longe', 100)
+  const perto = await nova('Perto', 40)
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competitionId: longe.id } })
+  const antes = (await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })).body.trainings
+  assert.ok(antes.at(-1).date > daysFromToday(90))
+  // Troca para a prova mais perto: a periodização vai só até ela
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competitionId: perto.id } })
+  const depois = (await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })).body.trainings
+  assert.ok(depois.at(-1).date <= perto.date && depois.at(-1).date > daysFromToday(30))
+  const proximos = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  assert.ok(proximos.every((t) => t.date <= perto.date))
+  // A antiga alvo vira importante; a nova é a única principal
+  const lista = (await api(`/api/competitions?today=${hoje}`, { cookie })).body.competitions
+  assert.equal(lista.find((c) => c.id === longe.id).priority, 'B')
+  assert.equal(lista.find((c) => c.id === perto.id).priority, 'A')
 })

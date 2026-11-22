@@ -99,6 +99,9 @@ function readToday(req) {
   return isRealDate(today) ? today : new Date().toISOString().slice(0, 10)
 }
 
+const ONLY_ONE_TARGET = 'Só a prova alvo é a principal: escolha a prova alvo em "Gerar treinos".'
+const IS_TARGET = 'Essa é a sua prova alvo. Para trocar, use "Gerar treinos".'
+
 const oneOf = (list, value, message) => {
   if (!list.includes(value)) throw new HttpError(400, message)
   return value
@@ -258,6 +261,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `)
   const setPriority = db.prepare('UPDATE competitions SET priority = ? WHERE id = ? AND user_id = ?')
+  // Só uma prova é a principal (A): a prova alvo. As outras que eram A viram importantes (B).
+  const demoteOtherTargets = db.prepare(`UPDATE competitions SET priority = 'B' WHERE user_id = ? AND priority = 'A' AND id IS NOT ?`)
+  const deleteCompetition = db.prepare('DELETE FROM competitions WHERE id = ? AND user_id = ?')
 
   // Gerar treinos: os agendados que ainda não foram feitos são substituídos
   const deleteUpcoming = db.prepare(
@@ -468,23 +474,37 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     // POST /api/competitions { name, date, modality, event?, priority? }
     async createCompetition(req, res) {
       const user = requireUser(req)
-      const c = validateCompetition(await readJson(req))
+      const body = await readJson(req)
+      // A principal (A) é só a prova alvo, escolhida no "Gerar treinos"
+      if (body.priority === 'A') throw new HttpError(400, ONLY_ONE_TARGET)
+      const c = validateCompetition(body)
       const id = insertCompetition.run(
         user.id, c.name, c.date, c.modality, c.event, c.priority, new Date().toISOString(),
       ).lastInsertRowid
       sendJson(res, 201, { competition: { id: Number(id), ...c } })
     },
 
-    // PATCH /api/competitions/:id { priority: 'A' | 'B' | 'C' }
+    // PATCH /api/competitions/:id { priority: 'B' (importante) | 'C' (participação) }
     async updateCompetitionPriority(req, res, { id }) {
       const user = requireUser(req)
       const { priority } = await readJson(req)
-      oneOf(OPTIONS.priority, priority, 'Escolha a prioridade A, B ou C.')
-      const competitionId = Number(id)
-      if (!Number.isSafeInteger(competitionId) || setPriority.run(priority, competitionId, user.id).changes === 0) {
-        throw new HttpError(404, 'Competição não encontrada.')
-      }
-      sendJson(res, 200, { competition: publicCompetition(findCompetition.get(competitionId, user.id)) })
+      if (priority === 'A') throw new HttpError(400, ONLY_ONE_TARGET)
+      oneOf(['B', 'C'], priority, 'Escolha se a prova é importante ou só participação.')
+      const competition = findCompetition.get(parseId(id), user.id)
+      if (!competition) throw new HttpError(404, 'Competição não encontrada.')
+      if (competition.priority === 'A') throw new HttpError(409, IS_TARGET)
+      setPriority.run(priority, competition.id, user.id)
+      sendJson(res, 200, { competition: publicCompetition(findCompetition.get(competition.id, user.id)) })
+    },
+
+    // DELETE /api/competitions/:id (a prova alvo não sai do calendário por aqui)
+    removeCompetition(req, res, { id }) {
+      const user = requireUser(req)
+      const competition = findCompetition.get(parseId(id), user.id)
+      if (!competition) throw new HttpError(404, 'Competição não encontrada.')
+      if (competition.priority === 'A') throw new HttpError(409, IS_TARGET)
+      deleteCompetition.run(competition.id, user.id)
+      sendJson(res, 200, { ok: true })
     },
 
     // POST /api/trainings/generate?today=AAAA-MM-DD -> gera os treinos dos próximos
@@ -538,6 +558,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
             competitionId = Number(
               insertCompetition.run(user.id, c.name, c.date, c.modality, c.event, 'A', now).lastInsertRowid,
             )
+            demoteOtherTargets.run(user.id, competitionId)
           } else {
             competitionId = parseId(body.competitionId)
             const existing = findCompetition.get(competitionId, user.id)
@@ -547,9 +568,13 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
               throw new HttpError(400, 'Essa competição já passou. Escolha outra prova alvo.')
             }
             setPriority.run('A', competitionId, user.id)
+            demoteOtherTargets.run(user.id, competitionId)
           }
         } else if (body.competition || body.competitionId) {
           throw new HttpError(400, 'Sem objetivo de competir, não escolha prova alvo.')
+        } else {
+          // Sem prova alvo: nenhuma prova é a principal
+          demoteOtherTargets.run(user.id, null)
         }
 
         insertPreparation.run(user.id, goal, competitionId, now)

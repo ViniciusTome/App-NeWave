@@ -3,7 +3,7 @@ import { AnamnesisForm } from './AnamnesisForm'
 import { ChoiceGroup } from '../ChoiceGroup'
 import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
-    MODALITY, NO_COMPETITION_GOALS, competitionLabel, daysUntil, daysUntilText,
+    IMPORTANCE_OPTIONS, MODALITY, NO_COMPETITION_GOALS, competitionLabel, daysUntil, daysUntilText,
     goalLabel, levelText, profileSummary,
 } from '../../utils/athlete'
 import { formatDate, todayIso } from '../../utils/format'
@@ -16,13 +16,6 @@ const EMPTY_COMPETITION = { name: '', date: '', modality: null, event: '' }
 // 2. Toda vez: prova alvo (continuar a atual, escolher do calendário, cadastrar nova ou sem prova).
 // 3. Resumo, com "Atualizar meus dados".
 // 4. Confirma e salva a preparação.
-// Prioridade das provas intermediárias
-const PRIORITIES = [
-    { value: 'A', label: 'A · muito importante' },
-    { value: 'B', label: 'B · importante' },
-    { value: 'C', label: 'C · não muda o treino' },
-]
-
 export const GenerateTrainings = ({ onClose }) => {
     const [phase, setPhase] = useState('loading') // loading | anamnese | alvo | resumo | pronto
     const [loadError, setLoadError] = useState('')
@@ -304,13 +297,13 @@ export const GenerateTrainings = ({ onClose }) => {
                     <div className={styles.intermediate}>
                         <p className={styles.question}>Outras provas no seu calendário</p>
                         <p className={styles.notice} role='note'>
-                            ⚠️ Prova com prioridade <strong>C</strong> não muda o treino. Se ela for importante para você,
-                            marque <strong>A</strong> ou <strong>B</strong>: na semana dela, o volume do treino diminui
-                            um pouco (o resto continua igual).
+                            ⚠️ Prova de <strong>participação</strong> não muda o treino. Se ela for importante para
+                            você, marque <strong>Importante</strong>: na semana dela, o volume do treino diminui um
+                            pouco (o resto continua igual).
                         </p>
                         {intermediateCompetitions.map((c) => (
-                            <ChoiceGroup key={c.id} label={competitionLabel(c)} options={PRIORITIES}
-                                value={c.priority} onChange={(priority) => changePriority(c, priority)} />
+                            <ChoiceGroup key={c.id} label={competitionLabel(c)} options={IMPORTANCE_OPTIONS}
+                                value={c.priority === 'A' ? 'B' : c.priority} onChange={(priority) => changePriority(c, priority)} />
                         ))}
                         {priorityError && <p className={styles.error} role='alert'>{priorityError}</p>}
                     </div>

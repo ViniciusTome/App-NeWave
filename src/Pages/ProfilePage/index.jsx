@@ -1,5 +1,6 @@
 import { Aside } from '../../components/Aside'
 import { AthleteSummary } from '../../components/AthleteSummary'
+import { CompetitionCalendar } from '../../components/CompetitionCalendar'
 import { Payments } from '../../components/Payments'
 import { PersonalData } from '../../components/PersonalData'
 import { Profile } from '../../components/Profile'
@@ -21,6 +22,11 @@ export const ProfilePage = () => {
                 <div className={styles.container}>
                     <h2>Meu treino</h2>
                     <AthleteSummary/>
+                </div>
+
+                <div className={styles.container}>
+                    <h2>Minhas provas</h2>
+                    <CompetitionCalendar/>
                 </div>
 
                 <div className={styles.container}>
