@@ -125,10 +125,10 @@
     }
   },
   "testeNaPeriodizacao": {
-    "_comentario": "A FAZER com as fases do ATR. Teste de 400 m na troca da Acumulação para a Transição (na Realização está a prova alvo). Se a prova alvo é em piscina e de 400 m, o teste fica no fim da Realização. Só a partir da 2ª vez que o atleta usa o Gerar treinos.",
+    "_comentario": "A FAZER com as fases do ATR. Teste de 400 m na troca da Acumulação para a Transição (na Realização está a prova alvo). Se a prova alvo é em piscina e de 400 m, o teste fica no fim da Realização. Quem só informou o tempo na anamnese: só a partir da 2ª vez que usa o Gerar treinos (quem tem o teste registrado, desde a 1ª).",
     "quando": "inicio_transicao",
     "excecao": { "modalidades": ["piscina_25", "piscina_50"], "prova": "400", "quando": "fim_realizacao" },
-    "aPartirDaGeracao": 2
+    "aPartirDaGeracao": { "tempoInformado": 2, "tempoDoTeste": 1 }
   },
   "diaDoTeste": {
     "_comentario": "Treino do teste de 400 m: aquecimento, teste, séries para recuperar (A1 com pé de pato) até completar a aula, e a soltura. Entram as que cabem, da maior para a menor. A técnica entra aqui quando tiver as séries de técnica.",

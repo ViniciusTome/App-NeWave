@@ -475,7 +475,7 @@ Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), n
 Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m na troca da Acumulação (A) para a Transição (T)**. Não fica na Realização (R) porque lá está a prova alvo do atleta. Vale para todos, inclusive quem só informou o tempo na anamnese.
 
 - **Exceção:** se a prova alvo é **em piscina** (25 ou 50 m) e é **de 400 m**, o teste fica no **fim da Realização** (a própria prova).
-- **Só a partir da 2ª vez** que o atleta usa o "Gerar treinos". Na primeira periodização não tem esse teste.
+- **Quem só informou o tempo na anamnese:** o teste entra **a partir da 2ª vez** que o atleta usa o "Gerar treinos" (na primeira periodização, não). Quem já tem o teste de 400 m registrado faz o teste da periodização desde a primeira vez.
 - Isso é diferente do teste do primeiro treino de quem **não tem nenhum tempo** (veja acima), que continua valendo sempre.
 - A regra fica em `testeNaPeriodizacao` no `regras.json`; o gerador passa a usar quando as fases do ATR existirem.
 
