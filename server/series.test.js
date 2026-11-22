@@ -78,7 +78,7 @@ test('solto: 100 e 200 solto, com a observação do pull buoy', () => {
 
 test('principal: 25 séries, com a metragem calculada', () => {
   const principal = loadPart('principal')
-  assert.equal(principal.length, 25)
+  assert.equal(principal.length, 33)
   const volume = (id) => byId(principal, id).volume
   assert.equal(volume('pri-2x10x100'), 2000)
   assert.equal(volume('pri-3x800'), 2400)
@@ -92,6 +92,15 @@ test('principal: 25 séries, com a metragem calculada', () => {
   assert.equal(volume('pri-piramide-400-50'), 1600)
   assert.equal(volume('pri-piramide-50-200-50'), 2000)
   assert.equal(volume('pri-piramide-400-50-400'), 2800)
+  // Séries acrescentadas depois
+  assert.equal(volume('pri-2x-200-100-200-50'), 1600)
+  assert.equal(volume('pri-2x-50-100-200'), 1200)
+  assert.equal(volume('pri-20x50'), 1000)
+  assert.equal(volume('pri-6x4x50'), 1200)
+  assert.equal(volume('pri-8x200'), 1600)
+  assert.equal(volume('pri-3x-100-50-100-50'), 1200)
+  assert.equal(volume('pri-3x3x100'), 900)
+  assert.equal(volume('pri-5x300'), 1500)
 })
 
 test('principal: séries com 75 m só fecham na piscina de 25 m', () => {
