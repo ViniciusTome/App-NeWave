@@ -636,3 +636,13 @@ test('o primeiro treino novo não repete as séries do último treino feito', ()
   })[0]
   assert.notEqual(outro.partes.find((p) => p.parte === 'principal').serieId, principal)
 })
+
+test('iniciante nada no máximo 50 minutos, mesmo em aulas mais longas', () => {
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 90, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '200_400',
+    strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar', 'pull_buoy'], time400: { hundredths: 54000 },
+  }
+  for (const seed of [1, 2, 3]) {
+    for (const t of gerar(iniciante, seed)) assert.ok(t.minutos <= 55, `${t.date}: ${t.minutos} min`)
+  }
+})

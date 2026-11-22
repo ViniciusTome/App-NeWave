@@ -160,6 +160,10 @@ Nos treinos com duas séries principais, **se a 1ª for de estilo, a 2ª é obri
 
 A mesma série **nunca aparece em dois treinos seguidos** no aquecimento, na velocidade, na série principal e na perna, mesmo com outra intensidade (ex.: 5 x 400 m A1/A2/A3 num dia e 5 x 400 m 30 AC no outro). O primeiro treino gerado também não repete as séries do último treino do atleta. Só repete quando não existe outra série que sirva para o atleta. As partes ficam em `naoRepetirNoTreinoSeguinte` no `regras.json`. O solto e a soltura podem repetir.
 
+### Tempo máximo do iniciante
+
+O iniciante nada **no máximo 50 minutos**, mesmo que a aula seja mais longa: o treino é montado para 50 min. Para mudar, troque `maxMinutosDeTreino` em `niveis.iniciante` no `regras.json` (o mesmo campo pode ser usado nos outros níveis).
+
 ### Pausas
 
 ```json
@@ -464,7 +468,6 @@ Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `de
 
 - **Metragem e tempo de cada parte no card** ("100 m · ~2 min"): escondidos para sobrar espaço. Para voltar a mostrar, troque `MOSTRAR_METRAGEM_E_TEMPO` para `true` em `src/components/Training/index.jsx`. O total do treino vai aparecer em outro lugar.
 
-- **Iniciante em treinos mais longos:** por enquanto, a mesma estrutura em qualquer tempo de aula.
 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
 - **Saída com pé de pato/palmar no intermediário e avançado:** hoje não muda com o material.

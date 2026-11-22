@@ -549,6 +549,11 @@ export function generateTrainings({
     const pace = tempo400 / 4 / 100 // segundos por 100 m
     // Tabela de tempos do atleta (método do treinador)
     athlete = { ...athlete, tabela: timeTable(rules, tempo400 / 100), teste400: tempo400 / 100 }
+    // Tempo de treino: o da aula, até o máximo do nível (iniciante nada no máximo 50 min)
+    const maximo = rules.niveis[athlete.level]?.maxMinutosDeTreino
+    if (maximo && athlete.sessionMinutes > maximo) {
+        athlete = { ...athlete, aulaMinutos: athlete.sessionMinutes, sessionMinutes: maximo }
+    }
     const recentes = new Set()
     // Séries do treino anterior: não se repetem no treino seguinte
     let bloqueadas = new Set(seriesAnteriores)

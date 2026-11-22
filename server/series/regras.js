@@ -52,6 +52,10 @@ export function validateRules(rules) {
     }
 
     for (const nivel of NIVEIS) {
+        const maximo = rules.niveis?.[nivel]?.maxMinutosDeTreino
+        if (maximo !== undefined && !(Number.isFinite(maximo) && maximo > 0)) {
+            problems.push(`niveis.${nivel}.maxMinutosDeTreino precisa ser um número de minutos, ex.: 50.`)
+        }
         const estruturas = rules.niveis?.[nivel]?.estruturas
         const where = `niveis.${nivel}.estruturas`
         if (!Array.isArray(estruturas) || estruturas.length === 0) {
@@ -1068,5 +1072,5 @@ export function recoveryWaived(rules, athlete) {
     const r = rules.recuperacaoDispensada
     if (!r) return false
     if (r.excetoModalidades.includes(athlete.modalidade)) return false
-    return athlete.trainingDays.length <= r.maxTreinosPorSemana && athlete.sessionMinutes < r.aulaAbaixoDeMinutos
+    return athlete.trainingDays.length <= r.maxTreinosPorSemana && (athlete.aulaMinutos ?? athlete.sessionMinutes) < r.aulaAbaixoDeMinutos
 }

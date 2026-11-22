@@ -1,6 +1,8 @@
 {
   "niveis": {
     "iniciante": {
+      "_comentario": "O iniciante nada no máximo 50 minutos, mesmo que a aula seja mais longa.",
+      "maxMinutosDeTreino": 50,
       "estruturas": [
         { "partes": ["aquecimento", "principal", "solto"] }
       ]
