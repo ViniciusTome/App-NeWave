@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { describe, loadPart, validate } from './series/index.js'
 import {
-  allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, restFor, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
+  allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, restFor, usesIntensityRest, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
 } from './series/regras.js'
 
 const rules = loadRules()
@@ -611,6 +611,55 @@ test('descanso: distâncias fora da tabela ficam entre as vizinhas, de 5 em 5 se
   assert.deepEqual(restFor(rules, 'avancado', 1500), { min: 120, max: 120 })
 })
 
+// ---------- Intensidades ----------
+
+test('esforço de cada intensidade por nível (% do máximo do teste de 400 m)', () => {
+  assert.equal(effortFor(rules, 'A1', 'iniciante'), 65)
+  assert.equal(effortFor(rules, 'A2', 'iniciante'), 75)
+  assert.equal(effortFor(rules, 'A3', 'iniciante'), 82.5)
+  assert.equal(effortFor(rules, 'A1', 'avancado'), 75)
+  assert.equal(effortFor(rules, 'A2', 'avancado'), 80)
+  assert.equal(effortFor(rules, 'A3', 'avancado'), 85)
+  // Intermediário (provisório): meio termo entre o iniciante e o avançado
+  assert.equal(effortFor(rules, 'A1', 'intermediario'), 70)
+  assert.equal(effortFor(rules, 'A2', 'intermediario'), 77.5)
+  // AA (velocidade) perto de 100%; "forte" é o mesmo que AA
+  assert.equal(intensityName(rules, 'forte'), 'AA')
+  assert.equal(effortFor(rules, 'forte', 'avancado'), 97.5)
+})
+
+test('descanso por intensidade: iniciante e recém intermediário; os outros, por distância', () => {
+  assert.equal(usesIntensityRest(rules, { level: 'iniciante' }), true)
+  assert.equal(usesIntensityRest(rules, { level: 'intermediario', recemIntermediario: true }), true)
+  assert.equal(usesIntensityRest(rules, { level: 'intermediario', recemIntermediario: false }), false)
+  assert.equal(usesIntensityRest(rules, { level: 'avancado' }), false)
+  assert.deepEqual(rules.intensidades.A1.descanso, [0, 20])
+  assert.deepEqual(rules.intensidades.A2.descanso, [0, 30])
+  assert.deepEqual(rules.intensidades.A3.descanso, [0, 60])
+  assert.deepEqual(rules.intensidades.AA.descanso, [0, 60])
+})
+
+test('A3 quase sempre com pé de pato ou pé + palmar; sem material só para avançado, e raramente', () => {
+  const a3 = describe({ id: 'a3', texto: '6 x 200', blocos: [{ repeticoes: 6, distancia: 200, nado: 'livre', intensidade: 'A3' }] })
+  const de = (level, equipment = TODO_MATERIAL) =>
+    seriesVariations(rules, 'principal', a3, { level, equipment, strokes: ['crawl'] })
+  const intermediario = de('intermediario')
+  assert.deepEqual(intermediario.map((v) => v.material), [['pe_de_pato'], ['pe_de_pato', 'palmar']])
+  const avancado = de('avancado')
+  const sem = avancado.find((v) => v.padrao === 'sem_material')
+  assert.ok(sem, 'avançado pode fazer sem material')
+  assert.equal(sem.peso, 0.1)
+  // Sem pé de pato, quem não é avançado não recebe a série em A3
+  assert.deepEqual(de('intermediario', ['palmar']), [])
+})
+
+test('recuperação de cada intensidade fica guardada nas regras', () => {
+  assert.deepEqual(rules.intensidades.A1.recuperacaoHoras, [0, 6])
+  assert.deepEqual(rules.intensidades.A2.recuperacaoHoras, [12, 24])
+  assert.deepEqual(rules.intensidades.A3.recuperacaoHoras, [24, 48])
+  assert.deepEqual(rules.intensidades.AA.recuperacaoHoras, [6, 24])
+})
+
 // ---------- Validação do arquivo de regras ----------
 
 test('a validação das regras aponta os erros', () => {
@@ -630,6 +679,8 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
     [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
     [(r) => { r.descansos.iniciante['50'] = [40, 25] }, 'descansos.iniciante.50'],
+    [(r) => { r.intensidades.A1.esforco.iniciante = [60, 120] }, 'intensidades.A1.esforco.iniciante'],
+    [(r) => { r.intensidades.A3.material.semMaterialSo = ['junior'] }, 'intensidades.A3.material.semMaterialSo'],
     [(r) => { r.descansos.avancado = {} }, 'descansos.avancado'],
     [(r) => { r.descansos.avancado['cem'] = [20, 30] }, '"cem" precisa ser uma distância'],
     [(r) => { r.misturaDeNados.minimoDeSeries = 1 }, 'misturaDeNados.minimoDeSeries'],

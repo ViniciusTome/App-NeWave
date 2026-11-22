@@ -11,17 +11,17 @@
 // - o valor usado dentro das faixas de descanso (o meio da faixa).
 import { fitsSession } from './series/index.js'
 import {
-    allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, intervalRangeFor, partsForLevel, pauseOf, restFor,
-    seriesVariations,
+    allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, intervalRangeFor,
+    partsForLevel, pauseOf, restFor, seriesVariations, usesIntensityRest,
 } from './series/regras.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
 const DEFAULT_400 = { iniciante: 9 * 6000, intermediario: 7 * 6000, avancado: 5 * 6000 + 3000 }
 
-// PROVISÓRIO: quanto mais lento (> 1) ou mais rápido (< 1) que o ritmo do teste
-// de 400 m é cada intensidade. Sem intensidade definida: entre A1 e A2.
-const RITMO = { solto: 1.3, A1: 1.2, A2: 1.1, A3: 1.0, forte: 0.9 }
-const RITMO_SEM_INTENSIDADE = 1.15
+// Ritmo de cada intensidade = tempo do teste de 400 m ÷ % do esforço máximo
+// (regras.json, "intensidades"). Sem intensidade definida (série principal,
+// por enquanto): PROVISÓRIO, como A2. "solto": PROVISÓRIO, 60% do esforço.
+const ESFORCO_SOLTO = 60
 const RITMO_PERNA = 1.6 // pernada é bem mais lenta que o nado
 const RITMO_PE_DE_PATO = 0.9 // pé de pato deixa mais rápido
 
@@ -45,6 +45,25 @@ export const NOMES_DAS_PARTES = {
 
 // ---------- Tempo estimado de uma série ----------
 
+// Quanto mais lento que o ritmo do teste: 100 ÷ % do esforço (A2 avançado: 100/80 = 1,25)
+function paceFactor(rules, intensidade, athlete) {
+    if (intensidade === 'solto') return 100 / ESFORCO_SOLTO
+    const esforco = effortFor(rules, intensidade ?? 'A2', athlete.level) ?? effortFor(rules, 'A2', athlete.level)
+    return 100 / esforco
+}
+
+// Descanso de uma repetição: o escrito no bloco; senão, para iniciante e recém
+// intermediário, o da intensidade; para os outros, o da tabela por distância.
+// Dentro da faixa, o meio (PROVISÓRIO).
+function blockRest(rules, bloco, athlete) {
+    if (bloco.descanso !== undefined) return bloco.descanso
+    const meio = (f) => (f[0] + f[1]) / 2
+    const intensidade = intensityName(rules, bloco.trechos ? bloco.trechos[0].intensidade : bloco.intensidade)
+    if (intensidade && usesIntensityRest(rules, athlete)) return meio(rules.intensidades[intensidade].descanso)
+    const { min, max } = restFor(rules, athlete.level, bloco.distancia)
+    return (min + max) / 2
+}
+
 // Segundos que o atleta leva na série, com os descansos. `pace` = segundos por
 // 100 m no ritmo do teste de 400 m.
 export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
@@ -59,11 +78,10 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
     let ultimo = { saida: 0, descanso: 0 }
     for (const bloco of serie.blocos) {
         const ritmo = bloco.trechos
-            ? bloco.trechos.reduce((s, t) => s + t.metros * (RITMO[t.intensidade] ?? RITMO_SEM_INTENSIDADE), 0) / bloco.distancia
-            : RITMO[bloco.intensidade] ?? RITMO_SEM_INTENSIDADE
+            ? bloco.trechos.reduce((s, t) => s + t.metros * paceFactor(rules, t.intensidade, athlete), 0) / bloco.distancia
+            : paceFactor(rules, bloco.intensidade, athlete)
         const nado = (bloco.distancia / 100) * pace * ritmo * fator
-        const { min, max } = restFor(rules, athlete.level, bloco.distancia)
-        const descanso = bloco.descanso ?? (min + max) / 2 // PROVISÓRIO: meio da faixa
+        const descanso = blockRest(rules, bloco, athlete)
         const vezes = bloco.vezes ?? 1
         total += vezes * bloco.repeticoes * (nado + descanso)
         // "(4x) 3 x 200": intervalo entre as séries do bloco
@@ -255,9 +273,14 @@ function pickForPart({ rules, library, parte, budget, athlete, pace, random, rec
 
     // As que mais se aproximam do tempo da parte; as usadas recentemente perdem prioridade
     // Passar do tempo é pior que ficar um pouco abaixo (a aula tem hora para acabar)
-    const distancia = (c) => (c.segundos > budget ? 1.5 : 1) * Math.abs(c.segundos - budget) *
-        (recentes.has(c.serie.id) ? 3 : 1)
-    const melhores = candidatas.sort((a, b) => distancia(a) - distancia(b)).slice(0, 3)
+    // Repetir uma série recente custa como passar 1 minuto do tempo: varia sem
+    // estourar a aula nas partes com poucas séries (solto, soltura)
+    const distancia = (c) => (c.segundos > budget ? 1.5 : 1) * Math.abs(c.segundos - budget) +
+        (recentes.has(c.serie.id) ? 60 : 0)
+    // Sorteia só entre as que ficam perto da melhor (até 1 min ou 15% do tempo da parte a mais)
+    const ordenadas = candidatas.sort((a, b) => distancia(a) - distancia(b))
+    const limite = distancia(ordenadas[0]) + Math.max(60, budget * 0.15)
+    const melhores = ordenadas.filter((c) => distancia(c) <= limite).slice(0, 3)
     const escolhida = weightedPick(melhores.map((c) => ({ item: c, peso: c.serie.peso })), random)
     const variation = weightedPick(escolhida.variations.map((v) => ({ item: v, peso: v.peso ?? 1 })), random)
     const segundos = estimateSeconds(rules, parte, escolhida.serie, variation, athlete, pace)

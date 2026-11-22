@@ -299,6 +299,26 @@ Hoje: `8 x 25`, `(2x) 8 x 25` e `16 x 25` podem ser medley; o `(4x) 4 x 25` pode
 
 Se uma série tiver `material` escrito no próprio JSON, ela é fixa e o gerador não muda.
 
+### Intensidades
+
+```json
+"intensidades": {
+  "A1": { "esforco": { "iniciante": [60, 70], "avancado": [75, 75] }, "descanso": [0, 20], "recuperacaoHoras": [0, 6] },
+  "A2": { "esforco": { "iniciante": [70, 80], "avancado": [80, 80] }, "descanso": [0, 30], "recuperacaoHoras": [12, 24] },
+  "A3": { "esforco": { "iniciante": [80, 85], "avancado": [85, 85] }, "descanso": [0, 60], "recuperacaoHoras": [24, 48],
+          "material": { "opcoes": [["pe_de_pato"], ["pe_de_pato", "palmar"]], "semMaterialSo": ["avancado"], "pesoSemMaterial": 0.1 } },
+  "AA": { "nomes": ["forte"], "esforco": { ... [95, 100] }, "descanso": [0, 60], "recuperacaoHoras": [6, 24] }
+},
+"descansoPorIntensidadePara": ["iniciante", "intermediarioInicio"]
+```
+
+- **Esforço:** % do esforço máximo do atleta (teste de 400 m). O ritmo da intensidade é o ritmo do teste ÷ esforço. Ex.: avançado em A2 (80%) nada 1,25 vez mais devagar que no teste.
+- **Intermediário:** ainda sem valor; por enquanto (PROVISÓRIO) usa o meio termo entre o meio da faixa do iniciante e o avançado (A1 70%, A2 77,5%, A3 83,75%).
+- **AA (alático) = velocidade:** perto de 100%. "forte" nas séries é o mesmo que AA.
+- **Descanso:** o **iniciante** e o **recém intermediário** usam o descanso da intensidade; o **avançado** e o **intermediário bom** usam a tabela por distância (abaixo). Recém intermediário (PROVISÓRIO) = metade de baixo da faixa do intermediário no cálculo do nível.
+- **A3 com equipamento:** séries em A3 saem com pé de pato ou pé de pato + palmar; sem material só para avançado e raramente (`pesoSemMaterial`). Sem pé de pato, quem não é avançado não recebe a série.
+- **Recuperação:** horas que o corpo leva para se recuperar. Vai ser usada para planejar a semana (olhando o treino inteiro, com mais peso na série principal) quando as séries principais tiverem intensidade.
+
 ### Descanso entre as repetições
 
 ```json
@@ -366,6 +386,9 @@ O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, 
 Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
 
 ### A decidir
+
+- **Esforço do intermediário** em cada intensidade (hoje é um meio termo provisório).
+- **Planejamento da semana pela recuperação** das intensidades (entra junto com as intensidades das séries principais).
 
 - **Metragem e tempo de cada parte no card** ("100 m · ~2 min"): escondidos para sobrar espaço. Para voltar a mostrar, troque `MOSTRAR_METRAGEM_E_TEMPO` para `true` em `src/components/Training/index.jsx`. O total do treino vai aparecer em outro lugar.
 

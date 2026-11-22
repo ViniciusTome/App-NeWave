@@ -78,6 +78,26 @@ export function validateRules(rules) {
         })
     }
 
+    for (const [nome, regra] of Object.entries(rules.intensidades ?? {})) {
+        const where = `intensidades.${nome}`
+        const faixa = (f) => Array.isArray(f) && f.length === 2 && f.every((x) => typeof x === 'number' && x >= 0) && f[0] <= f[1]
+        for (const [nivel, esforco] of Object.entries(regra?.esforco ?? {})) {
+            if (!NIVEIS.includes(nivel)) problems.push(`${where}.esforco: "${nivel}" precisa ser um de: ${NIVEIS.join(', ')}.`)
+            if (!faixa(esforco) || esforco[1] > 100) problems.push(`${where}.esforco.${nivel}: use [mínimo, máximo] em %, até 100.`)
+        }
+        if (!faixa(regra?.descanso)) problems.push(`${where}.descanso: use [mínimo, máximo] em segundos.`)
+        if (!faixa(regra?.recuperacaoHoras)) problems.push(`${where}.recuperacaoHoras: use [mínimo, máximo] em horas.`)
+        if (regra?.material !== undefined) {
+            const m = regra.material
+            if (!Array.isArray(m.opcoes) || m.opcoes.some((o) => !Array.isArray(o) || o.some((x) => !MATERIAIS.includes(x)))) {
+                problems.push(`${where}.material.opcoes: listas com ${MATERIAIS.join(', ')}.`)
+            }
+            if (!Array.isArray(m.semMaterialSo) || m.semMaterialSo.some((n) => !NIVEIS.includes(n))) {
+                problems.push(`${where}.material.semMaterialSo: lista de níveis (${NIVEIS.join(', ')}).`)
+            }
+        }
+    }
+
     if (rules.misturaDeNados !== undefined) {
         const m = rules.misturaDeNados
         const where = 'misturaDeNados'
@@ -316,7 +336,7 @@ const cycle = (list, n) => Array.from({ length: n }, (_, i) => list[i % list.len
 // - "obrigatorio": repetição longa, que sempre usa o material das regras;
 // - "obrigatorio_por_bloco": só alguns blocos usam (ex.: os 400 de uma pirâmide);
 // - "piramide_alternada": cada distância da pirâmide com um material diferente.
-function materialOptions(rules, parte, serie, athleteEquipment, athleteStrokes = []) {
+function materialOptions(rules, parte, serie, athleteEquipment, athleteStrokes = [], athleteLevel = null) {
     if (serie.exige.material.length > 0) {
         return [{ padrao: 'fixo', material: serie.exige.material }]
     }
@@ -344,6 +364,18 @@ function materialOptions(rules, parte, serie, athleteEquipment, athleteStrokes =
         fixos = precisa.map((p) => (p ? regraObrig.material : null))
         obrigatorio = regraObrig.material
         break
+    }
+
+    // Intensidade com material próprio (A3: quase sempre c/PÉ ou c/PÉ + PALM;
+    // sem material só para avançado, e raramente)
+    const intensidadeComMaterial = serie.blocos.flatMap((b) => blockIntensities(rules, b))
+        .map((i) => rules.intensidades?.[i]?.material).find(Boolean)
+    if (intensidadeComMaterial && !obrigatorio) {
+        const lista = intensidadeComMaterial.opcoes.filter(hasAll).map((m) => ({ padrao: 'serie_inteira', material: m }))
+        if (intensidadeComMaterial.semMaterialSo.includes(athleteLevel)) {
+            lista.push({ padrao: 'sem_material', material: [], peso: intensidadeComMaterial.pesoSemMaterial ?? 1 })
+        }
+        return lista
     }
 
     const options = []
@@ -563,7 +595,7 @@ export function seriesVariations(rules, parte, serie, athlete) {
             })
             continue
         }
-        for (const option of materialOptions(rules, parte, serie, athlete.equipment, athlete.strokes)) {
+        for (const option of materialOptions(rules, parte, serie, athlete.equipment, athlete.strokes, athlete.level)) {
             const { texto: _nadoTexto, ...strokeInfo } = stroke
             variations.push({ ...strokeInfo, ...option, texto: variationText(serie, stroke, option) })
         }
@@ -726,3 +758,37 @@ export function restFor(rules, nivel, distancia) {
     const t = (distancia - d0) / (d1 - d0)
     return { min: arredonda(min0 + (min1 - min0) * t), max: arredonda(max0 + (max1 - max0) * t) }
 }
+
+// ---------- Intensidades ----------
+
+// Nome da intensidade nas regras ("forte" é o mesmo que "AA")
+export function intensityName(rules, intensidade) {
+    if (!intensidade) return null
+    if (rules.intensidades?.[intensidade]) return intensidade
+    return Object.keys(rules.intensidades ?? {}).find((k) => rules.intensidades[k].nomes?.includes(intensidade)) ?? null
+}
+
+// % do esforço máximo (do teste de 400 m) na intensidade, para o nível.
+// Faixa: o meio. Intermediário sem valor nas regras: PROVISÓRIO, o meio termo
+// entre o meio da faixa do iniciante e o valor do avançado.
+export function effortFor(rules, intensidade, nivel) {
+    const regra = rules.intensidades?.[intensityName(rules, intensidade)]
+    if (!regra) return null
+    const meio = (f) => (f[0] + f[1]) / 2
+    if (regra.esforco[nivel]) return meio(regra.esforco[nivel])
+    const { iniciante, avancado } = regra.esforco
+    if (nivel === 'intermediario' && iniciante && avancado) return (meio(iniciante) + meio(avancado)) / 2
+    return meio(regra.esforco.avancado ?? regra.esforco.iniciante)
+}
+
+// O atleta usa o descanso por intensidade (iniciante e recém intermediário)?
+// Os outros usam a tabela por distância ("descansos").
+export function usesIntensityRest(rules, athlete) {
+    const lista = rules.descansoPorIntensidadePara ?? []
+    if (lista.includes(athlete.level)) return true
+    return athlete.level === 'intermediario' && athlete.recemIntermediario === true && lista.includes('intermediarioInicio')
+}
+
+// A série tem algum trecho na intensidade? (bloco ou trechos)
+const blockIntensities = (rules, bloco) =>
+    (bloco.trechos ? bloco.trechos.map((t) => t.intensidade) : [bloco.intensidade]).map((i) => intensityName(rules, i))

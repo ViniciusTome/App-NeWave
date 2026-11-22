@@ -200,7 +200,15 @@ test('cálculo do nível', () => {
   assert.deepEqual(computeLevel({ ...base, recentBreak: 'mais_6m' }, fast), {
     level: 'intermediario',
     returning: true,
+    recemIntermediario: false, // caiu de avançado: não é recém intermediário
   })
+  // Recém intermediário: na metade de baixo da faixa do intermediário
+  const recem = computeLevel({ swimmingSince: '6m_2a', recentBreak: 'nao', continuousDistance: '200_400' }, { hundredths: 8 * 6000 })
+  assert.equal(recem.level, 'intermediario')
+  assert.equal(recem.recemIntermediario, true)
+  const bom = computeLevel({ swimmingSince: 'mais_5a', recentBreak: 'nao', continuousDistance: '400_1000' }, { hundredths: 7 * 6000 })
+  assert.equal(bom.level, 'intermediario')
+  assert.equal(bom.recemIntermediario, false)
 })
 
 // ---------- Competições ----------

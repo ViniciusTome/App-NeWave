@@ -71,7 +71,11 @@ export function computeLevel(profile, time400) {
   const returning = profile.recentBreak === 'mais_6m'
   if (returning) index = Math.max(index - 1, 0)
 
-  return { level: LEVELS[index], returning }
+  // Recém intermediário: está na metade de baixo da faixa do intermediário
+  // (PROVISÓRIO). Usa o descanso por intensidade, como o iniciante.
+  const recemIntermediario = LEVELS[index] === 'intermediario' && ratio < 0.525
+
+  return { level: LEVELS[index], returning, recemIntermediario }
 }
 
 // ---------- Validação ----------
@@ -365,7 +369,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       const jaFeitos = new Set(completedDates.all(user.id, today).map((r) => r.date))
       const trainings = generateTrainings({
         rules, library, today,
-        athlete: { ...profile, level: level.level, time400 },
+        athlete: { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 },
       }).filter((t) => !jaFeitos.has(t.date))
 
       const now = new Date().toISOString()
