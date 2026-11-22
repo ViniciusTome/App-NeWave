@@ -12,8 +12,9 @@ if (major < 22 || (major === 22 && minor < 13)) {
 const { createApp } = await import('./app.js')
 const { createConsoleMailer } = await import('./mailer.js')
 const { loadLibrary } = await import('./series/index.js')
+const { loadRules } = await import('./series/regras.js')
 
-// Confere a biblioteca de séries (server/series/*.json) antes de subir:
+// Confere a biblioteca de séries e as regras (server/series/) antes de subir:
 // se alguém digitou algo errado, o terminal mostra qual série e qual campo.
 try {
   const library = loadLibrary()
@@ -21,6 +22,7 @@ try {
     .filter(([, series]) => series.length > 0)
     .map(([part, series]) => `${series.length} de ${part}`)
   console.log(`Biblioteca de séries: ${counts.join(', ') || 'vazia'}.`)
+  loadRules() // confere server/series/regras.json
 } catch (err) {
   console.error(err.message)
   process.exit(1)

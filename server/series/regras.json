@@ -1,0 +1,26 @@
+{
+  "niveis": {
+    "iniciante": { "partes": ["aquecimento", "principal", "soltura"] },
+    "intermediario": { "partes": ["aquecimento", "velocidade", "principal", "soltura"] },
+    "avancado": { "partes": ["aquecimento", "velocidade", "principal", "soltura"] }
+  },
+  "material": {
+    "velocidade": {
+      "opcoes": [
+        ["pe_de_pato"],
+        ["palmar"],
+        ["pe_de_pato", "palmar"],
+        ["palmar", "pull_buoy"]
+      ],
+      "porSerie": {
+        "2": [
+          ["material", "nadando"]
+        ],
+        "4": [
+          ["material", "nadando", "material", "nadando"],
+          ["material", "material", "nadando", "nadando"]
+        ]
+      }
+    }
+  }
+}

@@ -84,3 +84,45 @@ server/series/aquecimento.json tem problemas:
 ```
 
 `npm run test:server` faz a mesma conferência.
+
+## Regras (`regras.json`)
+
+As séries ficam "brutas", sem material. As regras dizem como montar o treino com elas.
+
+### Partes do treino por nível
+
+```json
+"niveis": {
+  "iniciante": { "partes": ["aquecimento", "principal", "soltura"] },
+  "intermediario": { "partes": ["aquecimento", "velocidade", "principal", "soltura"] },
+  "avancado": { "partes": ["aquecimento", "velocidade", "principal", "soltura"] }
+}
+```
+
+O iniciante não faz velocidade.
+
+### Material
+
+O material **só muda onde existe intervalo entre séries**. Dentro de uma série, ele é sempre o mesmo, porque não dá para colocar e tirar material com 20" de descanso.
+
+```json
+"material": {
+  "velocidade": {
+    "opcoes": [["pe_de_pato"], ["palmar"], ["pe_de_pato", "palmar"], ["palmar", "pull_buoy"]],
+    "porSerie": {
+      "2": [["material", "nadando"]],
+      "4": [["material", "nadando", "material", "nadando"], ["material", "material", "nadando", "nadando"]]
+    }
+  }
+}
+```
+
+- `opcoes`: os materiais (ou combinações) que podem entrar nessa parte. Só aparecem para quem tem todos os itens da opção.
+- `porSerie`: como trocar o material entre as séries de um `(2x)`, `(4x)`... Cada modelo diz, série por série, se é com material ou nadando.
+
+Com isso, a mesma série vira treinos diferentes. Por exemplo, para um atleta que tem pé de pato:
+
+- `8 x 25 forte` → nadando, ou com pé de pato na série inteira.
+- `(2x) 4 x 25 forte` → nadando, com pé de pato nas duas séries, ou **1ª série com pé de pato, 2ª série nadando**.
+
+Se uma série tiver `material` escrito no próprio JSON, ela é fixa e o gerador não muda.
