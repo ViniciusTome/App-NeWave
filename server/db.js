@@ -138,6 +138,8 @@ export function openDatabase(path) {
   if (!trainingCols.includes('difficulty')) db.exec('ALTER TABLE trainings ADD COLUMN difficulty INTEGER')
   if (!trainingCols.includes('difficulty_reason')) db.exec('ALTER TABLE trainings ADD COLUMN difficulty_reason TEXT')
   if (!trainingCols.includes('plan')) db.exec('ALTER TABLE trainings ADD COLUMN plan TEXT')
+  // Falta: o atleta disse que não fez o treino (a pergunta aparece quando ele abre o app)
+  if (!trainingCols.includes('missed_at')) db.exec('ALTER TABLE trainings ADD COLUMN missed_at TEXT')
 
   // Pergunta "Qual é o seu melhor estilo?" chegou depois: bancos antigos não têm a coluna
   const profileColumns = db.prepare('PRAGMA table_info(athlete_profiles)').all().map((col) => col.name)

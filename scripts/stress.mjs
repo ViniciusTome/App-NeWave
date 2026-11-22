@@ -7,7 +7,7 @@
 // Uso:  node scripts/stress.mjs [quantidade de perfis] [semente]
 //       ex.: node scripts/stress.mjs 600 7
 import { computeLevel } from '../server/athlete.js'
-import { feedbackAdjustment, generateTrainings, planStages, trainingDates } from '../server/generator.js'
+import { feedbackAdjustment, generateTrainings, planStages, refreshTimes, trainingDates } from '../server/generator.js'
 import { loadLibrary } from '../server/series/index.js'
 import { loadRules } from '../server/series/regras.js'
 
@@ -160,7 +160,11 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         confere('Treino tem aquecimento e série principal (ou teste)', ordem.includes('aquecimento') && (principais.length > 0 || ehTeste),
             () => `${quem} ${t.date}: ${ordem.join(', ')}`)
 
-        // Velocidade
+        // Velocidade: com o estilo escrito e nunca 1/1
+        for (const v of partes.filter((x) => x.parte === 'velocidade')) {
+            confere('Velocidade com o estilo escrito (CR, CO, PE, BO, MD...)', /\b(CR|CO|PE|BO|MD|ME)\b|estilo/.test(v.texto), () => `${quem}: ${v.texto}`)
+            confere('Velocidade nunca com 1/1 (descanso de 20" a 30")', !/1\/1/.test(v.texto), () => `${quem}: ${v.texto}`)
+        }
         if (a.level === 'iniciante') confere('Iniciante sem velocidade', !ordem.includes('velocidade'), () => `${quem} ${t.date}`)
         if (ehLeve(a)) confere('Quem nada até 100 m: sem velocidade', !ordem.includes('velocidade'), () => `${quem} ${t.date}`)
         if (etapa === 'recuperacao') confere('Semana de recuperação: sem velocidade', !ordem.includes('velocidade'), () => `${quem} ${t.date}`)
@@ -271,6 +275,17 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         confere('Realização: volume caindo treino a treino (85% até 60%)',
             fatoresR.every((f, k) => k === 0 || f <= fatoresR[k - 1]) && fatoresR.at(-1) <= 0.61 && fatoresR[0] <= 0.86,
             () => `${quem}: ${fatoresR.join(', ')}`)
+    }
+    // Tempo novo (teste de 400 m): os treinos não feitos ganham os tempos sem mudar as séries
+    if (!a.time400) {
+        const comTempo = { ...a, time400: { hundredths: 36000 } }
+        const amostra = treinos.slice(0, 6)
+        for (const t of amostra) {
+            const novas = refreshTimes(rules, comTempo, t)
+            confere('Tempo novo: as mesmas séries, agora com o cd', novas.every((p, k) => p.serieId === t.partes[k].serieId) &&
+                novas.filter((p) => p.parte === 'principal').every((p) => !/ritmo (leve|moderado|forte)/.test(p.texto)),
+            () => `${quem} ${t.date}`)
+        }
     }
     confere('No máximo um teste na periodização (o de quem não tem tempo, ou o da Transição)', testes <= 1, () => `${quem}: ${testes} testes`)
     return { ms, treinos: treinos.length, level: a.level }

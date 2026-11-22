@@ -504,3 +504,144 @@ test('trocar a prova alvo refaz a periodização para o tempo que falta', async 
   assert.equal(lista.find((c) => c.id === longe.id).priority, 'B')
   assert.equal(lista.find((c) => c.id === perto.id).priority, 'A')
 })
+
+test('registrar o teste de 400 m coloca os tempos (cd) nos treinos já montados, sem mudar as séries', async () => {
+  const cookie = await userFor('feedback')
+  // Sem tempo nenhum: o card mostra o descanso e o ritmo por extenso
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: null })
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  const { user } = (await api('/api/auth/me', { cookie })).body
+  db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const antes = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  // (o dia do teste não tem série principal)
+  const principal = (t) => t.partes.find((p) => p.parte === 'principal') ?? { texto: '' }
+  assert.ok(antes.every((t) => !/cd \d/.test(principal(t).texto)), 'sem tempo não tem cd')
+  assert.ok(antes.some((t) => /de descanso/.test(principal(t).texto)))
+
+  // Registra o teste de 400 m
+  const teste = await api('/api/tests', { method: 'POST', cookie, body: { distance: 400, timeHundredths: 36000, date: hoje } })
+  assert.equal(teste.status, 201)
+  assert.ok(teste.body.treinosAtualizados > 0)
+  const depois = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  // As mesmas séries, nos mesmos dias...
+  assert.deepEqual(depois.map((t) => [t.date, t.partes.map((p) => p.serieId)]), antes.map((t) => [t.date, t.partes.map((p) => p.serieId)]))
+  // ... agora com o cd e sem o ritmo por extenso
+  assert.ok(depois.some((t) => /cd \d/.test(principal(t).texto)))
+  assert.ok(depois.every((t) => !/ritmo (leve|moderado|forte)/.test(principal(t).texto)))
+  // Os campos antigos (histórico) também
+  const linha = db.prepare('SELECT main_series FROM trainings WHERE id = ?').get(depois[0].id)
+  assert.equal(linha.main_series.includes('ritmo leve'), false)
+  db.close()
+})
+
+test('tempo novo com teste planejado: pergunta se vai fazer; sem tempos de novo, volta ao planejamento sem tempos', async () => {
+  const cookie = await userFor('periodizacao')
+  const { user } = (await api('/api/auth/me', { cookie })).body
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
+  db.prepare('DELETE FROM trainings WHERE user_id = ?').run(user.id)
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: null })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const proximos = async () => (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  const diaDoTeste = (ts) => ts.find((t) => t.partes.some((p) => p.parte === 'teste'))
+  const teste = diaDoTeste(await proximos())
+  assert.ok(teste, 'sem tempo: teste depois de 1 mês')
+
+  // Registra um tempo: os treinos ganham o cd e o app pergunta do teste planejado
+  const registrar = () => api('/api/tests', { method: 'POST', cookie, body: { distance: 400, timeHundredths: 36000, date: hoje } })
+  const r1 = await registrar()
+  assert.deepEqual(r1.body.testePlanejado, { id: teste.id, date: teste.date })
+  // "Não vou fazer": no lugar entra um treino normal
+  const nao = await api(`/api/trainings/${teste.id}/planned-test`, { method: 'POST', cookie, body: { fazer: false } })
+  assert.equal(nao.status, 200)
+  const semTeste = await proximos()
+  assert.equal(diaDoTeste(semTeste), undefined)
+  const trocado = semTeste.find((t) => t.date === teste.date)
+  assert.ok(trocado.partes.some((p) => p.parte === 'principal'))
+  assert.match(trocado.partes.find((p) => p.parte === 'principal').texto, /cd \d|A1|A2|A3/)
+
+  // Apaga o tempo: a evolução fica vazia e volta o planejamento sem tempos (com o teste)
+  const { tests } = (await api('/api/tests', { cookie })).body
+  for (const t of tests) await api(`/api/tests/${t.id}`, { method: 'DELETE', cookie })
+  const deNovo = await proximos()
+  assert.ok(diaDoTeste(deNovo), 'o teste volta')
+  assert.ok(deNovo.every((t) => !/cd \d/.test(t.partes.find((p) => p.parte === 'principal')?.texto ?? '')))
+
+  // Registra de novo e diz que vai fazer: o teste fica e não pergunta mais
+  const r2 = await registrar()
+  assert.ok(r2.body.testePlanejado)
+  const sim = await api(`/api/trainings/${r2.body.testePlanejado.id}/planned-test`, { method: 'POST', cookie, body: { fazer: true } })
+  assert.equal(sim.body.mantido, true)
+  assert.ok(diaDoTeste(await proximos()))
+  assert.equal((await registrar()).body.testePlanejado, null)
+  // Resposta inválida
+  assert.equal((await api(`/api/trainings/${r2.body.testePlanejado.id}/planned-test`, { method: 'POST', cookie, body: {} })).status, 400)
+  db.close()
+})
+
+// ---------- Treinos sem resposta e faltas ----------
+
+test('treinos que passaram sem resposta: a lista, a falta e o "fiz"', async () => {
+  const cookie = await userFor('feedback')
+  const { user } = (await api('/api/auth/me', { cookie })).body
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  db.prepare('DELETE FROM trainings WHERE user_id = ?').run(user.id)
+  await saveProfile(cookie, { ...sampleProfile, continuousDistance: '200_400', trainingDays: [1, 3, 5], reported400Hundredths: 42000 })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  // Treinos montados há 3 semanas: os que passaram ficam sem resposta
+  await api(`/api/trainings/generate?today=${daysFromToday(-21)}`, { method: 'POST', cookie })
+  const pendentes = (await api(`/api/trainings/pending?today=${hoje}`, { cookie })).body.trainings
+  assert.ok(pendentes.length >= 8)
+  assert.ok(pendentes.every((t) => t.date < hoje && !t.completed && !t.missed))
+  // "Fiz" no primeiro (concluir funciona para treino que passou)
+  const fiz = await api(`/api/trainings/${pendentes[0].id}/complete`, { method: 'POST', cookie, body: { difficulty: 5 } })
+  assert.equal(fiz.status, 200)
+  // Faltas seguidas: até 3 nada muda; a 4ª deixa os próximos 2 treinos mais leves
+  const faltas = []
+  for (const t of pendentes.slice(-4)) {
+    faltas.push((await api(`/api/trainings/${t.id}/missed?today=${hoje}`, { method: 'POST', cookie })).body)
+  }
+  assert.deepEqual(faltas.map((f) => f.maisLeves), [0, 0, 0, 2])
+  assert.ok(faltas.every((f) => f.training.missed))
+  const planos = db.prepare(`SELECT plan FROM trainings WHERE user_id = ? AND date >= ? ORDER BY date`).all(user.id, hoje)
+    .map((r) => JSON.parse(r.plan))
+  assert.ok(planos[0].maisLeve && planos[1].maisLeve && !planos[2].maisLeve)
+  assert.ok(planos.slice(0, 2).every((p) => p.intensidade !== 'A3'))
+  // Não lista mais os respondidos; não deixa marcar falta em treino de hoje em diante
+  const depois = (await api(`/api/trainings/pending?today=${hoje}`, { cookie })).body.trainings
+  assert.equal(depois.length, pendentes.length - 5)
+  const [proximo] = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  assert.equal((await api(`/api/trainings/${proximo.id}/missed?today=${hoje}`, { method: 'POST', cookie })).status, 409)
+  db.close()
+})
+
+test('avançado que treina pouco: 3 dias ou mais sem treinar deixam o 1º treino da volta mais leve', async () => {
+  const cookie = await userFor('periodizacao')
+  const { user } = (await api('/api/auth/me', { cookie })).body
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  db.prepare('DELETE FROM trainings WHERE user_id = ?').run(user.id)
+  db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
+  await saveProfile(cookie, {
+    ...sampleProfile, swimmingSince: 'mais_5a', continuousDistance: 'mais_2000', trainingDays: [1, 3, 5], reported400Hundredths: 30000,
+  })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${daysFromToday(-10)}`, { method: 'POST', cookie })
+  const [ultimo] = (await api(`/api/trainings/pending?today=${hoje}`, { cookie })).body.trainings.slice(-1)
+  const falta = await api(`/api/trainings/${ultimo.id}/missed?today=${hoje}`, { method: 'POST', cookie })
+  assert.equal(falta.body.maisLeves, 1)
+  const planos = db.prepare('SELECT plan FROM trainings WHERE user_id = ? AND date >= ? ORDER BY date').all(user.id, hoje)
+    .map((r) => JSON.parse(r.plan))
+  assert.ok(planos[0].maisLeve && !planos[1].maisLeve)
+  db.close()
+})

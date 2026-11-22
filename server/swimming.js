@@ -63,6 +63,8 @@ const publicTraining = (row) => ({
   // Feedback do atleta ao concluir (null quando não respondeu)
   difficulty: row.difficulty ?? null,
   difficultyReason: row.difficulty_reason ?? null,
+  // O atleta disse que não fez (falta)
+  missed: Boolean(row.missed_at),
 })
 
 // { difficulty?, reason? } do "Concluir treino"
@@ -85,7 +87,10 @@ function parseId(value) {
   return id
 }
 
-export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = () => 0 }) {
+export function createSwimmingRoutes({
+  db, requireUser, onTrainingCompleted = () => 0, onTimesChanged = () => 0, plannedTest = () => null,
+  onTrainingMissed = () => 0, askAboutLastDays = 21,
+}) {
   const listTests = db.prepare(`
     SELECT id, distance, time_hundredths, date FROM tests
     WHERE user_id = ? ORDER BY date, id
@@ -97,7 +102,7 @@ export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = ()
   const deleteTest = db.prepare('DELETE FROM tests WHERE id = ? AND user_id = ?')
 
   const TRAINING_COLUMNS =
-    'id, date, title, warm_up, speed, main_series, release, notes, completed_at, parts, difficulty, difficulty_reason'
+    'id, date, title, warm_up, speed, main_series, release, notes, completed_at, parts, difficulty, difficulty_reason, missed_at'
   // Histórico: treinos concluídos e treinos cuja data já passou
   const listHistory = db.prepare(`
     SELECT ${TRAINING_COLUMNS} FROM trainings
@@ -111,6 +116,15 @@ export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = ()
     ORDER BY date, id LIMIT ?
   `)
   const findTraining = db.prepare(`SELECT ${TRAINING_COLUMNS} FROM trainings WHERE id = ? AND user_id = ?`)
+  // Sem resposta: passou da data, não foi concluído nem marcado como falta
+  const listPending = db.prepare(`
+    SELECT ${TRAINING_COLUMNS} FROM trainings
+    WHERE user_id = ? AND date < ? AND date >= ? AND completed_at IS NULL AND missed_at IS NULL
+    ORDER BY date, id LIMIT 20
+  `)
+  const markMissed = db.prepare(`
+    UPDATE trainings SET missed_at = ? WHERE id = ? AND user_id = ? AND completed_at IS NULL AND missed_at IS NULL AND date < ?
+  `)
   const insertTraining = db.prepare(`
     INSERT INTO trainings
       (user_id, date, title, warm_up, speed, main_series, release, notes, created_at, completed_at)
@@ -149,7 +163,11 @@ export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = ()
 
       const id = insertTest.run(user.id, distance, timeHundredths, date, new Date().toISOString())
         .lastInsertRowid
-      sendJson(res, 201, { test: { id: Number(id), distance, timeHundredths, date } })
+      // Teste de 400 m: os treinos que ainda não foram feitos ganham os tempos novos (cd,
+      // ritmo). Se ainda tem um teste planejado, o app pergunta se ele vai fazer.
+      const treinosAtualizados = distance === 400 ? onTimesChanged(user.id) : 0
+      const testePlanejado = distance === 400 ? plannedTest(user.id) : null
+      sendJson(res, 201, { test: { id: Number(id), distance, timeHundredths, date }, treinosAtualizados, testePlanejado })
     },
 
     // DELETE /api/tests/:id
@@ -159,6 +177,7 @@ export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = ()
       if (deleteTest.run(parseId(id), user.id).changes === 0) {
         throw new HttpError(404, 'Teste não encontrado.')
       }
+      onTimesChanged(user.id) // sem esse teste, os tempos podem mudar
       res.writeHead(204, { 'Cache-Control': 'no-store' })
       res.end()
     },
@@ -184,6 +203,29 @@ export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = ()
     },
 
     // POST /api/trainings/:id/complete -> marca o treino como realizado
+    // GET /api/trainings/pending?today=AAAA-MM-DD -> treinos que passaram da data sem
+    // resposta (dos últimos dias): o app pergunta se o atleta fez ou não
+    getPendingTrainings(req, res) {
+      const user = requireUser(req)
+      const today = readToday(new URL(req.url, 'http://localhost'))
+      const desde = new Date(Date.parse(`${today}T12:00:00Z`) - askAboutLastDays * DAY_MS).toISOString().slice(0, 10)
+      sendJson(res, 200, { trainings: listPending.all(user.id, today, desde).map(publicTraining) })
+    },
+
+    // POST /api/trainings/:id/missed?today=AAAA-MM-DD -> o atleta não fez esse treino.
+    // Muitas faltas deixam os próximos treinos mais leves (só as intensidades).
+    missTraining(req, res, { id }) {
+      const user = requireUser(req)
+      const today = readToday(new URL(req.url, 'http://localhost'))
+      const trainingId = parseId(id)
+      if (markMissed.run(new Date().toISOString(), trainingId, user.id, today).changes === 0) {
+        if (!findTraining.get(trainingId, user.id)) throw new HttpError(404, 'Treino não encontrado.')
+        throw new HttpError(409, 'Esse treino não pode ser marcado como falta.')
+      }
+      const maisLeves = onTrainingMissed(user.id, today)
+      sendJson(res, 200, { training: publicTraining(findTraining.get(trainingId, user.id)), maisLeves })
+    },
+
     // POST /api/trainings/:id/complete  { difficulty?: 1-10, reason?: 'respiracao' | 'forca' }
     async completeTraining(req, res, { id }) {
       const user = requireUser(req)

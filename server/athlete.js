@@ -2,7 +2,7 @@
 // É a base do botão "Gerar treinos": as respostas ficam guardadas para o atleta
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
-import { feedbackAdjustment, generateTrainings, legacyFields, seriesUsadas } from './generator.js'
+import { feedbackAdjustment, generateTrainings, legacyFields, lightenTraining, refreshTimes, seriesUsadas } from './generator.js'
 import { timeTable } from './series/regras.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -280,6 +280,35 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       ORDER BY date DESC, id DESC LIMIT 10
     ) ORDER BY date, id
   `)
+  // Treinos ainda não feitos, com o plano (para reescrever com um tempo novo)
+  const upcomingWithPlan = db.prepare(`
+    SELECT id, parts, plan FROM trainings
+    WHERE user_id = ? AND completed_at IS NULL AND date >= ? AND parts IS NOT NULL AND plan IS NOT NULL
+  `)
+  const findTrainingRow = db.prepare('SELECT id, date, title, parts, plan, completed_at FROM trainings WHERE id = ? AND user_id = ?')
+  const trainingNear = db.prepare(`
+    SELECT parts FROM trainings WHERE user_id = ? AND parts IS NOT NULL AND date < ? ORDER BY date DESC, id DESC LIMIT 1
+  `)
+  const trainingAfter = db.prepare(`
+    SELECT parts FROM trainings WHERE user_id = ? AND parts IS NOT NULL AND date > ? ORDER BY date, id LIMIT 1
+  `)
+  const replaceTraining = db.prepare(`
+    UPDATE trainings SET parts = ?, plan = ?, warm_up = ?, speed = ?, main_series = ?, release = ? WHERE id = ? AND user_id = ?
+  `)
+  const setPlan = db.prepare('UPDATE trainings SET plan = ? WHERE id = ? AND user_id = ?')
+  // Treinos que já passaram, do mais recente (para contar as faltas seguidas)
+  const pastTrainings = db.prepare(`
+    SELECT date, completed_at, missed_at FROM trainings WHERE user_id = ? AND date < ? ORDER BY date DESC, id DESC LIMIT 30
+  `)
+  const lastCompleted = db.prepare('SELECT MAX(date) AS date FROM trainings WHERE user_id = ? AND completed_at IS NOT NULL')
+  const upcomingOrdered = db.prepare(`
+    SELECT id, parts, plan FROM trainings
+    WHERE user_id = ? AND completed_at IS NULL AND date >= ? AND parts IS NOT NULL AND plan IS NOT NULL
+    ORDER BY date, id LIMIT ?
+  `)
+  const updateParts = db.prepare(`
+    UPDATE trainings SET parts = ?, warm_up = ?, speed = ?, main_series = ?, release = ? WHERE id = ? AND user_id = ?
+  `)
   // Data do primeiro treino do atleta (o teste de quem não tem tempo vem depois de 1 mês)
   const firstTrainingDate = db.prepare('SELECT MIN(date) AS date FROM trainings WHERE user_id = ?')
   // Último treino antes de hoje (para não repetir as séries dele no primeiro treino novo)
@@ -348,11 +377,11 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   // Monta (ou refaz) todos os treinos da periodização, de hoje até o fim, e guarda no
   // banco com o plano interno de cada um. Os dias com treino concluído ficam como estão.
   // Periodização: do dia da preparação até a prova alvo; sem prova, `semanasSemProva` semanas.
-  function buildPeriodization(userId, today) {
+  // Tudo o que o gerador precisa para montar os treinos do atleta a partir de hoje
+  function periodizationInput(userId, today) {
     const { profile, time400, level } = profileResponse(userId)
     if (!profile) throw new HttpError(409, 'Responda a anamnese antes de gerar treinos.')
 
-    const jaFeitos = new Set(completedDates.all(userId, today).map((r) => r.date))
     const preparacao = preparationResponse(userId, today)
     const ativa = preparacao?.active ? preparacao : null
     // Modalidade da prova alvo (ex.: triatlo), para a regra da recuperação
@@ -379,7 +408,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     } catch {
       seriesAnteriores = []
     }
-    const trainings = generateTrainings({
+    return {
       rules, library, today, seriesAnteriores,
       historico: readHistory(userId),
       fatorDoProximo: nextFactor(userId, today),
@@ -396,7 +425,14 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       athlete: {
         ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
       },
-    }).filter((t) => !jaFeitos.has(t.date))
+    }
+  }
+
+  // Monta (ou refaz) todos os treinos da periodização, de hoje até o fim, e guarda no
+  // banco com o plano interno de cada um. Os dias com treino concluído ficam como estão.
+  function buildPeriodization(userId, today) {
+    const jaFeitos = new Set(completedDates.all(userId, today).map((r) => r.date))
+    const trainings = generateTrainings(periodizationInput(userId, today)).filter((t) => !jaFeitos.has(t.date))
 
     const now = new Date().toISOString()
     let replaced = 0
@@ -515,6 +551,119 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       // O plano interno fica só no banco: o atleta não recebe
       const semPlano = (t) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'plano'))
       sendJson(res, 201, { trainings: resultado.trainings.map(semPlano), replaced: resultado.replaced })
+    },
+
+    // Tempo novo (teste de 400 m): reescreve os treinos que ainda não foram feitos com
+    // os tempos atuais (cd, ritmo, velocidade). As séries e as intensidades não mudam.
+    // Devolve quantos treinos foram atualizados.
+    refreshTrainingTimes(userId, today = new Date().toISOString().slice(0, 10)) {
+      const { profile, time400, level } = profileResponse(userId)
+      if (!profile || !level) return 0
+      // Ficou sem tempo nenhum: volta ao planejamento sem tempos (descanso no lugar do cd,
+      // ritmo por extenso, sem AC e o teste depois de 1 mês de treino)
+      if (!time400) {
+        if (upcomingWithPlan.all(userId, today).length === 0) return 0
+        return buildPeriodization(userId, today).trainings.length
+      }
+      const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 }
+      let atualizados = 0
+      db.exec('BEGIN')
+      try {
+        for (const row of upcomingWithPlan.all(userId, today)) {
+          const plano = JSON.parse(row.plan)
+          if (!plano.montagem) continue
+          const partes = refreshTimes(rules, athlete, { partes: JSON.parse(row.parts), plano })
+          const f = legacyFields(partes)
+          updateParts.run(JSON.stringify(partes), f.warmUp, f.speed, f.mainSeries, f.release, row.id, userId)
+          atualizados++
+        }
+        db.exec('COMMIT')
+      } catch (err) {
+        db.exec('ROLLBACK')
+        throw err
+      }
+      return atualizados
+    },
+
+    // Faltas: quem treina pouco por semana perde mais com elas. Iniciante e intermediário
+    // com mais de 3 faltas seguidas, e avançado com 3 dias ou mais sem treinar, têm os
+    // próximos treinos mais leves (só as intensidades descem um degrau; as séries ficam).
+    // Devolve quantos treinos ficaram mais leves.
+    applyAbsenceRule(userId, today = new Date().toISOString().slice(0, 10)) {
+      const { profile, time400, level } = profileResponse(userId)
+      const regra = rules.faltas?.[level?.level]
+      if (!profile || !regra || profile.trainingDays.length > regra.ateTreinosPorSemana) return 0
+      let seguidas = 0
+      for (const t of pastTrainings.all(userId, today)) {
+        if (!t.missed_at) break
+        seguidas++
+      }
+      if (seguidas === 0) return 0
+      let vale
+      if (regra.faltasSeguidasMaisQue !== undefined) vale = seguidas > regra.faltasSeguidasMaisQue
+      else {
+        const ultimo = lastCompleted.get(userId).date
+        const dias = ultimo ? Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${ultimo}T12:00:00Z`)) / 86_400_000) : Infinity
+        vale = dias >= regra.diasSemTreinar
+      }
+      if (!vale) return 0
+      const proximos = upcomingOrdered.all(userId, today, regra.treinosMaisLeves)
+      // Já ficaram mais leves por essas faltas
+      if (proximos.length === 0 || JSON.parse(proximos[0].plan).maisLeve) return 0
+      const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 }
+      db.exec('BEGIN')
+      try {
+        for (const row of proximos) {
+          const { partes, plano } = lightenTraining(rules, athlete, { partes: JSON.parse(row.parts), plano: JSON.parse(row.plan) }, regra.comoDiminuir)
+          const f = legacyFields(partes)
+          replaceTraining.run(JSON.stringify(partes), JSON.stringify(plano), f.warmUp, f.speed, f.mainSeries, f.release, row.id, userId)
+        }
+        db.exec('COMMIT')
+      } catch (err) {
+        db.exec('ROLLBACK')
+        throw err
+      }
+      return proximos.length
+    },
+
+    // Teste de 400 m planejado (o de quem não tinha tempo) que o atleta ainda não disse
+    // se vai fazer. Devolve { id, date } ou null.
+    plannedTest(userId, today = new Date().toISOString().slice(0, 10)) {
+      for (const row of upcomingWithPlan.all(userId, today)) {
+        const plano = JSON.parse(row.plan)
+        if (plano.tipoDeTeste === 'semTempo' && !plano.testeConfirmado) {
+          return { id: row.id, date: findTrainingRow.get(row.id, userId).date }
+        }
+      }
+      return null
+    },
+
+    // POST /api/trainings/:id/planned-test { fazer: true | false }
+    // O atleta registrou um tempo e tinha um teste planejado: vai fazer o teste? Sim: o
+    // teste fica. Não: no lugar entra um treino normal da etapa (sem repetir as séries
+    // do treino anterior nem do seguinte).
+    async answerPlannedTest(req, res, { id }) {
+      const user = requireUser(req)
+      const { fazer } = await readJson(req)
+      if (typeof fazer !== 'boolean') throw new HttpError(400, 'Responda se vai fazer o teste.')
+      const row = findTrainingRow.get(parseId(id), user.id)
+      const plano = row?.plan ? JSON.parse(row.plan) : null
+      if (!row || row.completed_at || !plano?.diaDeTeste) throw new HttpError(404, 'Teste planejado não encontrado.')
+      if (fazer) {
+        setPlan.run(JSON.stringify({ ...plano, testeConfirmado: true }), row.id, user.id)
+        return sendJson(res, 200, { mantido: true })
+      }
+      const entrada = periodizationInput(user.id, row.date)
+      const vizinhos = [trainingNear.get(user.id, row.date), trainingAfter.get(user.id, row.date)]
+        .flatMap((r) => (r ? [...seriesUsadas(JSON.parse(r.parts))] : []))
+      const [novo] = generateTrainings({
+        ...entrada, dias: 1, semTeste: true, seriesAnteriores: vizinhos,
+        periodizacao: { ...entrada.periodizacao, numeroInicial: plano.numero ?? 1 },
+      })
+      if (!novo || novo.date !== row.date) throw new HttpError(409, 'Não deu para montar um treino nesse dia.')
+      const f = legacyFields(novo.partes)
+      replaceTraining.run(JSON.stringify(novo.partes), JSON.stringify(novo.plano), f.warmUp, f.speed, f.mainSeries, f.release, row.id, user.id)
+      sendJson(res, 200, { mantido: false })
     },
 
     // Depois de concluir um treino: se os últimos 3 seguidos saíram do esperado,

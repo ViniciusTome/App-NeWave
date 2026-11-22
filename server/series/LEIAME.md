@@ -470,7 +470,7 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
 
   | Etapa | Dias | O que tem |
   |---|---|---|
-  | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), intervalos maiores: +1' entre as séries e +10" de descanso |
+  | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), descanso maior entre as repetições (+10"); o intervalo entre as séries continua 2' |
   | Acumulação 2 | 14 a 45 | Séries aeróbicas A1/A2, intervalos ajustados (os normais) |
   | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 85% |
   | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 85% |
@@ -544,8 +544,16 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 - **Iniciante com equipamento:** a saída não diminui com pé de pato ou palmar. O card mostra um aviso: se fizer muito abaixo do tempo proposto, descanse o tempo de descanso antes da próxima.
 - **AC (acima do melhor):** nos 400, melhor tempo do teste + o AC. Nas outras distâncias, o melhor tempo é **estimado pela tabela de percentuais** a partir do A1: melhor = tempo do A1 ÷ (1 + (100 − esforço do A1) ÷ 100). Ex. (avançado, A1 a 75%): 100 m A1 1'30" → melhor 1'12"; 10 AC = 1'22" + 25" = **cd 1'45"**.
 - **NEG, POS e final forte:** tempo do A2 + **20" a 30"** (usa 25") nos 50 e 100 m. Nas outras distâncias, a tabela de descanso.
-- **Velocidade:** avançado nos 25 m **cd 30"**. Intermediário (e nas outras distâncias): **1/1**, descansa o mesmo tempo que nada; o tempo forte vem do melhor dos 50 estimado (proporcional à distância).
+- **Velocidade:** avançado nos 25 m **cd 30"** (25" na Realização). Nos outros casos: o tempo forte (melhor dos 50 estimado, proporcional à distância) **+ 20" a 30" de descanso**; sem tempo, `c/20" a 30" de descanso`. **Nunca 1/1.**
+- **Estilo da velocidade:** a série "livre" vai com o estilo escrito no card (CR, CO, PE, BO), sorteado entre os que o atleta nada (crawl com o dobro de chance). As que têm medley ou estilos continuam com eles.
 - **Grupos** (ex.: 3x(1x100; 2x75; 3x50; 4x25)): cada distância com a sua saída. Se a saída é a mesma em todas as séries, vai na linha da distância; se muda, vai na linha de cada série (`100 cd 1'45" / 75 cd 1'30" / ...`).
+
+### Tempo novo nos treinos já montados
+
+Quando o atleta registra um **teste de 400 m** (ou apaga um), os treinos que ele **ainda não fez** são reescritos com os tempos atuais: o **cd**, o ritmo (A1, A2, A3 no lugar de "ritmo leve...") e a saída da velocidade. **As séries, o material e as intensidades não mudam.** Para isso, cada treino guarda no plano interno como cada parte foi montada (`plano.montagem`).
+
+- **Teste planejado:** se o atleta não tinha tempo, ele tem um teste de 400 m planejado (depois de 1 mês). Ao registrar um tempo, o app pergunta se ele **vai fazer esse teste**. **Sim:** o teste fica (ele pode ter colocado o tempo por curiosidade ou como estimativa), e os tempos novos continuam entrando nos treinos. **Não:** no lugar entra um treino normal da etapa, sem repetir as séries do treino anterior nem do seguinte.
+- **Evolução dos tempos vazia de novo** (apagou todos os testes e não informou tempo na anamnese): os treinos não feitos voltam ao **planejamento sem tempos** (descanso no lugar do cd, ritmo por extenso, sem AC e o teste depois de 1 mês).
 
 ### Sem tempos de referência (sem teste de 400 m)
 
@@ -577,6 +585,13 @@ O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, 
 - O intervalo entre as séries da série principal vai no cabeçalho (`c/2'`).
 
 Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
+
+### Treinos sem resposta e faltas
+
+- **Ao abrir o app**, se algum treino passou da data sem resposta (dos últimos 21 dias), aparece a pergunta: **"Você fez este treino?"** (às vezes ele só esqueceu de clicar em "Concluir treino"). Um treino: "Sim, fiz" leva às perguntas da série principal; "Não fiz" marca a falta. Vários: uma lista para marcar "Fiz" ou "Não fiz" em cada um.
+- **Faltas** deixam os próximos treinos **mais leves** (só as intensidades; as séries e o material ficam). Quem treina mais vezes por semana perde menos, então a regra vale só para quem treina **até 3 vezes por semana** (`faltas` no `regras.json`):
+  - **Iniciante e intermediário:** mais de 3 faltas seguidas deixam os **próximos 2 treinos** mais leves: cada intensidade **desce um degrau** (A3 vira A2, A2 vira A1; AC, NEG, POS e final forte viram A2).
+  - **Avançado:** **3 dias ou mais sem treinar** (contando do último treino feito) deixam o **primeiro treino da volta** mais leve: **só o A3 sai** (vira A2, e o AC de 10" ou menos também); o resto fica como estava.
 
 ### Teste de estresse
 

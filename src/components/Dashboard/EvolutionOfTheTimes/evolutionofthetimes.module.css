@@ -305,3 +305,20 @@
     clip: rect(0 0 0 0);
     white-space: nowrap;
 }
+
+/* Pergunta do teste planejado (na janela, fundo claro) */
+.form .secondaryButton {
+    font: inherit;
+    font-weight: 700;
+    border: 1px solid #1d6fb8;
+    border-radius: 8px;
+    padding: 10px 16px;
+    background-color: #ffffff;
+    color: #1d6fb8;
+    cursor: pointer;
+}
+
+.form .secondaryButton:disabled {
+    opacity: 0.6;
+    cursor: default;
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api, notifyAthleteChanged } from '../../../services/api'
+import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../../services/api'
 import { todayIso } from '../../../utils/format'
 import styles from './evolutionofthetimes.module.css'
 
@@ -26,7 +26,7 @@ export const AddTestForm = ({ defaultDistance, onSaved }) => {
         setError('')
         setIsSubmitting(true)
         try {
-            const { test } = await api('/tests', {
+            const { test, testePlanejado } = await api('/tests', {
                 method: 'POST',
                 body: {
                     distance: Number(form.get('distance')),
@@ -34,9 +34,11 @@ export const AddTestForm = ({ defaultDistance, onSaved }) => {
                     date: form.get('date'),
                 },
             })
-            onSaved(test)
-            // Um teste novo (de 400 m) muda a tabela de tempos e o nível
+            onSaved(test, testePlanejado)
+            // Um teste novo (de 400 m) muda a tabela de tempos e o nível, e os treinos
+            // que ainda não foram feitos ganham os tempos (cd)
             notifyAthleteChanged()
+            notifyTrainingsChanged()
         } catch (err) {
             setError(err.message)
             setIsSubmitting(false)

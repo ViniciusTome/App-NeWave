@@ -115,8 +115,8 @@ export function saidaFor(rules, athlete, bloco, valor) {
     return de5em5(nado + descanso)
 }
 
-// Saída da velocidade: avançado nos 25 m a cada 30"; nos outros casos 1/1
-// (o tempo forte estimado + o mesmo tempo de descanso).
+// Saída da velocidade: avançado nos 25 m a cada 30"; nos outros casos o tempo forte
+// estimado + 20" a 30" de descanso (nunca 1/1).
 export function saidaVelocidade(rules, athlete, bloco) {
     const cfg = rules.saidas?.velocidade
     if (!cfg) return null
@@ -128,7 +128,8 @@ export function saidaVelocidade(rules, athlete, bloco) {
     const melhor50 = bestTimeFor(rules, athlete, 50)
     if (melhor50 === null) return null
     const nado = (melhor50 * bloco.distancia) / 50
-    return Math.max(5, de5em5(nado * (1 + (cfg.descansoPorNado ?? 1))))
+    const [de, ate] = cfg.descanso ?? [20, 30]
+    return de5em5(nado + (de + ate) / 2)
 }
 
 // Sem tempos de referência (sem teste de 400 m) não dá para montar a saída:
@@ -210,6 +211,16 @@ function ajustarAoA1(rules, valores, saidas, saidaA1, fase, distancia) {
         if (!porIntensidade && saidaA1 - s <= igualarAte) return saidaA1
         return s
     })
+}
+
+// Velocidade escrita como "livre": o atleta precisa saber o que nadar. Sorteia o estilo
+// entre os que ele nada (crawl com mais chance) e escreve no card (CR, CO, PE, BO).
+export function withSpeedStroke(rules, variation, athlete, random = Math.random) {
+    if (variation.nado !== 'livre' || variation.nados || variation.porSerie || variation.nadoAbrev) return variation
+    const pesoCrawl = rules.saidas?.velocidade?.pesoDoCrawl ?? 2
+    const nados = (athlete.strokes?.length ? athlete.strokes : ['crawl']).map((n) => ({ item: n, peso: n === 'crawl' ? pesoCrawl : 1 }))
+    const nado = weightedPick(nados, random)
+    return { ...variation, nadoAbrev: NADO_ABREV[nado] ?? nado }
 }
 
 // Séries com (2x), (3x), (4x)...: cada série com um material diferente da anterior e
@@ -386,8 +397,8 @@ const intervalAbbrev = (faixa) =>
 // `intervalo` = { min, max } do intervalo entre as séries (ou null).
 export function cardText(serie, variation, intervalo = null, intensidades = null, saidas = null) {
     const c = intervalAbbrev(intervalo)
-    const nadoDaSerie = variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
-        ? null : abbreviate(variation.texto.slice(serie.texto.length).split(' · ')[1] ?? '')
+    const nadoDaSerie = variation.nadoAbrev ?? (variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
+        ? null : abbreviate(variation.texto.slice(serie.texto.length).split(' · ')[1] ?? ''))
     // Material igual em todas as séries: vai no cabeçalho, uma vez só
     const seriesIguais = variation.series?.every((m) => m.join('+') === variation.series[0].join('+'))
     const materialDaSerie = ['serie_inteira', 'obrigatorio'].includes(variation.padrao) || seriesIguais
@@ -443,7 +454,12 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     const porSerie = materialPorSerie || variation.nados || variation.porSerie || (I?.unidade === 'serie' ? I.valores : null)
     if (!porSerie) {
         // Sem intensidade (velocidade): a saída, quando tem
-        if (!I) return [abbreviate(withMeters(variation.texto)), cd, c].filter(Boolean).join(' · ')
+        if (!I) {
+            // O estilo (velocidade) logo depois da série: "8 x 25 m forte · CR · c/PÉ"
+            const texto = abbreviate(withMeters(variation.texto))
+            const comNado = variation.nadoAbrev ? texto.replace(base, `${base} · ${variation.nadoAbrev}`) : texto
+            return [comNado, cd, c].filter(Boolean).join(' · ')
+        }
         if (porRepeticao) {
             // 5 x 400 m · c/PÉ + PALM
             // 1º: A1 · cd 6'50"
@@ -743,6 +759,8 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const escolha = escolhas.get(i)
         if (!escolha) return // nenhuma série da biblioteca serve para esse atleta
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
+        // Velocidade "livre": o estilo vai escrito (sorteado entre os que o atleta nada)
+        if (parte === 'velocidade') escolha.variation = withSpeedStroke(rules, escolha.variation, athlete, random)
         // (2x), (3x), (4x)...: um material diferente em cada série, sem repetir em seguida
         escolha.variation = rotateSetMaterials(rules, parte, escolha.serie, escolha.variation, escolha.intensidades, athlete, random)
         // Intervalo entre as séries (Acumulação 1: maior)
@@ -750,25 +768,19 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const extra = parte === 'principal' ? athlete.intervaloExtra ?? 0 : 0
         const faixaDoDia = faixa && extra ? { min: faixa.min + extra, max: faixa.max + extra } : faixa
         const intervalo = intervalText(faixaDoDia)
-        let saidas = parte === 'velocidade'
-            ? (escolha.serie.blocos.length === 1 ? [saidaVelocidade(rules, athlete, escolha.serie.blocos[0])] : null)
-            : saidasDaSerie(rules, athlete, escolha.serie, escolha.intensidades, athlete.fase ?? null)
-        const aviso = avisoComEquipamento(rules, athlete, escolha, saidas)
-        // Sem tempos de referência: o descanso no lugar da saída (velocidade: 1/1)
-        if (!athlete.tabela) {
-            saidas = parte === 'velocidade'
-                ? (saidas?.[0] ? saidas : ['1/1'])
-                : descansosDaSerie(rules, athlete, escolha.serie, escolha.intensidades)
-        }
+        // Como a parte foi montada (fica no plano interno): com um tempo novo, o texto é
+        // refeito (cd, ritmo, velocidade) sem mudar a série
+        const montagem = partMontage(parte, escolha.serie, escolha.variation, faixaDoDia, escolha.intensidades, athlete)
+        const { texto, aviso } = renderPart(rules, athlete, montagem)
         partes.push({
             parte,
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
             serieId: escolha.serie.id,
             serieTexto: escolha.serie.texto,
             ...(escolha.serie.familia && { serieFamilia: escolha.serie.familia }),
-            texto: cardText(escolha.serie, escolha.variation, faixaDoDia,
-                comoMostrar(rules, athlete, escolha.intensidades), saidas),
+            texto,
             ...(aviso && { aviso }),
+            _montagem: montagem,
             ...(escolha.intensidades && { intensidades: escolha.intensidades }),
             ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,
@@ -779,6 +791,111 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         })
     })
     return partes
+}
+
+// ---------- Montagem guardada (para refazer o texto com um tempo novo) ----------
+
+// O que é preciso para escrever o card de novo: a série (como saiu), a variação
+// (material, estilos), o intervalo, as intensidades e as regras do dia (etapa).
+function partMontage(parte, serie, variation, faixa, intensidades, athlete) {
+    const { id, texto, vezes, blocos, exigePe, materialPorSerie, familia, observacao } = serie
+    return {
+        parte,
+        serie: { id, texto, ...(vezes && { vezes }), blocos, ...(exigePe && { exigePe }), ...(materialPorSerie && { materialPorSerie }),
+            ...(familia && { familia }), ...(observacao && { observacao }) },
+        variation,
+        faixa: faixa ?? null,
+        intensidades: intensidades ?? null,
+        dia: {
+            fase: athlete.fase ?? null, descansoExtra: athlete.descansoExtra ?? 0, velocidade25: athlete.velocidade25 ?? null,
+        },
+    }
+}
+
+// Escreve o texto do card de uma parte montada: saídas (cd) quando o atleta tem
+// tempos; sem tempos, o descanso e o ritmo por extenso. Devolve { texto, aviso }.
+export function renderPart(rules, athlete, montagem) {
+    const { parte, variation, faixa, intensidades } = montagem
+    const doDia = { ...athlete, ...montagem.dia }
+    const serie = describe(montagem.serie)
+    let saidas = parte === 'velocidade'
+        ? (serie.blocos.length === 1 ? [saidaVelocidade(rules, doDia, serie.blocos[0])] : null)
+        : saidasDaSerie(rules, doDia, serie, intensidades, doDia.fase ?? null)
+    const aviso = avisoComEquipamento(rules, doDia, { variation, intensidades }, saidas)
+    // Sem tempos de referência: o descanso no lugar da saída (velocidade: 20" a 30")
+    if (!doDia.tabela) {
+        const [de, ate] = rules.saidas?.velocidade?.descanso ?? [20, 30]
+        saidas = parte === 'velocidade'
+            ? (saidas?.[0] ? saidas : [`c/${de}" a ${ate}" de descanso`])
+            : descansosDaSerie(rules, doDia, serie, intensidades)
+    }
+    return { texto: cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas), aviso }
+}
+
+// Treino mais leve depois de faltas. `como` = 'degrau' (iniciante e intermediário):
+// cada intensidade desce um degrau (A3 -> A2, A2 -> A1; AC, NEG, POS e final forte -> A2);
+// 'tirarA3' (avançado): só o A3 (e o AC de 10" ou menos, que conta como A3) vira A2.
+// As séries e o material não mudam. `treino` = { partes, plano } como guardado.
+// Devolve { partes, plano }.
+export function lightenTraining(rules, athlete, treino, como = 'degrau') {
+    const degrau = (v) => (v === 'A3' ? 'A2' : v === 'A2' || v === 'A1' ? 'A1' : 'A2')
+    const semA3 = (v) => (v === 'A3' || /^([1-9]|10) AC$/.test(v) ? 'A2' : v)
+    const desce = como === 'tirarA3' ? semA3 : degrau
+    const pronto = prepareAthlete(rules, athlete)
+    const montagem = (treino.plano?.montagem ?? []).map((m) => (m?.intensidades
+        ? {
+            ...m,
+            intensidades: {
+                ...m.intensidades,
+                // Só muda o tipo se algum valor mudou para A1/A2 (ex.: AC que virou A2)
+                tipo: m.intensidades.valores.some((v) => desce(v) !== v && !/^A[123]$/.test(v)) ? 'intensidades' : m.intensidades.tipo,
+                valores: m.intensidades.valores.map(desce),
+            },
+        }
+        : m))
+    const partes = treino.partes.map((p, i) => {
+        const m = montagem[i]
+        if (!m?.intensidades) return p
+        const { texto, aviso } = renderPart(rules, pronto, m)
+        const { aviso: _antigo, ...resto } = p
+        return { ...resto, texto, intensidades: m.intensidades, ...(aviso && { aviso }) }
+    })
+    const intensidade = treino.plano?.intensidade ? desce(treino.plano.intensidade) : null
+    return {
+        partes,
+        plano: {
+            ...treino.plano, montagem, maisLeve: true, intensidade,
+            esforcoEsperado: rules.feedback?.esforcoEsperado?.[intensidade] ?? treino.plano?.esforcoEsperado,
+        },
+    }
+}
+
+// O atleta pronto para gerar ou reescrever os treinos: tabela de tempos (teste de
+// 400 m ou o tempo informado) e o tempo de treino do nível.
+export function prepareAthlete(rules, athlete) {
+    const tempo400 = athlete.time400?.hundredths
+    let pronto = tempo400
+        ? { ...athlete, tabela: timeTable(rules, tempo400 / 100), teste400: tempo400 / 100 }
+        : { ...athlete, tabela: null, teste400: null }
+    const maximo = rules.niveis[athlete.level]?.maxMinutosDeTreino
+    if (maximo && athlete.sessionMinutes > maximo) {
+        pronto = { ...pronto, aulaMinutos: athlete.sessionMinutes, sessionMinutes: maximo }
+    }
+    return pronto
+}
+
+// Reescreve os treinos já montados com os tempos atuais do atleta (ex.: registrou o
+// teste de 400 m): só o texto muda (cd, ritmo, velocidade); as séries ficam as mesmas.
+// `treino` = { partes, plano } como guardado. Devolve as partes novas.
+export function refreshTimes(rules, athlete, treino) {
+    const pronto = prepareAthlete(rules, athlete)
+    return treino.partes.map((p, i) => {
+        const montagem = treino.plano?.montagem?.[i]
+        if (!montagem) return p
+        const { texto, aviso } = renderPart(rules, pronto, montagem)
+        const { aviso: _antigo, ...resto } = p
+        return { ...resto, texto, ...(aviso && { aviso }) }
+    })
 }
 
 // Treino do teste de 400 m (quando o atleta ainda não tem tempos de referência):
@@ -817,11 +934,11 @@ function buildTestTraining({ rules, library, athlete, pace, random, recentes }) 
         const segundos = estimateSeconds(rules, 'principal', serie, variation, athlete, pace)
         if (segundos > livres || segundos < (cfg.minimoDeMinutos ?? 0) * 60) continue
         livres -= segundos
-        const saidas = athlete.tabela ? saidasDaSerie(rules, athlete, serie, intensidades, athlete.fase ?? null)
-            : descansosDaSerie(rules, athlete, serie, intensidades)
+        const montagem = partMontage('recuperacao', serie, variation, null, intensidades, athlete)
         partes.push({
             parte: 'recuperacao', titulo: 'Para recuperar', serieId: serie.id,
-            texto: cardText(serie, variation, null, comoMostrar(rules, athlete, intensidades), saidas),
+            texto: renderPart(rules, athlete, montagem).texto,
+            _montagem: montagem,
             intensidades, nado: 'livre', material, metros: serie.volume, minutos: Math.round(segundos / 60),
         })
     }
@@ -1081,12 +1198,13 @@ export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana 
 // `historico` = treinos feitos, com o feedback e o plano interno (para ajustar os próximos).
 // `fatorDoProximo` = tempo da principal do próximo treino já montado (para o feedback
 // não ajustar duas vezes pelos mesmos treinos).
+// `semTeste` = nenhum dia de teste (ex.: o atleta disse que não vai fazer o teste planejado).
 // `periodizacao` = { inicio, fim, testeNaTransicao, numeroInicial, provas, semProva }: gera todos os
 // treinos até o fim, cada um com a sua fase. `provas` = datas das provas importantes no
 // meio da preparação (o volume cai na semana delas). Sem ela, gera `dias` dias, sem fase.
 export function generateTrainings({
     rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
-    inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null,
+    inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null, semTeste = false,
 }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
@@ -1094,13 +1212,8 @@ export function generateTrainings({
     // tempo informado na anamnese) não há tempos de referência: o card mostra o
     // descanso no lugar da saída e, depois de 1 mês de treino, entra o teste.
     const semReferencia = !athlete.time400?.hundredths
-    athlete = semReferencia ? { ...athlete, tabela: null, teste400: null }
-        : { ...athlete, tabela: timeTable(rules, tempo400 / 100), teste400: tempo400 / 100 }
     // Tempo de treino: o da aula, até o máximo do nível (iniciante nada no máximo 50 min)
-    const maximo = rules.niveis[athlete.level]?.maxMinutosDeTreino
-    if (maximo && athlete.sessionMinutes > maximo) {
-        athlete = { ...athlete, aulaMinutos: athlete.sessionMinutes, sessionMinutes: maximo }
-    }
+    athlete = prepareAthlete(rules, athlete)
     // Feedback dos últimos treinos: carga, foco (respiração ou força) e o tempo da principal
     const ajuste = feedbackAdjustment(rules, athlete, historico, fatorDoProximo)
     athlete = { ...athlete, foco: ajuste.foco }
@@ -1182,14 +1295,17 @@ export function generateTrainings({
             : ajuste.fatorPrincipal) * volume * volumeDaProva(date) * 100) / 100
         // Teste de quem não tem tempo (depois de 1 mês) e o teste da periodização (no
         // começo da Transição). Quem não nada 400 m sem parar não faz teste (condicionamento).
-        const testeSemTempo = semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe
-        const testeNaTransicao = periodizacao?.testeNaTransicao && !semReferencia && !condicionamento &&
+        const testeSemTempo = !semTeste && semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe
+        const testeNaTransicao = !semTeste && periodizacao?.testeNaTransicao && !semReferencia && !condicionamento &&
             !testeDaPeriodizacao && fase === 'transicao'
         if (testeSemTempo) testeMarcado = true
         if (testeNaTransicao) testeDaPeriodizacao = true
         const partes = testeSemTempo || testeNaTransicao
             ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
             : buildTraining({ rules, library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
+        // A montagem de cada parte vai para o plano interno (o atleta não recebe)
+        const montagem = partes.map((p) => p._montagem ?? null)
+        partes.forEach((p) => delete p._montagem)
         bloqueadas = seriesUsadas(partes)
         recentes.fecharTreino()
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
@@ -1218,12 +1334,15 @@ export function generateTrainings({
                 minutosPrincipal: principais.reduce((s, p) => s + p.minutos, 0),
                 tipoPrincipal: principais.map((p) => p.intensidades?.tipo ?? null),
                 diaDeTeste,
+                // Qual teste: o de quem não tem tempo (depois de 1 mês) ou o da periodização
+                ...(diaDeTeste && { tipoDeTeste: testeSemTempo ? 'semTempo' : 'periodizacao' }),
                 recuperacao: Boolean(recuperacao),
                 material: [...new Set(principais.flatMap((p) => p.material ?? []))],
                 fatorPrincipal,
                 carga: ajuste.carga,
                 foco: ajuste.foco,
                 condicionamento,
+                montagem,
             },
         }
     })

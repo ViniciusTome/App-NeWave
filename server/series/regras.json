@@ -167,8 +167,8 @@
     "etapas": {
       "acumulacao1": {
         "nome": "Acumulação 1", "fase": "acumulacao", "dias": [14, 45],
-        "objetivo": "Séries aeróbicas A1/A2, com intervalos maiores",
-        "tipos": { "intensidades": 100 }, "semA3": true, "intervaloExtra": 60, "descansoExtra": 10, "volume": 1
+        "objetivo": "Séries aeróbicas A1/A2, com descanso maior entre as repetições (+10 segundos); o intervalo entre as séries é o normal (2')",
+        "tipos": { "intensidades": 100 }, "semA3": true, "descansoExtra": 10, "volume": 1
       },
       "acumulacao2": {
         "nome": "Acumulação 2", "fase": "acumulacao", "dias": [14, 45],
@@ -196,6 +196,13 @@
         "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": [0.85, 0.6], "velocidadeAvancado25": 25
       }
     }
+  },
+  "faltas": {
+    "_comentario": "Treino que passou da data sem resposta: ao abrir o app, o atleta diz se fez ou não. Faltas deixam as intensidades mais leves (as séries não mudam). 'comoDiminuir': 'degrau' = cada intensidade desce um degrau (A3 -> A2, A2 -> A1; AC, NEG, POS e final forte -> A2); 'tirarA3' = só o A3 (e o AC de 10 segundos ou menos) vira A2. Quem treina mais vezes por semana perde menos: a regra vale só até 'ateTreinosPorSemana'. Iniciante e intermediário: mais de 'faltasSeguidasMaisQue' faltas seguidas deixam os próximos 'treinosMaisLeves' treinos mais leves. Avançado: 'diasSemTreinar' dias ou mais sem treinar deixam o primeiro treino da volta mais leve.",
+    "perguntarDosUltimosDias": 21,
+    "iniciante": { "ateTreinosPorSemana": 3, "faltasSeguidasMaisQue": 3, "treinosMaisLeves": 2, "comoDiminuir": "degrau" },
+    "intermediario": { "ateTreinosPorSemana": 3, "faltasSeguidasMaisQue": 3, "treinosMaisLeves": 2, "comoDiminuir": "degrau" },
+    "avancado": { "ateTreinosPorSemana": 3, "diasSemTreinar": 3, "treinosMaisLeves": 1, "comoDiminuir": "tirarA3" }
   },
   "condicionamento": {
     "_comentario": "Quem não nada 400 m sem parar: não faz teste; a metragem da série principal vai aumentando devagar ('fatorInicial' do tempo da principal, + 'aumentoPorTreino' a cada treino, até 'fatorMaximo') até ele conseguir nadar 400 m sem parar.",
@@ -259,8 +266,8 @@
     "maximoAcimaDoA1": 20,
     "_comentarioRitmos": "NEG, POS e final forte: tempo do A2 + 20\" a 30\" de descanso nos 50 e 100 m (nas outras distâncias, a tabela de descanso).",
     "negPosFinalForte": { "ateMetros": 100, "descanso": [20, 30] },
-    "_comentarioVelocidade": "Velocidade: avançado nos 25 m sai a cada 30\" (25\" para forçar mais); nos outros casos 1/1 (descansa o mesmo tempo que nada). O tempo forte é o melhor estimado pela tabela de percentuais.",
-    "velocidade": { "avancado": { "25": 30 }, "descansoPorNado": 1 }
+    "_comentarioVelocidade": "Velocidade: avançado nos 25 m sai a cada 30\" (25\" na Realização); nos outros casos o tempo forte (melhor estimado pela tabela de percentuais) + 20\" a 30\" de descanso. Sem tempo: 'c/20\" a 30\" de descanso'. Nunca 1/1. O estilo da velocidade é sorteado entre os que o atleta nada (crawl com o dobro de chance).",
+    "velocidade": { "avancado": { "25": 30 }, "descanso": [20, 30], "pesoDoCrawl": 2 }
   },
   "tabelaDeTempos": {
     "50": { "divisor": 8, "ajustes": { "A1": [-3, -2], "A2": [-5, -4], "A3": [-7, -6] } },
