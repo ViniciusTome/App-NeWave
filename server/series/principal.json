@@ -281,10 +281,11 @@
   },
   {
     "id": "pri-cond-2x4x75-pe-palmar",
-    "texto": "(2x) 4 x 75 com pé de pato e palmar",
+    "texto": "(2x) 4 x 75",
     "paraQuemNadaAte": 200,
+    "materialPorSerie": [["pe_de_pato", "palmar"], ["pe_de_pato"]],
     "blocos": [
-      { "repeticoes": 4, "distancia": 75, "nado": "livre", "material": ["pe_de_pato", "palmar"], "vezes": 2 }
+      { "repeticoes": 4, "distancia": 75, "nado": "livre", "vezes": 2 }
     ]
   },
   {

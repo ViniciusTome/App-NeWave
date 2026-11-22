@@ -170,9 +170,11 @@ export function validate(series) {
         }
         // Material de cada série do (2x), (3x)...: [[], ["pe_de_pato"]] = 1ª nadando, 2ª com pé de pato
         if (serie.materialPorSerie !== undefined) {
-            const ok = Array.isArray(serie.materialPorSerie) && serie.materialPorSerie.length === (serie.vezes ?? 0) &&
+            // Quantas séries: o "vezes" da série (grupo) ou o do bloco (um bloco só)
+            const series = serie.vezes ?? (serie.blocos?.length === 1 ? serie.blocos[0].vezes : 0) ?? 0
+            const ok = Array.isArray(serie.materialPorSerie) && serie.materialPorSerie.length === series &&
                 serie.materialPorSerie.every((m) => Array.isArray(m) && m.every((x) => MATERIAIS.includes(x)))
-            if (!ok) report('"materialPorSerie" precisa ter o material de cada série do "vezes", ex.: [[], ["pe_de_pato"]].')
+            if (!ok) report('"materialPorSerie" precisa ter o material de cada série do "vezes" (da série ou do bloco), ex.: [[], ["pe_de_pato"]].')
         }
         // Séries parecidas (ex.: 4, 5 e 6 x 150 com pé de pato e palmar) contam como a mesma
         // para não repetir em treinos seguidos

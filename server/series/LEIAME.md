@@ -175,7 +175,7 @@ Nas séries com várias séries (ex.: (3x) 4 x 50, (4x) 4 x 100), **cada série 
 - **Iniciante e intermediário** começam **nadando** quase sempre (85%) e vão colocando ou trocando material, porque têm menos condicionamento. O avançado começa nadando em 30% das vezes.
 - Série com **A3** continua com pé de pato.
 - Feedback "faltou força": a escolha puxa para palmar e palmar + pull buoy.
-- Séries com o material escrito no JSON (ex.: (2x) 4 x 75 com pé de pato e palmar) e as repetições longas com material obrigatório ficam como estão.
+- Séries com o material escrito no JSON ficam como estão. Para escolher o material de cada série, use `materialPorSerie` (ex.: a (2x) 4 x 75 do condicionamento: 1ª c/PÉ + PALM, 2ª c/PÉ). As repetições longas com material obrigatório também ficam como estão.
 
 ### Não repetir a série no treino seguinte
 
@@ -443,7 +443,7 @@ Fica em `condicionamento` no `regras.json`.
 
 - **Não faz o teste de 400 m** (nem o de 1 mês, nem o da periodização) enquanto não nadar 400 m sem parar.
 - **A metragem da série principal aumenta devagar:** começa com 70% do tempo normal da principal e ganha 2% a cada treino, até 100%. O feedback pode frear ou acelerar (veja abaixo).
-- **Séries do condicionamento** (`pri-cond-...` na biblioteca, só para quem nada até 200 m sem parar): (2x) 4 x 75 com pé de pato e palmar; 8 x 25, (2x) 8 x 25, 16 x 25 e (4x) 4 x 25 (as de velocidade, sempre em ritmo leve); (2x) 1 x 100, 1 x 75, 1 x 50, 1 x 25 (1ª série nadando, 2ª com pé de pato); (2x) 1 x 100, 2 x 50; 4, 5 e 6 x 150 com pé de pato e palmar. A (3x) 4 x 50 já vem da (4x) 4 x 50.
+- **Séries do condicionamento** (`pri-cond-...` na biblioteca, só para quem nada até 200 m sem parar): (2x) 4 x 75 (1ª série c/PÉ + PALM, 2ª c/PÉ); 8 x 25, (2x) 8 x 25, 16 x 25 e (4x) 4 x 25 (as de velocidade, sempre em ritmo leve); (2x) 1 x 100, 1 x 75, 1 x 50, 1 x 25 (1ª série nadando, 2ª com pé de pato); (2x) 1 x 100, 2 x 50; 4, 5 e 6 x 150 com pé de pato e palmar. A (3x) 4 x 50 já vem da (4x) 4 x 50.
 
 ### Feedback do atleta
 
