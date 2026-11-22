@@ -31,6 +31,7 @@ export const Training = ({ training }) => {
                         <h3>{parte.titulo}</h3>
                         <p className={styles.text}>{parte.texto}</p>
                         {parte.observacao && <p className={styles.note}>{parte.observacao}</p>}
+                        {parte.aviso && <p className={styles.note}>⚠️ {parte.aviso}</p>}
                         {MOSTRAR_METRAGEM_E_TEMPO && parte.metros > 0 && (
                             <p className={styles.estimate}>{parte.metros} m · ~{parte.minutos} min</p>
                         )}

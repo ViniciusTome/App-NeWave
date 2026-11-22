@@ -1,6 +1,8 @@
 {
   "niveis": {
     "iniciante": {
+      "_comentario": "O iniciante nada no máximo 50 minutos, mesmo que a aula seja mais longa.",
+      "maxMinutosDeTreino": 50,
       "estruturas": [
         { "partes": ["aquecimento", "principal", "solto"] }
       ]
@@ -121,6 +123,45 @@
     "ritmoPorDistancia": {
       "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
     }
+  },
+  "testeNaPeriodizacao": {
+    "_comentario": "A FAZER com as fases do ATR. Teste de 400 m na troca da Acumulação para a Transição (na Realização está a prova alvo). Se a prova alvo é em piscina e de 400 m, o teste fica no fim da Realização. Só a partir da 2ª vez que o atleta usa o Gerar treinos.",
+    "quando": "inicio_transicao",
+    "excecao": { "modalidades": ["piscina_25", "piscina_50"], "prova": "400", "quando": "fim_realizacao" },
+    "aPartirDaGeracao": 2
+  },
+  "diaDoTeste": {
+    "_comentario": "Treino do teste de 400 m: aquecimento, teste, séries para recuperar (A1 com pé de pato) até completar a aula, e a soltura. Entram as que cabem, da maior para a menor. A técnica entra aqui quando tiver as séries de técnica.",
+    "completarCom": [
+      { "id": "teste-rec-10x100", "texto": "10 x 100", "blocos": [{ "repeticoes": 10, "distancia": 100, "nado": "livre" }] },
+      { "id": "teste-rec-10x50", "texto": "10 x 50", "blocos": [{ "repeticoes": 10, "distancia": 50, "nado": "livre" }] }
+    ],
+    "intensidade": "A1",
+    "material": ["pe_de_pato"],
+    "minimoDeMinutos": 6
+  },
+  "seriesAjustaveis": {
+    "_comentario": "Nas séries (2x), (3x), (4x)... o gerador escolhe quantas séries o atleta faz, para caber no tempo da aula: de 'minimo' até o número escrito + 'aumentarAte' do nível (sem passar de 'maximo'). O iniciante só diminui e pode fazer uma série só ('minimoPorNivel').",
+    "partes": ["aquecimento", "velocidade", "principal", "perna"],
+    "minimo": 2,
+    "minimoPorNivel": { "iniciante": 1 },
+    "maximo": 6,
+    "aumentarAte": { "iniciante": 0, "intermediario": 1, "avancado": 1 }
+  },
+  "naoRepetirNoTreinoSeguinte": {
+    "_comentario": "A mesma série nunca aparece em dois treinos seguidos nessas partes (mesmo com outra intensidade). Só repete se não houver outra série que sirva.",
+    "partes": ["aquecimento", "velocidade", "principal", "perna"]
+  },
+  "saidas": {
+    "_comentario": "Saída = tempo da intensidade + descanso. Em A2/A3 com saída até 'igualarAoA1Ate' segundos menor que a do A1, usa a do A1 (exceto nas fases de 'fasesComSaidaPorIntensidade'). Saída maior que a do A1 (iniciante, descanso maior no A3) fica no máximo 'maximoAcimaDoA1' segundos acima. Nas repetições de 300 m ou mais, 'igualarAoA1AteNasLongas'. PROVISÓRIO.",
+    "igualarAoA1Ate": 10,
+    "igualarAoA1AteNasLongas": { "aPartirDeMetros": 300, "segundos": 20 },
+    "fasesComSaidaPorIntensidade": ["transicao"],
+    "maximoAcimaDoA1": 20,
+    "_comentarioRitmos": "NEG, POS e final forte: tempo do A2 + 20\" a 30\" de descanso nos 50 e 100 m (nas outras distâncias, a tabela de descanso).",
+    "negPosFinalForte": { "ateMetros": 100, "descanso": [20, 30] },
+    "_comentarioVelocidade": "Velocidade: avançado nos 25 m sai a cada 30\" (25\" para forçar mais); nos outros casos 1/1 (descansa o mesmo tempo que nada). O tempo forte é o melhor estimado pela tabela de percentuais.",
+    "velocidade": { "avancado": { "25": 30 }, "descansoPorNado": 1 }
   },
   "tabelaDeTempos": {
     "50": { "divisor": 8, "ajustes": { "A1": [-3, -2], "A2": [-5, -4], "A3": [-7, -6] } },

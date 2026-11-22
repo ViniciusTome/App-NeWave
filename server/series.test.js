@@ -76,15 +76,16 @@ test('solto: 100 e 200 solto, com a observação do pull buoy', () => {
   }
 })
 
-test('principal: 25 séries, com a metragem calculada', () => {
+test('principal: as séries, com a metragem calculada', () => {
   const principal = loadPart('principal')
-  assert.equal(principal.length, 33)
+  assert.equal(principal.length, 34)
   const volume = (id) => byId(principal, id).volume
   assert.equal(volume('pri-2x10x100'), 2000)
   assert.equal(volume('pri-3x800'), 2400)
   assert.equal(volume('pri-4x3x200'), 2400)
   // Grupos que se repetem: (3x) 1 x 100, 2 x 75, 3 x 50, 4 x 25 = 3 x 500
   assert.equal(volume('pri-3x-100-75-50-25'), 1500)
+  assert.equal(volume('pri-3x-1x100-1x75-1x50-1x25'), 750)
   assert.equal(volume('pri-4x-100-75-100-25'), 2600)
   assert.equal(volume('pri-2x-200-50'), 800)
   assert.equal(volume('pri-2x-200-100-50'), 1200)

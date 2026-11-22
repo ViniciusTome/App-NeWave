@@ -156,6 +156,23 @@ Nos treinos com duas séries principais, **se a 1ª for de estilo, a 2ª é obri
 - Medley conta como estilo (não é só crawl).
 - Quem não nada nenhum estilo (borboleta, costas ou peito) faz as duas em crawl.
 
+### Número de séries (2x), (3x), (4x)...
+
+O número escrito é uma sugestão: o gerador escolhe **quantas séries** o atleta faz, para caber no tempo da aula. Vale para o aquecimento, a velocidade, a série principal e a perna (`seriesAjustaveis` no `regras.json`).
+
+- **Iniciante:** só **diminui** (ex.: (4x) 4 x 100 vira (3x) 4 x 100) e pode fazer **uma série só** (ex.: (2x) 10 x 100 vira 10 x 100).
+- **Intermediário e avançado:** podem fazer de (2x) até **1 série a mais** que o escrito (no máximo (6x)).
+- A metragem, as intensidades (A1/A2/A3...), o material e a mistura de estilos acompanham o número de séries.
+- Para a série ficar sempre como está escrita, tire a parte da lista `partes` ou mude `aumentarAte` e `minimo`.
+
+### Não repetir a série no treino seguinte
+
+A mesma série **nunca aparece em dois treinos seguidos** no aquecimento, na velocidade, na série principal e na perna, mesmo com outra intensidade (ex.: 5 x 400 m A1/A2/A3 num dia e 5 x 400 m 30 AC no outro). O primeiro treino gerado também não repete as séries do último treino do atleta. Só repete quando não existe outra série que sirva para o atleta. As partes ficam em `naoRepetirNoTreinoSeguinte` no `regras.json`. O solto e a soltura podem repetir.
+
+### Tempo máximo do iniciante
+
+O iniciante nada **no máximo 50 minutos**, mesmo que a aula seja mais longa: o treino é montado para 50 min. Para mudar, troque `maxMinutosDeTreino` em `niveis.iniciante` no `regras.json` (o mesmo campo pode ser usado nos outros níveis).
+
 ### Pausas
 
 ```json
@@ -429,6 +446,39 @@ Entre as séries de um `(2x)`, `(4x)`... o intervalo é **uma saída da repetiç
 
 As fases são `acumulacao`, `transicao` e `realizacao`.
 
+### Saída (cd)
+
+A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 5 em 5 segundos (para o mais perto). Aparece no card como `cd 1'50"`. Os números ficam em `saidas` no `regras.json`.
+
+- **A1, A2, A3:** o tempo vem da **tabela de tempos** (teste de 400 m). O descanso segue a tabela de descanso: por distância para o avançado e o intermediário, por intensidade para o iniciante e o recém-intermediário. Ex. (teste em 6'00", avançado): 100 m A1 = 1'30" + 25" = **cd 1'55"**.
+- **Perto do A1, fica a saída do A1:** se a saída do A2 ou do A3 é até 10" menor que a do A1 (20" nas repetições de 300 m ou mais), usa a do A1. Na fase de **Transição** cada intensidade fica com a sua. Enquanto a fase da temporada não é definida, vale a da Acumulação.
+- **Iniciante:** como o descanso do A3 é maior, a saída do A3 pode ficar acima da do A1, mas **no máximo 20" acima**. O A2 fica com a sua (ex.: 1'40" / 1'45" / 1'55").
+- **Iniciante com equipamento:** a saída não diminui com pé de pato ou palmar. O card mostra um aviso: se fizer muito abaixo do tempo proposto, descanse o tempo de descanso antes da próxima.
+- **AC (acima do melhor):** nos 400, melhor tempo do teste + o AC. Nas outras distâncias, o melhor tempo é **estimado pela tabela de percentuais** a partir do A1: melhor = tempo do A1 ÷ (1 + (100 − esforço do A1) ÷ 100). Ex. (avançado, A1 a 75%): 100 m A1 1'30" → melhor 1'12"; 10 AC = 1'22" + 25" = **cd 1'45"**.
+- **NEG, POS e final forte:** tempo do A2 + **20" a 30"** (usa 25") nos 50 e 100 m. Nas outras distâncias, a tabela de descanso.
+- **Velocidade:** avançado nos 25 m **cd 30"**. Intermediário (e nas outras distâncias): **1/1**, descansa o mesmo tempo que nada; o tempo forte vem do melhor dos 50 estimado (proporcional à distância).
+- **Grupos** (ex.: 3x(1x100; 2x75; 3x50; 4x25)): cada distância com a sua saída. Se a saída é a mesma em todas as séries, vai na linha da distância; se muda, vai na linha de cada série (`100 cd 1'45" / 75 cd 1'30" / ...`).
+
+### Sem tempos de referência (sem teste de 400 m)
+
+Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), não dá para montar a saída:
+
+- No lugar do `cd`, o card mostra o **descanso entre as repetições** (`c/20" de descanso`), pela tabela de descanso.
+- Na velocidade, o intermediário fica com **1/1**. O avançado nos 25 m continua com cd 30".
+- Não usa **AC**, porque o atleta ainda não sabe o melhor tempo.
+- O **primeiro treino é o teste**: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir, séries **para recuperar** e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
+- **Para recuperar:** 10 x 100 m e/ou 10 x 50 m em **A1 com pé de pato** (sem pé de pato, nadando), as que couberem no resto da aula, da maior para a menor. Ficam em `diaDoTeste` no `regras.json`. A **técnica** também vai entrar aqui quando tiver as séries de técnica.
+- Quem só **informou** o tempo na anamnese não ganha o teste agora: ele entra na periodização (veja abaixo).
+
+### Teste de 400 m na periodização (a fazer, junto com o ATR)
+
+Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m na troca da Acumulação (A) para a Transição (T)**. Não fica na Realização (R) porque lá está a prova alvo do atleta. Vale para todos, inclusive quem só informou o tempo na anamnese.
+
+- **Exceção:** se a prova alvo é **em piscina** (25 ou 50 m) e é **de 400 m**, o teste fica no **fim da Realização** (a própria prova).
+- **Só a partir da 2ª vez** que o atleta usa o "Gerar treinos". Na primeira periodização não tem esse teste.
+- Isso é diferente do teste do primeiro treino de quem **não tem nenhum tempo** (veja acima), que continua valendo sempre.
+- A regra fica em `testeNaPeriodizacao` no `regras.json`; o gerador passa a usar quando as fases do ATR existirem.
+
 ### Como a série aparece no card
 
 O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, MD, ME, NAD, c/PÉ, c/PALM, BOIA, SNK, PARA, PR), e o "m" entra depois das distâncias. Cada card tem um botão **Glossário** que mostra só os termos usados naquele treino; no **ME**, mostra o melhor estilo do atleta.
@@ -447,9 +497,10 @@ Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `de
 
 - **Metragem e tempo de cada parte no card** ("100 m · ~2 min"): escondidos para sobrar espaço. Para voltar a mostrar, troque `MOSTRAR_METRAGEM_E_TEMPO` para `true` em `src/components/Training/index.jsx`. O total do treino vai aparecer em outro lugar.
 
-- **Iniciante em treinos mais longos:** por enquanto, a mesma estrutura em qualquer tempo de aula.
 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
-- **Saída do 25 forte de cada atleta**: como calcular a partir do ritmo dele.
+- **Saída com pé de pato/palmar no intermediário e avançado:** hoje não muda com o material.
+- **Séries de técnica:** completar o dia do teste (e outros treinos) com técnica.
+- **Velocidade com cd 25":** quando forçar mais (ex.: na fase de Realização).
 - **Melhor estilo pelos testes**: comparar os tempos de cada estilo (hoje os testes não guardam o estilo).
 - **Mistura de nados com material**: por enquanto a mistura sai sem material (material + estilo depende da fase).
