@@ -12,6 +12,11 @@ import styles from './performancepage.module.css'
 
 const FEEDBACK_SIZE = 50
 
+// "9/10 · faltou ar" (a nota que o atleta deu à série principal ao concluir)
+const MOTIVOS = { respiracao: 'faltou ar', forca: 'faltou força' }
+const notaText = (training) =>
+    [`${training.difficulty}/10`, MOTIVOS[training.difficultyReason]].filter(Boolean).join(' · ')
+
 export const PerformancePage = () => {
 
     // Mesmos treinos do histórico: concluídos e os que passaram da data
@@ -85,6 +90,9 @@ export const PerformancePage = () => {
                                             <strong>Situação:</strong>{' '}
                                             {training.completed ? 'Realizado' : 'Não realizado'}
                                         </li>
+                                        {training.difficulty && (
+                                            <li><strong>Nota da série principal:</strong> {notaText(training)}</li>
+                                        )}
                                         {training.notes && (
                                             <li className={styles.notes}><strong>Anotações:</strong> {training.notes}</li>
                                         )}
@@ -103,6 +111,9 @@ export const PerformancePage = () => {
                                 <p className={styles.status}>
                                     {selected.completed ? 'Treino realizado.' : 'Este treino passou da data sem ser concluído.'}
                                 </p>
+                                {selected.difficulty && (
+                                    <p className={styles.status}>Nota da série principal: {notaText(selected)}</p>
+                                )}
                                 <Training training={selected} />
                                 {selected.notes && (
                                     <div className={styles.modalNotes}>

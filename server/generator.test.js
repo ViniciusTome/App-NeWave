@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, periodPhases, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -480,11 +480,13 @@ test('rota: gera, salva no carrossel e substitui os agendados que não foram fei
 
   const first = await api(`/api/trainings/generate?today=${today}`, { method: 'POST', cookie })
   assert.equal(first.status, 201)
-  assert.equal(first.body.trainings.length, 6)
+  // Sem prova alvo: a periodização inteira de 8 semanas, 3 treinos por semana
+  const total = rules.periodizacao.semanasSemProva * profile.trainingDays.length
+  assert.equal(first.body.trainings.length, total)
   assert.equal(first.body.replaced, 0)
 
   const upcoming = await api(`/api/trainings/upcoming?today=${today}`, { cookie })
-  assert.equal(upcoming.body.trainings.length, 6)
+  assert.equal(upcoming.body.trainings.length, total)
   const [primeiro] = upcoming.body.trainings
   assert.equal(primeiro.date, today)
   assert.ok(Array.isArray(primeiro.partes) && primeiro.partes.length > 0)
@@ -495,12 +497,12 @@ test('rota: gera, salva no carrossel e substitui os agendados que não foram fei
   // Conclui um treino e gera de novo: o concluído fica; os outros são trocados
   await api(`/api/trainings/${primeiro.id}/complete`, { method: 'POST', cookie })
   const again = await api(`/api/trainings/generate?today=${today}`, { method: 'POST', cookie })
-  assert.equal(again.body.replaced, 5)
+  assert.equal(again.body.replaced, total - 1)
   const history = await api(`/api/trainings?today=${today}`, { cookie })
   assert.deepEqual(history.body.trainings.map((t) => t.id), [primeiro.id])
   // O dia do treino concluído não ganha outro treino
   const depois = await api(`/api/trainings/upcoming?today=${today}`, { cookie })
-  assert.equal(depois.body.trainings.length, 5)
+  assert.equal(depois.body.trainings.length, total - 1)
   assert.ok(!depois.body.trainings.some((t) => t.date === today))
 })
 
@@ -846,27 +848,39 @@ test('plano interno: esforço esperado de cada treino (o atleta não vê no card
   assert.ok(gerar({ ...condicionando, continuousDistance: '50_100' }).every((t) => t.plano.esforcoEsperado === 4))
 })
 
-test('feedback: pesado demais diminui a principal; fácil demais aumenta', () => {
+test('feedback: só ajusta com 3 treinos seguidos fora do esperado', () => {
   const plano = { esforcoEsperado: 4, fatorPrincipal: 0.8 }
-  const pesado = feedbackAdjustment(rules, condicionando, [{ difficulty: 7, plan: plano }, { difficulty: 8, plan: plano }])
-  assert.equal(pesado.carga, -1)
-  assert.equal(pesado.fatorPrincipal, 0.7)
-  const facil = feedbackAdjustment(rules, condicionando, [{ difficulty: 1, plan: plano }, { difficulty: 2, plan: plano }])
-  assert.equal(facil.carga, 1)
-  assert.equal(facil.fatorPrincipal, 0.9)
-  const certo = feedbackAdjustment(rules, condicionando, [{ difficulty: 4, plan: plano }])
-  assert.deepEqual([certo.carga, certo.fatorPrincipal], [0, 0.8])
+  const feitos = (...notas) => notas.map((difficulty) => ({ difficulty, reason: 'respiracao', plan: plano }))
+  // 1 ou 2 treinos pesados não mudam nada (pode ser o dia do atleta)
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 9)).carga, 0)
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 9, 5)).carga, 0)
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 5, 9)).carga, 0)
+  // 3 seguidos com 8 ou mais, num treino que não era para isso: diminui
+  const pesado = feedbackAdjustment(rules, condicionando, feitos(5, 8, 9, 10))
+  assert.deepEqual([pesado.carga, pesado.fatorPrincipal, pesado.foco], [-1, 0.7, 'respiracao'])
+  // Treino que era para ser forte (esperado 8) com nota 8: está certo
+  const forte = { esforcoEsperado: 8, fatorPrincipal: 1 }
+  assert.equal(feedbackAdjustment(rules, avancado, [8, 9, 8].map((difficulty) => ({ difficulty, plan: forte }))).carga, 0)
+  // 3 seguidos fáceis demais: aumenta
+  const facil = feedbackAdjustment(rules, condicionando, feitos(1, 2, 2))
+  assert.deepEqual([facil.carga, facil.fatorPrincipal], [1, 0.9])
+  // Já ajustado (o próximo treino montado já tem a carga menor): não ajusta de novo
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 9, 9), 0.7).carga, 0)
+  assert.equal(feedbackAdjustment(rules, condicionando, feitos(9, 9, 9), 0.7).fatorPrincipal, 0.7)
   // Sem histórico: o começo do condicionamento; para os outros, o tempo normal
   assert.equal(feedbackAdjustment(rules, condicionando, []).fatorPrincipal, rules.condicionamento.fatorInicial)
   assert.equal(feedbackAdjustment(rules, avancado, []).fatorPrincipal, 1)
-  // O motivo só conta acima de 8
-  const ar = feedbackAdjustment(rules, condicionando, [{ difficulty: 9, reason: 'respiracao', plan: plano }])
-  assert.equal(ar.foco, 'respiracao')
-  assert.equal(feedbackAdjustment(rules, condicionando, [{ difficulty: 7, reason: 'forca', plan: plano }]).foco, null)
+  // O foco é o motivo que mais apareceu
+  const forca = [
+    { difficulty: 9, reason: 'forca', plan: plano }, { difficulty: 8, reason: 'respiracao', plan: plano },
+    { difficulty: 9, reason: 'forca', plan: plano },
+  ]
+  assert.equal(feedbackAdjustment(rules, condicionando, forca).foco, 'forca')
 })
 
 test('feedback: os próximos treinos menores; sem A3 nos 2 primeiros quando foi pesado demais', () => {
   const historico = [8, 9, 9].map((difficulty) => ({ difficulty, plan: { esforcoEsperado: 6, fatorPrincipal: 1 } }))
+  // (3 seguidos com 8 ou mais num treino que era para ser moderado)
   const treinos = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), historico })
   assert.ok(treinos.every((t) => t.plano.fatorPrincipal === 0.9 && t.plano.carga === -1))
   for (const t of treinos.slice(0, 2)) assert.notEqual(t.plano.intensidade, 'A3')
@@ -879,7 +893,7 @@ test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () =
   const plano = { esforcoEsperado: 4, fatorPrincipal: 0.8 }
   const comFoco = (reason) => [1, 2, 3, 4].flatMap((seed) => generateTrainings({
     rules, library, athlete: condicionando, today: '2026-11-23', random: seeded(seed),
-    historico: [{ difficulty: 9, reason, plan: plano }],
+    historico: [9, 9, 9].map((difficulty) => ({ difficulty, reason, plan: plano })),
   })).map((t) => t.partes.find((p) => p.parte === 'principal'))
   const curtas = (ps) => ps.filter((p) => Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) <= 50).length
   const palmar = (ps) => ps.filter((p) => p.material.includes('palmar') && !p.material.includes('pe_de_pato')).length
@@ -887,4 +901,46 @@ test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () =
   const forca = comFoco('forca')
   assert.ok(curtas(ar) > curtas(forca), `curtas ${curtas(ar)} x ${curtas(forca)}`)
   assert.ok(palmar(forca) > palmar(ar), `palmar ${palmar(forca)} x ${palmar(ar)}`)
+})
+
+// ---------- Periodização inteira ----------
+
+test('periodização: fases na proporção das regras, com a semana de cada fase', () => {
+  const faseDe = periodPhases(rules, '2026-01-01', '2026-03-31') // 90 dias: 45 A, 27 T, 18 R
+  assert.deepEqual(faseDe('2026-01-01'), { fase: 'acumulacao', semanaDaFase: 1 })
+  assert.deepEqual(faseDe('2026-01-08'), { fase: 'acumulacao', semanaDaFase: 2 })
+  assert.equal(faseDe('2026-02-14').fase, 'acumulacao')
+  assert.deepEqual(faseDe('2026-02-15'), { fase: 'transicao', semanaDaFase: 1 })
+  assert.deepEqual(faseDe('2026-03-14'), { fase: 'realizacao', semanaDaFase: 1 })
+  assert.equal(faseDe('2026-03-31').fase, 'realizacao')
+})
+
+test('periodização: gera todos os treinos até a prova, com o plano de cada um', () => {
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-01-31', testeNaTransicao: true, numeroInicial: 1 }
+  const treinos = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), periodizacao })
+  // Seg, qua e sex de 23/11 a 31/01
+  assert.equal(treinos.length, trainingDates('2026-11-23', [1, 3, 5], 70).length)
+  assert.equal(treinos.at(-1).date <= '2027-01-31', true)
+  assert.deepEqual(treinos.map((t) => t.plano.numero), treinos.map((_, i) => i + 1))
+  const fases = treinos.map((t) => t.plano.fase)
+  assert.deepEqual([...new Set(fases)], ['acumulacao', 'transicao', 'realizacao'])
+  for (const t of treinos) {
+    for (const campo of ['semanaDaFase', 'intensidade', 'esforcoEsperado', 'metrosPrincipal', 'tipoPrincipal', 'diaDeTeste', 'recuperacao', 'material']) {
+      assert.ok(t.plano[campo] !== undefined, campo)
+    }
+  }
+  // Um teste só: o 1º treino da Transição
+  const testes = treinos.filter((t) => t.plano.diaDeTeste)
+  assert.equal(testes.length, 1)
+  assert.equal(testes[0], treinos.find((t) => t.plano.fase === 'transicao'))
+  // Sem permissão para o teste (ex.: só informou o tempo, 1ª vez): nenhum
+  const semTeste = generateTrainings({
+    rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), periodizacao: { ...periodizacao, testeNaTransicao: false },
+  })
+  assert.ok(semTeste.every((t) => !t.plano.diaDeTeste))
+  // Condicionamento (não nada 400 m): nunca tem teste
+  const cond = generateTrainings({
+    rules, library, athlete: { ...condicionando, time400: { hundredths: 54000 } }, today: '2026-11-23', random: seeded(1), periodizacao,
+  })
+  assert.ok(cond.every((t) => !t.plano.diaDeTeste))
 })

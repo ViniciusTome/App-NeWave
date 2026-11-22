@@ -2,7 +2,7 @@
 // É a base do botão "Gerar treinos": as respostas ficam guardadas para o atleta
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
-import { generateTrainings, legacyFields, seriesUsadas } from './generator.js'
+import { feedbackAdjustment, generateTrainings, legacyFields, seriesUsadas } from './generator.js'
 import { timeTable } from './series/regras.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -311,6 +311,94 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     return { profile, time400, level: profile ? computeLevel(profile, time400) : null, tempos }
   }
 
+  const countUpcomingGenerated = db.prepare(`
+    SELECT COUNT(*) AS total FROM trainings
+    WHERE user_id = ? AND completed_at IS NULL AND date >= ? AND parts IS NOT NULL
+  `)
+  const nextPlan = db.prepare(`
+    SELECT plan FROM trainings WHERE user_id = ? AND completed_at IS NULL AND date >= ? AND plan IS NOT NULL
+    ORDER BY date, id LIMIT 1
+  `)
+  const countPreparations = db.prepare('SELECT COUNT(*) AS total FROM preparations WHERE user_id = ?')
+  // Treinos da periodização que já passaram (para a numeração continuar)
+  const countSince = db.prepare('SELECT COUNT(*) AS total FROM trainings WHERE user_id = ? AND date >= ? AND date < ?')
+
+  const parsePlan = (texto) => {
+    try {
+      return texto ? JSON.parse(texto) : null
+    } catch {
+      return null
+    }
+  }
+  const readHistory = (userId) => feedbackHistory.all(userId)
+    .map((r) => ({ difficulty: r.difficulty, reason: r.difficulty_reason, plan: parsePlan(r.plan) }))
+  const nextFactor = (userId, today) => parsePlan(nextPlan.get(userId, today)?.plan)?.fatorPrincipal ?? null
+
+  // Monta (ou refaz) todos os treinos da periodização, de hoje até o fim, e guarda no
+  // banco com o plano interno de cada um. Os dias com treino concluído ficam como estão.
+  // Periodização: do dia da preparação até a prova alvo; sem prova, `semanasSemProva` semanas.
+  function buildPeriodization(userId, today) {
+    const { profile, time400, level } = profileResponse(userId)
+    if (!profile) throw new HttpError(409, 'Responda a anamnese antes de gerar treinos.')
+
+    const jaFeitos = new Set(completedDates.all(userId, today).map((r) => r.date))
+    const preparacao = preparationResponse(userId, today)
+    const ativa = preparacao?.active ? preparacao : null
+    // Modalidade da prova alvo (ex.: triatlo), para a regra da recuperação
+    const modalidade = ativa?.competition?.modality ?? null
+    const inicio = [ativa?.createdAt?.slice(0, 10) ?? today, today].sort()[0]
+    const semanas = rules.periodizacao?.semanasSemProva ?? 8
+    const semProva = new Date(`${inicio}T12:00:00Z`)
+    semProva.setUTCDate(semProva.getUTCDate() + semanas * 7 - 1)
+    const fim = ativa?.goal === 'competir' && ativa.competition?.date ? ativa.competition.date : semProva.toISOString().slice(0, 10)
+    // Teste da periodização no começo da Transição: quem tem o teste registrado, desde a
+    // 1ª vez; quem só informou o tempo, a partir da 2ª vez que gera os treinos. Prova alvo
+    // de 400 m em piscina: o teste é a própria prova (no fim da Realização).
+    const regra = rules.testeNaPeriodizacao
+    const geracao = countPreparations.get(userId).total
+    const aPartirDe = time400?.source === 'teste' ? regra?.aPartirDaGeracao?.tempoDoTeste ?? 1 : regra?.aPartirDaGeracao?.tempoInformado ?? 2
+    const provaDe400 = regra?.excecao?.modalidades?.includes(modalidade) &&
+      new RegExp(`\\b${regra.excecao.prova}\\b`).test(ativa?.competition?.event ?? '')
+    const testeNaTransicao = Boolean(regra && time400 && geracao >= aPartirDe && !provaDe400)
+
+    let seriesAnteriores = []
+    try {
+      const ultimo = lastPartsBefore.get(userId, today)
+      seriesAnteriores = ultimo ? [...seriesUsadas(JSON.parse(ultimo.parts))] : []
+    } catch {
+      seriesAnteriores = []
+    }
+    const trainings = generateTrainings({
+      rules, library, today, seriesAnteriores,
+      historico: readHistory(userId),
+      fatorDoProximo: nextFactor(userId, today),
+      inicioDosTreinos: [firstTrainingDate.get(userId)?.date ?? today, today].sort()[0],
+      periodizacao: { inicio, fim, testeNaTransicao, numeroInicial: countSince.get(userId, inicio, today).total + 1 },
+      athlete: {
+        ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
+      },
+    }).filter((t) => !jaFeitos.has(t.date))
+
+    const now = new Date().toISOString()
+    let replaced = 0
+    db.exec('BEGIN')
+    try {
+      replaced = Number(deleteUpcoming.run(userId, today).changes)
+      for (const t of trainings) {
+        const f = legacyFields(t.partes)
+        insertGenerated.run(
+          userId, t.date, t.title, f.warmUp, f.speed, f.mainSeries, f.release, now,
+          JSON.stringify(t.partes), JSON.stringify(t.plano),
+        )
+      }
+      db.exec('COMMIT')
+    } catch (err) {
+      db.exec('ROLLBACK')
+      throw err
+    }
+    return { trainings, replaced }
+  }
+
   function preparationResponse(userId, today) {
     const row = findCurrentPreparation.get(userId)
     if (!row) return null
@@ -378,57 +466,20 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     // dias (primeira versão do gerador) e substitui os agendados que não foram feitos
     async generate(req, res) {
       const user = requireUser(req)
-      const { profile, time400, level } = profileResponse(user.id)
-      if (!profile) throw new HttpError(409, 'Responda a anamnese antes de gerar treinos.')
-      const today = readToday(req)
-
-      // Dia que já tem treino concluído não ganha outro
-      const jaFeitos = new Set(completedDates.all(user.id, today).map((r) => r.date))
-      // Modalidade da prova alvo (ex.: triatlo), para a regra da recuperação
-      const preparacao = preparationResponse(user.id, today)
-      const modalidade = preparacao?.active ? preparacao.competition?.modality ?? null : null
-      let seriesAnteriores = []
-      try {
-        const ultimo = lastPartsBefore.get(user.id, today)
-        seriesAnteriores = ultimo ? [...seriesUsadas(JSON.parse(ultimo.parts))] : []
-      } catch {
-        seriesAnteriores = []
-      }
-      const trainings = generateTrainings({
-        rules, library, today, seriesAnteriores,
-        historico: feedbackHistory.all(user.id).map((r) => {
-          try {
-            return { difficulty: r.difficulty, reason: r.difficulty_reason, plan: JSON.parse(r.plan) }
-          } catch {
-            return { difficulty: r.difficulty, reason: r.difficulty_reason, plan: null }
-          }
-        }),
-        inicioDosTreinos: [firstTrainingDate.get(user.id)?.date ?? today, today].sort()[0],
-        athlete: {
-          ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
-        },
-      }).filter((t) => !jaFeitos.has(t.date))
-
-      const now = new Date().toISOString()
-      let replaced = 0
-      db.exec('BEGIN')
-      try {
-        replaced = Number(deleteUpcoming.run(user.id, today).changes)
-        for (const t of trainings) {
-          const f = legacyFields(t.partes)
-          insertGenerated.run(
-            user.id, t.date, t.title, f.warmUp, f.speed, f.mainSeries, f.release, now,
-            JSON.stringify(t.partes), JSON.stringify(t.plano),
-          )
-        }
-        db.exec('COMMIT')
-      } catch (err) {
-        db.exec('ROLLBACK')
-        throw err
-      }
+      const resultado = buildPeriodization(user.id, readToday(req))
       // O plano interno fica só no banco: o atleta não recebe
       const semPlano = (t) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'plano'))
-      sendJson(res, 201, { trainings: trainings.map(semPlano), replaced })
+      sendJson(res, 201, { trainings: resultado.trainings.map(semPlano), replaced: resultado.replaced })
+    },
+
+    // Depois de concluir um treino: se os últimos 3 seguidos saíram do esperado,
+    // refaz os treinos já montados (os próximos, não concluídos). Devolve quantos refez.
+    reformulateIfNeeded(userId, today = new Date().toISOString().slice(0, 10)) {
+      const { profile, level } = profileResponse(userId)
+      if (!profile || !level) return 0
+      const ajuste = feedbackAdjustment(rules, { ...profile, level: level.level }, readHistory(userId), nextFactor(userId, today))
+      if (ajuste.carga === 0 || countUpcomingGenerated.get(userId, today).total === 0) return 0
+      return buildPeriodization(userId, today).trainings.length
     },
 
     // GET /api/preparations/current?today=AAAA-MM-DD -> preparação mais recente (ou null)

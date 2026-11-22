@@ -305,7 +305,10 @@ export function createApp({
     sendJson(res, 200, { message: 'Senha alterada com sucesso.' })
   }
 
-  const swimming = createSwimmingRoutes({ db, requireUser })
+  // Ao concluir um treino, o feedback pode refazer os próximos (3 seguidos fora do esperado)
+  const swimming = createSwimmingRoutes({
+    db, requireUser, onTrainingCompleted: (userId) => athlete.reformulateIfNeeded(userId),
+  })
   const athlete = createAthleteRoutes({ db, requireUser, library: loadLibrary(), rules: loadRules() })
 
   // Rotas da API. Trechos como ":id" viram parâmetros (ex.: /api/tests/7).

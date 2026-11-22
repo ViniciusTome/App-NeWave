@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { ChoiceGroup } from '../ChoiceGroup'
 import styles from './completetraining.module.css'
 
-// Acima disso o app pergunta o motivo (o mesmo de server/swimming.js, FEEDBACK)
-const PERGUNTAR_MOTIVO_ACIMA_DE = 8
+// A partir disso o app pergunta o motivo (o mesmo de server/swimming.js, FEEDBACK)
+const PERGUNTAR_MOTIVO_A_PARTIR_DE = 8
 
 const NOTAS = Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))
 const MOTIVOS = [
@@ -16,7 +16,7 @@ const MOTIVOS = [
 export const CompleteTraining = ({ onSubmit, submitting, error }) => {
     const [difficulty, setDifficulty] = useState(null)
     const [reason, setReason] = useState(null)
-    const precisaMotivo = difficulty !== null && difficulty > PERGUNTAR_MOTIVO_ACIMA_DE
+    const precisaMotivo = difficulty !== null && difficulty >= PERGUNTAR_MOTIVO_A_PARTIR_DE
     const pronto = difficulty !== null && (!precisaMotivo || reason !== null)
 
     const handleSubmit = (event) => {
@@ -34,7 +34,7 @@ export const CompleteTraining = ({ onSubmit, submitting, error }) => {
                 value={difficulty}
                 onChange={(nota) => {
                     setDifficulty(nota)
-                    if (nota <= PERGUNTAR_MOTIVO_ACIMA_DE) setReason(null)
+                    if (nota < PERGUNTAR_MOTIVO_A_PARTIR_DE) setReason(null)
                 }}
             />
             {precisaMotivo && (

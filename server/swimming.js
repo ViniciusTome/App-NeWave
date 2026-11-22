@@ -10,8 +10,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 const MAX_PLAN_DAYS = 366 // até quanto tempo à frente dá para agendar um treino
 const MAX_UPCOMING = 50
 // Feedback ao concluir: dificuldade da série principal de 1 (muito fácil) a 10 (muito
-// difícil); acima de 8, o motivo (o mesmo de server/series/regras.json, "feedback")
-export const FEEDBACK = { motivoAcimaDe: 8, motivos: ['respiracao', 'forca'] }
+// difícil); a partir de 8, o motivo (o mesmo de server/series/regras.json, "feedback")
+export const FEEDBACK = { motivoAPartirDe: 8, motivos: ['respiracao', 'forca'] }
 
 // Aceita só datas reais (ex.: recusa 2026-02-30), a partir de 1900.
 function isRealDate(value) {
@@ -72,7 +72,7 @@ function readFeedback(body) {
   if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 10) {
     throw new HttpError(400, 'Diga de 1 a 10 como foi a série principal.')
   }
-  if (difficulty <= FEEDBACK.motivoAcimaDe) return { difficulty, reason: null }
+  if (difficulty < FEEDBACK.motivoAPartirDe) return { difficulty, reason: null }
   if (!FEEDBACK.motivos.includes(reason)) {
     throw new HttpError(400, 'Conte se foi difícil pela respiração ou pela força.')
   }
@@ -85,7 +85,7 @@ function parseId(value) {
   return id
 }
 
-export function createSwimmingRoutes({ db, requireUser }) {
+export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = () => 0 }) {
   const listTests = db.prepare(`
     SELECT id, distance, time_hundredths, date FROM tests
     WHERE user_id = ? ORDER BY date, id
@@ -195,7 +195,9 @@ export function createSwimmingRoutes({ db, requireUser }) {
         if (!findTraining.get(trainingId, user.id)) throw new HttpError(404, 'Treino não encontrado.')
         throw new HttpError(409, 'Esse treino já foi concluído.')
       }
-      sendJson(res, 200, { training: publicTraining(findTraining.get(trainingId, user.id)) })
+      // 3 treinos seguidos fora do esperado: os próximos treinos são refeitos
+      const reformulados = difficulty !== null ? onTrainingCompleted(user.id) : 0
+      sendJson(res, 200, { training: publicTraining(findTraining.get(trainingId, user.id)), reformulados })
     },
 
     // POST /api/trainings  { date, title?, warmUp?, speed?, mainSeries?, release?, notes?, planned? }

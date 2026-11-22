@@ -18,6 +18,7 @@ export const Carousel = () => {
     const [completing, setCompleting] = useState(false)
     const [completeError, setCompleteError] = useState('')
     const [completingTraining, setCompletingTraining] = useState(null) // treino com a janela aberta
+    const [reformulated, setReformulated] = useState(false) // o feedback refez os próximos treinos
 
     const load = useCallback(() => {
         return api(`/trainings/upcoming?today=${todayIso()}`)
@@ -50,7 +51,8 @@ export const Carousel = () => {
         setCompleting(true)
         setCompleteError('')
         try {
-            await api(`/trainings/${completingTraining.id}/complete`, { method: 'POST', body: feedback })
+            const { reformulados } = await api(`/trainings/${completingTraining.id}/complete`, { method: 'POST', body: feedback })
+            setReformulated(reformulados > 0)
             setCompletingTraining(null)
             notifyTrainingsChanged() // recarrega o carrossel e o histórico
         } catch (err) {
@@ -68,6 +70,11 @@ export const Carousel = () => {
                 <h2 style={{ color: 'white', fontSize: '25px' }}>Treinos</h2>
 
                 {trainings === null && !loadError && <p className={styles.message}>Carregando treinos...</p>}
+                {reformulated && (
+                    <p className={styles.message} role='status'>
+                        Pelas suas respostas nos últimos treinos, ajustamos os próximos para você.
+                    </p>
+                )}
                 {loadError && <p className={styles.message} role='alert'>{loadError}</p>}
                 {trainings && trainings.length === 0 && (
                     <p className={styles.message}>

@@ -298,7 +298,7 @@ test('concluir um treino tira ele dos próximos e coloca no histórico', async (
   assert.equal(again.status, 409)
 })
 
-test('ao concluir, o atleta diz a dificuldade (1 a 10) e, acima de 8, o motivo', async () => {
+test('ao concluir, o atleta diz a dificuldade (1 a 10) e, a partir de 8, o motivo', async () => {
   const caio = await signUpAndLogin('Caio Lima', 'caio@example.com')
   const concluir = async (body) => {
     const { body: criado } = await plan(caio, today(), 'Treino')
@@ -307,10 +307,13 @@ test('ao concluir, o atleta diz a dificuldade (1 a 10) e, acima de 8, o motivo',
   const leve = await concluir({ difficulty: 5 })
   assert.equal(leve.status, 200)
   assert.deepEqual([leve.body.training.difficulty, leve.body.training.difficultyReason], [5, null])
-  // Até 8 o motivo não fica guardado
+  // Até 7 o motivo não fica guardado
+  const sete = await concluir({ difficulty: 7, reason: 'forca' })
+  assert.equal(sete.body.training.difficultyReason, null)
+  // A partir de 8: respiração ou força
   const oito = await concluir({ difficulty: 8, reason: 'forca' })
-  assert.equal(oito.body.training.difficultyReason, null)
-  // Acima de 8: respiração ou força
+  assert.equal(oito.body.training.difficultyReason, 'forca')
+  assert.equal((await concluir({ difficulty: 8 })).status, 400)
   const ar = await concluir({ difficulty: 9, reason: 'respiracao' })
   assert.deepEqual([ar.body.training.difficulty, ar.body.training.difficultyReason], [9, 'respiracao'])
   assert.equal((await concluir({ difficulty: 10 })).status, 400)
@@ -327,7 +330,7 @@ test('o limite do motivo é o mesmo das regras do gerador', async () => {
   const { FEEDBACK } = await import('./swimming.js')
   const { loadRules } = await import('./series/regras.js')
   const regras = loadRules().feedback
-  assert.equal(FEEDBACK.motivoAcimaDe, regras.perguntarMotivoAcimaDe)
+  assert.equal(FEEDBACK.motivoAPartirDe, regras.perguntarMotivoAPartirDe)
   assert.deepEqual(FEEDBACK.motivos, regras.motivos)
 })
 

@@ -232,7 +232,7 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
     const fator = (parte === 'perna' ? RITMO_PERNA : 1) * (comPe ? RITMO_PE_DE_PATO : 1)
     // Intervalo entre as séries: troca o descanso da última repetição de cada série
     const intervalo = (saidaSegundos) =>
-        intervalBetweenSets(rules, parte, serie, { fase: null, level: athlete.level, saidaSegundos })
+        intervalBetweenSets(rules, parte, serie, { fase: athlete.fase ?? null, level: athlete.level, saidaSegundos })
     let total = 0
     let ultimo = { saida: 0, descanso: 0 }
     for (const bloco of serie.blocos) {
@@ -649,7 +649,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             const sorteio = leve || toda
                 ? { tipo: 'intensidades', unidade: 'serie_toda', valores: ['A1'], variation: escolha.variation }
                 : drawIntensities(rules, escolha.serie, escolha.variation, athlete, {
-                    proibidas: athlete.tabela ? proibidas : [...proibidas, 'AC'], random,
+                    proibidas: athlete.tabela ? proibidas : [...proibidas, 'AC'], random, fase: athlete.fase ?? null,
                 })
             if (sorteio) {
                 escolha.variation = sorteio.variation
@@ -672,7 +672,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const intervalo = intervalText(intervalRangeFor(rules, parte, escolha.serie, athlete.level))
         let saidas = parte === 'velocidade'
             ? (escolha.serie.blocos.length === 1 ? [saidaVelocidade(rules, athlete, escolha.serie.blocos[0])] : null)
-            : saidasDaSerie(rules, athlete, escolha.serie, escolha.intensidades)
+            : saidasDaSerie(rules, athlete, escolha.serie, escolha.intensidades, athlete.fase ?? null)
         const aviso = avisoComEquipamento(rules, athlete, escolha, saidas)
         // Sem tempos de referência: o descanso no lugar da saída (velocidade: 1/1)
         if (!athlete.tabela) {
@@ -736,7 +736,7 @@ function buildTestTraining({ rules, library, athlete, pace, random, recentes }) 
         const segundos = estimateSeconds(rules, 'principal', serie, variation, athlete, pace)
         if (segundos > livres || segundos < (cfg.minimoDeMinutos ?? 0) * 60) continue
         livres -= segundos
-        const saidas = athlete.tabela ? saidasDaSerie(rules, athlete, serie, intensidades)
+        const saidas = athlete.tabela ? saidasDaSerie(rules, athlete, serie, intensidades, athlete.fase ?? null)
             : descansosDaSerie(rules, athlete, serie, intensidades)
         partes.push({
             parte: 'recuperacao', titulo: 'Para recuperar', serieId: serie.id,
@@ -790,43 +790,82 @@ export function expectedEffort(rules, partes) {
     return maisForte ? tabela[maisForte] ?? null : null
 }
 
-// Ajuste pelo feedback dos últimos treinos feitos. `historico` = treinos concluídos,
-// do mais antigo ao mais novo: [{ difficulty, reason, plan: { esforcoEsperado, fatorPrincipal } }]
-// Devolve { carga: -1 (pesado demais) | 0 | 1 (fácil demais), foco, fatorPrincipal }.
-export function feedbackAdjustment(rules, athlete, historico = []) {
+// Ajuste pelo feedback. `historico` = treinos concluídos, do mais antigo ao mais novo:
+// [{ difficulty, reason, plan: { esforcoEsperado, fatorPrincipal } }].
+// Só ajusta quando os últimos 3 treinos SEGUIDOS saíram do esperado (1 ou 2 podem ser
+// do dia do atleta: dormiu mal, trabalhou muito, não comeu direito...):
+// - pesado: os 3 com nota 8 ou mais, sem o treino ser para isso (esperado abaixo de 8);
+// - fácil: os 3 com nota 2 ou mais abaixo do esperado.
+// E só se a carga ainda não mudou depois deles (`fatorDoProximo`), para não ajustar duas vezes.
+// Devolve { carga: -1 (pesado) | 0 | 1 (fácil), foco, fatorPrincipal }.
+export function feedbackAdjustment(rules, athlete, historico = [], fatorDoProximo = null) {
     const cfg = rules.feedback
     const cond = inConditioning(rules, athlete) ? rules.condicionamento : null
     const ultimoPlano = [...historico].reverse().find((t) => t.plan?.fatorPrincipal)?.plan
     let fator = ultimoPlano?.fatorPrincipal ?? (cond ? cond.fatorInicial : 1)
     if (!cfg) return { carga: 0, foco: null, fatorPrincipal: fator }
-    const avaliados = historico.filter((t) => Number.isInteger(t.difficulty) && t.plan?.esforcoEsperado)
-        .slice(-(cfg.olharUltimos ?? 3))
-    let carga = 0
-    if (avaliados.length > 0) {
-        const media = avaliados.reduce((s, t) => s + t.difficulty - t.plan.esforcoEsperado, 0) / avaliados.length
-        if (media >= cfg.diferencaParaAjustar) carga = -1
-        else if (media <= -cfg.diferencaParaAjustar) carga = 1
-    }
-    const motivo = [...avaliados].reverse().find((t) => t.difficulty > cfg.perguntarMotivoAcimaDe && t.reason)
+    const n = cfg.treinosEmSequencia ?? 3
+    const seguidos = historico.filter((t) => t.plan?.esforcoEsperado).slice(-n)
+    const avaliados = seguidos.length === n && seguidos.every((t) => Number.isInteger(t.difficulty))
+    const limite = cfg.perguntarMotivoAPartirDe
+    const pesado = avaliados && seguidos.every((t) => t.difficulty >= limite && t.plan.esforcoEsperado < limite)
+    const facil = avaliados && seguidos.every((t) => t.difficulty <= t.plan.esforcoEsperado - cfg.diferencaParaFacil)
+    // Já ajustado depois desses treinos: o próximo treino montado tem outra carga
+    const ja = (t) => fatorDoProximo !== null &&
+        (pesado ? fatorDoProximo < t.plan.fatorPrincipal - 1e-6 : fatorDoProximo > t.plan.fatorPrincipal + 1e-6)
+    const carga = (pesado || facil) && !seguidos.some(ja) ? (pesado ? -1 : 1) : 0
+    // Foco: o motivo que mais apareceu nos treinos pesados (o mais recente desempata)
+    const motivos = seguidos.filter((t) => t.difficulty >= limite && t.reason).map((t) => t.reason)
+    const contagem = (m) => motivos.filter((x) => x === m).length
+    const foco = [...motivos].reverse().sort((a, b) => contagem(b) - contagem(a))[0] ?? null
+    if (carga === 0 && fatorDoProximo !== null) fator = fatorDoProximo
     fator += carga * (cfg.ajusteDaPrincipal ?? 0.1)
     const maximo = cond ? cond.fatorMaximo : cfg.fatorMaximo
     fator = Math.min(maximo ?? 1, Math.max(cfg.fatorMinimo ?? 0.5, fator))
-    return { carga, foco: motivo?.reason ?? null, fatorPrincipal: Math.round(fator * 100) / 100 }
+    return { carga, foco, fatorPrincipal: Math.round(fator * 100) / 100 }
 }
 
 // Gera os treinos dos próximos dias para o atleta.
 // `athlete` = respostas da anamnese + { level } (nível calculado) + { time400 }.
 // `random` permite repetir o sorteio nos testes.
+const addDays = (iso, n) => {
+    const d = new Date(`${iso}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + n)
+    return toIso(d)
+}
+const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000)
+
+// Fases da periodização (Acumulação, Transição, Realização), na proporção das regras,
+// do início ao fim (a prova alvo). Devolve (data) -> { fase, semanaDaFase }.
+export function periodPhases(rules, inicio, fim) {
+    const total = Math.max(1, daysBetween(inicio, fim) + 1)
+    const fases = rules.periodizacao?.fases ?? [['acumulacao', 1]]
+    let acumulado = 0
+    const limites = fases.map(([fase, proporcao]) => {
+        const comeca = acumulado
+        acumulado += proporcao
+        return { fase, comeca: Math.round(comeca * total), termina: Math.round(acumulado * total) }
+    })
+    return (date) => {
+        const dia = Math.min(total - 1, Math.max(0, daysBetween(inicio, date)))
+        const atual = limites.find((l) => dia < l.termina) ?? limites[limites.length - 1]
+        return { fase: atual.fase, semanaDaFase: Math.floor((dia - atual.comeca) / 7) + 1 }
+    }
+}
+
 // `seriesAnteriores` = séries do último treino antes de hoje (não se repetem no primeiro).
 // `inicioDosTreinos` = data do primeiro treino do atleta (para marcar o teste depois de 1 mês).
 // `historico` = treinos feitos, com o feedback e o plano interno (para ajustar os próximos).
+// `fatorDoProximo` = tempo da principal do próximo treino já montado (para o feedback
+// não ajustar duas vezes pelos mesmos treinos).
+// `periodizacao` = { inicio, fim, testeNaTransicao, numeroInicial }: gera todos os
+// treinos até o fim, cada um com a sua fase. Sem ela, gera `dias` dias, sem fase.
 export function generateTrainings({
     rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
-    inicioDosTreinos = today, historico = [],
+    inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null,
 }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
-    // Tabela de tempos do atleta (método do treinador)
     // Tabela de tempos do atleta (método do treinador). Sem o teste de 400 m (nem o
     // tempo informado na anamnese) não há tempos de referência: o card mostra o
     // descanso no lugar da saída e, depois de 1 mês de treino, entra o teste.
@@ -839,15 +878,19 @@ export function generateTrainings({
         athlete = { ...athlete, aulaMinutos: athlete.sessionMinutes, sessionMinutes: maximo }
     }
     // Feedback dos últimos treinos: carga, foco (respiração ou força) e o tempo da principal
-    const ajuste = feedbackAdjustment(rules, athlete, historico)
+    const ajuste = feedbackAdjustment(rules, athlete, historico, fatorDoProximo)
     athlete = { ...athlete, foco: ajuste.foco }
     const condicionamento = inConditioning(rules, athlete)
     const recentes = recentWindow(4) // séries dos últimos 4 treinos perdem prioridade
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino
-    const depoisDe = new Date(`${inicioDosTreinos}T12:00:00Z`)
-    depoisDe.setUTCDate(depoisDe.getUTCDate() + (rules.diaDoTeste?.semTemposAposDias ?? 30))
-    const testeAPartirDe = toIso(depoisDe)
+    const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false
+    // Periodização: todos os treinos até o fim, com a fase de cada um
+    const faseDe = periodizacao ? periodPhases(rules, periodizacao.inicio, periodizacao.fim) : null
+    const totalDeDias = periodizacao
+        ? Math.min(rules.periodizacao?.maximoDeDias ?? 366, Math.max(1, daysBetween(today, periodizacao.fim) + 1))
+        : dias
+    let testeDaPeriodizacao = false
     // Séries do treino anterior: não se repetem no treino seguinte
     let bloqueadas = new Set(seriesAnteriores)
 
@@ -856,47 +899,64 @@ export function generateTrainings({
     let anterior = null // { date, intensidade }
     const horasEntre = (a, b) => (Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 3_600_000
 
-    return trainingDates(today, athlete.trainingDays, dias).map((date, i) => {
+    return trainingDates(today, athlete.trainingDays, totalDeDias).map((date, i) => {
+        const { fase = null, semanaDaFase = null } = faseDe ? faseDe(date) : {}
+        const doDia = { ...athlete, fase }
         const proibidas = []
         // Pesado demais nos últimos treinos: os 2 primeiros sem A3
         if (ajuste.carga < 0 && i < 2) proibidas.push('A3')
-        if (anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)) {
-            const recuperacao = rules.intensidades?.A3?.recuperacaoHoras?.[1] ?? 48
-            if (horasEntre(anterior.date, date) < recuperacao) proibidas.push('A3')
+        const recuperacao = anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)
+        if (recuperacao) {
+            const horas = rules.intensidades?.A3?.recuperacaoHoras?.[1] ?? 48
+            if (horasEntre(anterior.date, date) < horas) proibidas.push('A3')
         }
-        // Tempo da principal: o do feedback; no condicionamento, aumenta um pouco a cada
-        // treino (se o atleta não achou pesado demais)
+        // Tempo da principal: o do feedback; no condicionamento, aumenta um pouco a cada treino
         const cond = rules.condicionamento
-        const fatorPrincipal = condicionamento && ajuste.carga >= 0
+        const fatorPrincipal = condicionamento
             ? Math.min(cond.fatorMaximo, Math.round((ajuste.fatorPrincipal + i * cond.aumentoPorTreino) * 100) / 100)
             : ajuste.fatorPrincipal
-        // Quem não nada 400 m sem parar não faz o teste (está no condicionamento)
-        const fazTeste = semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe
-        if (fazTeste) testeMarcado = true
-        const partes = fazTeste
-            ? buildTestTraining({ rules, library, athlete, pace, random, recentes })
-            : buildTraining({ rules, library, athlete, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
+        // Teste de quem não tem tempo (depois de 1 mês) e o teste da periodização (no
+        // começo da Transição). Quem não nada 400 m sem parar não faz teste (condicionamento).
+        const testeSemTempo = semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe
+        const testeNaTransicao = periodizacao?.testeNaTransicao && !semReferencia && !condicionamento &&
+            !testeDaPeriodizacao && fase === 'transicao'
+        if (testeSemTempo) testeMarcado = true
+        if (testeNaTransicao) testeDaPeriodizacao = true
+        const partes = testeSemTempo || testeNaTransicao
+            ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
+            : buildTraining({ rules, library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
         bloqueadas = seriesUsadas(partes)
         recentes.fecharTreino()
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
-        if (partes.some((p) => p.parte === 'teste')) intensidades.push('A3') // o teste é forte
+        const diaDeTeste = partes.some((p) => p.parte === 'teste')
+        if (diaDeTeste) intensidades.push('A3') // o teste é forte
         anterior = { date, intensidade: intensidades.includes('A3') ? 'A3' : intensidades.includes('A2') ? 'A2' : 'A1' }
+        const principais = partes.filter((p) => p.parte === 'principal')
+        const numero = (periodizacao?.numeroInicial ?? 1) + i
         return {
             date,
-            title: `Treino ${i + 1}`,
+            title: `Treino ${numero}`,
             partes,
             metros: partes.reduce((s, p) => s + p.metros, 0),
             minutos: partes.reduce((s, p) => s + p.minutos, 0),
-            // Plano interno (o atleta não vê): para comparar com o feedback e montar os próximos
+            // Plano interno (o atleta não vê): como é o treino na periodização, para
+            // comparar com o feedback e montar ou refazer os próximos
             plano: {
-                esforcoEsperado: expectedEffort(rules, partes),
+                numero,
+                fase,
+                semanaDaFase,
                 intensidade: anterior.intensidade,
+                esforcoEsperado: expectedEffort(rules, partes),
+                metrosPrincipal: principais.reduce((s, p) => s + p.metros, 0),
+                minutosPrincipal: principais.reduce((s, p) => s + p.minutos, 0),
+                tipoPrincipal: principais.map((p) => p.intensidades?.tipo ?? null),
+                diaDeTeste,
+                recuperacao: Boolean(recuperacao),
+                material: [...new Set(principais.flatMap((p) => p.material ?? []))],
                 fatorPrincipal,
                 carga: ajuste.carga,
                 foco: ajuste.foco,
                 condicionamento,
-                fase: null, // as fases do ATR ainda vão entrar
-                metrosPrincipal: partes.filter((p) => p.parte === 'principal').reduce((s, p) => s + p.metros, 0),
             },
         }
     })

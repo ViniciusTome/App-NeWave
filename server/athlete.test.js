@@ -355,41 +355,68 @@ test('valida a preparação', async () => {
 
 // ---------- Feedback e plano interno ----------
 
-test('gerar treinos guarda o plano interno (o atleta não recebe) e o feedback entra no próximo', async () => {
+test('3 treinos seguidos pesados refazem os próximos; o plano interno fica só no banco', async () => {
   const cookie = await userFor('feedback')
-  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  // Nada só até 100 m: tudo em ritmo leve (esforço esperado 4)
+  await saveProfile(cookie, { ...sampleProfile, continuousDistance: '50_100', reported400Hundredths: 36000 })
   const hoje = daysFromToday(0)
   const gerado = await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
   assert.equal(gerado.status, 201)
-  assert.ok(gerado.body.trainings.length > 0)
+  assert.ok(gerado.body.trainings.length > 3)
   assert.ok(gerado.body.trainings.every((t) => t.plano === undefined), 'o plano não vai para o atleta')
-
-  const proximos = await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })
-  const primeiro = proximos.body.trainings[0]
-  assert.equal(JSON.stringify(primeiro).includes('esforcoEsperado'), false)
-  const feito = await api(`/api/trainings/${primeiro.id}/complete`, {
-    method: 'POST', cookie, body: { difficulty: 10, reason: 'forca' },
-  })
-  assert.equal(feito.status, 200)
 
   const { DatabaseSync } = await import('node:sqlite')
   const db = new DatabaseSync(join(dir, 'test.db'))
-  const linha = db.prepare('SELECT difficulty, difficulty_reason, plan FROM trainings WHERE id = ?').get(primeiro.id)
-  assert.equal(linha.difficulty, 10)
-  assert.equal(linha.difficulty_reason, 'forca')
-  const plano = JSON.parse(linha.plan)
-  assert.ok(plano.esforcoEsperado >= 4)
+  const proximos = await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })
+  assert.equal(JSON.stringify(proximos.body.trainings).includes('esforcoEsperado'), false)
 
-  // Gerando de novo: o feedback (10, bem acima do esperado) diminui a principal e foca na força
-  const amanha = daysFromToday(1)
-  await api(`/api/trainings/generate?today=${amanha}`, { method: 'POST', cookie })
-  const novos = db.prepare('SELECT plan FROM trainings WHERE completed_at IS NULL AND date >= ? AND plan IS NOT NULL').all(amanha)
-  db.close()
+  // 1º e 2º pesados: nada muda (pode ser o dia do atleta)
+  const [t1, t2, t3] = proximos.body.trainings
+  for (const t of [t1, t2]) {
+    const res = await api(`/api/trainings/${t.id}/complete`, { method: 'POST', cookie, body: { difficulty: 9, reason: 'forca' } })
+    assert.equal(res.status, 200)
+    assert.equal(res.body.reformulados, 0)
+  }
+  // 3º seguido: os próximos são refeitos, com menos tempo na principal e foco na força
+  const antes = JSON.parse(db.prepare('SELECT plan FROM trainings WHERE id = ?').get(t3.id).plan)
+  const terceiro = await api(`/api/trainings/${t3.id}/complete`, { method: 'POST', cookie, body: { difficulty: 10, reason: 'forca' } })
+  assert.ok(terceiro.body.reformulados > 0)
+  const linha = db.prepare('SELECT difficulty, difficulty_reason FROM trainings WHERE id = ?').get(t3.id)
+  assert.deepEqual([linha.difficulty, linha.difficulty_reason], [10, 'forca'])
+  const novos = db.prepare('SELECT plan FROM trainings WHERE completed_at IS NULL AND plan IS NOT NULL AND date >= ? ORDER BY date')
+    .all(hoje).map((r) => JSON.parse(r.plan))
   assert.ok(novos.length > 0)
-  for (const { plan } of novos) {
-    const p = JSON.parse(plan)
+  // O próximo começa com menos tempo na principal (depois volta a subir devagar, no condicionamento)
+  assert.ok(novos[0].fatorPrincipal < antes.fatorPrincipal, `${novos[0].fatorPrincipal} >= ${antes.fatorPrincipal}`)
+  for (const p of novos) {
     assert.equal(p.carga, -1)
     assert.equal(p.foco, 'forca')
-    assert.ok(p.fatorPrincipal < plano.fatorPrincipal)
+    assert.ok(['acumulacao', 'transicao', 'realizacao'].includes(p.fase))
   }
+  // Concluir mais um (bem) não refaz de novo pelos mesmos 3
+  const [t4] = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  const quarto = await api(`/api/trainings/${t4.id}/complete`, { method: 'POST', cookie, body: { difficulty: 4 } })
+  assert.equal(quarto.body.reformulados, 0)
+  db.close()
+})
+
+test('periodização: com prova alvo, vai até a prova; o teste na Transição depende do tempo', async () => {
+  const cookie = await userFor('periodizacao')
+  const hoje = daysFromToday(0)
+  const prova = daysFromToday(60)
+  // Só informou o tempo: na 1ª geração não tem teste
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  const competition = { name: 'Copa', date: prova, modality: 'piscina_25', event: '200 m livre' }
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition } })
+  const primeira = await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const datas = primeira.body.trainings.map((t) => t.date)
+  assert.ok(datas.at(-1) <= prova && datas.at(-1) > daysFromToday(50), datas.at(-1))
+  const temTeste = (res) => res.body.trainings.some((t) => t.partes.some((p) => p.parte === 'teste'))
+  assert.equal(temTeste(primeira), false)
+  // 2ª geração: o teste entra no começo da Transição
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...competition, name: 'Copa 2' } } })
+  assert.equal(temTeste(await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })), true)
+  // Prova de 400 m em piscina: o teste é a própria prova
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...competition, name: 'Copa 3', event: '400 m livre' } } })
+  assert.equal(temTeste(await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })), false)
 })
