@@ -589,9 +589,9 @@ Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `de
 ### Treinos sem resposta e faltas
 
 - **Ao abrir o app**, se algum treino passou da data sem resposta (dos últimos 21 dias), aparece a pergunta: **"Você fez este treino?"** (às vezes ele só esqueceu de clicar em "Concluir treino"). Um treino: "Sim, fiz" leva às perguntas da série principal; "Não fiz" marca a falta. Vários: uma lista para marcar "Fiz" ou "Não fiz" em cada um.
-- **Faltas** deixam os próximos treinos **mais leves**: só as intensidades descem um degrau (A3 vira A2, A2 vira A1; AC, NEG, POS e final forte viram A2). As séries e o material ficam. Quem treina mais vezes por semana perde menos, então a regra vale só para quem treina **até 3 vezes por semana** (`faltas` no `regras.json`, PROVISÓRIO):
-  - **Iniciante e intermediário:** mais de 3 faltas seguidas deixam os **próximos 2 treinos** mais leves.
-  - **Avançado:** **3 dias ou mais sem treinar** deixam o **primeiro treino da volta** mais leve.
+- **Faltas** deixam os próximos treinos **mais leves** (só as intensidades; as séries e o material ficam). Quem treina mais vezes por semana perde menos, então a regra vale só para quem treina **até 3 vezes por semana** (`faltas` no `regras.json`):
+  - **Iniciante e intermediário:** mais de 3 faltas seguidas deixam os **próximos 2 treinos** mais leves: cada intensidade **desce um degrau** (A3 vira A2, A2 vira A1; AC, NEG, POS e final forte viram A2).
+  - **Avançado:** **3 dias ou mais sem treinar** (contando do último treino feito) deixam o **primeiro treino da volta** mais leve: **só o A3 sai** (vira A2, e o AC de 10" ou menos também); o resto fica como estava.
 
 ### Teste de estresse
 

@@ -832,14 +832,26 @@ export function renderPart(rules, athlete, montagem) {
     return { texto: cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas), aviso }
 }
 
-// Treino mais leve depois de faltas: cada intensidade desce um degrau (A3 -> A2,
-// A2 -> A1; AC, NEG, POS e final forte -> A2). As séries e o material não mudam.
-// `treino` = { partes, plano } como guardado. Devolve { partes, plano }.
-export function lightenTraining(rules, athlete, treino) {
-    const desce = (v) => (v === 'A3' ? 'A2' : v === 'A2' || v === 'A1' ? 'A1' : 'A2')
+// Treino mais leve depois de faltas. `como` = 'degrau' (iniciante e intermediário):
+// cada intensidade desce um degrau (A3 -> A2, A2 -> A1; AC, NEG, POS e final forte -> A2);
+// 'tirarA3' (avançado): só o A3 (e o AC de 10" ou menos, que conta como A3) vira A2.
+// As séries e o material não mudam. `treino` = { partes, plano } como guardado.
+// Devolve { partes, plano }.
+export function lightenTraining(rules, athlete, treino, como = 'degrau') {
+    const degrau = (v) => (v === 'A3' ? 'A2' : v === 'A2' || v === 'A1' ? 'A1' : 'A2')
+    const semA3 = (v) => (v === 'A3' || /^([1-9]|10) AC$/.test(v) ? 'A2' : v)
+    const desce = como === 'tirarA3' ? semA3 : degrau
     const pronto = prepareAthlete(rules, athlete)
     const montagem = (treino.plano?.montagem ?? []).map((m) => (m?.intensidades
-        ? { ...m, intensidades: { ...m.intensidades, tipo: 'intensidades', valores: m.intensidades.valores.map(desce) } }
+        ? {
+            ...m,
+            intensidades: {
+                ...m.intensidades,
+                // Só muda o tipo se algum valor mudou para A1/A2 (ex.: AC que virou A2)
+                tipo: m.intensidades.valores.some((v) => desce(v) !== v && !/^A[123]$/.test(v)) ? 'intensidades' : m.intensidades.tipo,
+                valores: m.intensidades.valores.map(desce),
+            },
+        }
         : m))
     const partes = treino.partes.map((p, i) => {
         const m = montagem[i]

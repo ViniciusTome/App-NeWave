@@ -614,7 +614,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       db.exec('BEGIN')
       try {
         for (const row of proximos) {
-          const { partes, plano } = lightenTraining(rules, athlete, { partes: JSON.parse(row.parts), plano: JSON.parse(row.plan) })
+          const { partes, plano } = lightenTraining(rules, athlete, { partes: JSON.parse(row.parts), plano: JSON.parse(row.plan) }, regra.comoDiminuir)
           const f = legacyFields(partes)
           replaceTraining.run(JSON.stringify(partes), JSON.stringify(plano), f.warmUp, f.speed, f.mainSeries, f.release, row.id, userId)
         }

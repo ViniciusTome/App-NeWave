@@ -1134,3 +1134,18 @@ test('treino mais leve depois de faltas: as intensidades descem um degrau, as s�
     assert.ok(!/\bA3\b|AC\)|NEG|POS/.test(p.texto), p.texto)
   }
 })
+
+test('avançado: depois das faltas só o A3 sai (o resto fica como estava)', () => {
+  const [treino] = gerar(avancado, 3).filter((t) => t.plano.intensidade === 'A3')
+  const leve = lightenTraining(rules, avancado, treino, 'tirarA3')
+  assert.equal(leve.plano.intensidade, 'A2')
+  treino.partes.forEach((p, i) => {
+    if (!p.intensidades) return
+    const antes = p.intensidades.valores
+    const depois = leve.partes[i].intensidades.valores
+    antes.forEach((v, k) => {
+      if (v === 'A3' || /^([1-9]|10) AC$/.test(v)) assert.equal(depois[k], 'A2')
+      else assert.equal(depois[k], v)
+    })
+  })
+})
