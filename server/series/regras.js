@@ -981,7 +981,10 @@ function pickWeighted(pesos, random) {
 // A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM), trocando material só entre séries.
 // `proibidas` (ex.: ['A3']) vem da recuperação do treino anterior; 'AC' fica de
 // fora quando o atleta ainda não tem tempos de referência (não sabe o melhor tempo).
-export function drawIntensities(rules, serie, variation, athlete, { proibidas = [], random = Math.random, fase = null } = {}) {
+// `tipos` (opcional) troca os pesos dos tipos pelos da etapa da periodização.
+export function drawIntensities(rules, serie, variation, athlete, {
+    proibidas = [], random = Math.random, fase = null, tipos: tiposDaEtapa = null,
+} = {}) {
     const regra = rules.intensidadesNaPrincipal
     if (!regra) return null
     let { unidade, n } = intensityUnits(serie)
@@ -1008,7 +1011,7 @@ export function drawIntensities(rules, serie, variation, athlete, { proibidas = 
     }
 
     // Tipos possíveis (NEG, POS e final forte precisam de repetições de pelo menos 50 m)
-    const tipos = { ...regra.tipos }
+    const tipos = { ...(tiposDaEtapa ?? regra.tipos) }
     if (todasAsDistancias.some((d) => d < 50)) delete tipos.NEG, delete tipos.POS, delete tipos.finalForte
     if (proibidas.includes('AC')) delete tipos.AC
     const tipo = pickWeighted(tipos, random)

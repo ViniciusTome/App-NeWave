@@ -71,6 +71,8 @@ function blockRest(rules, bloco, athlete) {
     if (minimo && intensidade !== 'solto' && (SEM_PARAR[athlete.continuousDistance] ?? Infinity) <= minimo.paraQuemNadaAte) {
         descanso = Math.max(descanso, minimo.segundos[intensidade] ?? minimo.segundos.outras ?? 0)
     }
+    // Acumulação 1: intervalos maiores (descanso a mais), menos no solto
+    if (athlete.descansoExtra && intensidade !== 'solto') descanso += athlete.descansoExtra
     return descanso
 }
 
@@ -118,7 +120,9 @@ export function saidaFor(rules, athlete, bloco, valor) {
 export function saidaVelocidade(rules, athlete, bloco) {
     const cfg = rules.saidas?.velocidade
     if (!cfg) return null
-    const fixa = cfg[athlete.level]?.[String(bloco.distancia)]
+    // Realização: o avançado força mais nos 25 m (cd 25")
+    const fixa = (athlete.velocidade25 && athlete.level === 'avancado' && bloco.distancia === 25 ? athlete.velocidade25 : null) ??
+        cfg[athlete.level]?.[String(bloco.distancia)]
     if (fixa) return fixa
     if (!athlete.tabela) return null
     const melhor50 = bestTimeFor(rules, athlete, 50)
@@ -279,7 +283,8 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
     const fator = (parte === 'perna' ? RITMO_PERNA : 1) * (comPe ? RITMO_PE_DE_PATO : 1)
     // Intervalo entre as séries: troca o descanso da última repetição de cada série
     const intervalo = (saidaSegundos) =>
-        intervalBetweenSets(rules, parte, serie, { fase: athlete.fase ?? null, level: athlete.level, saidaSegundos })
+        intervalBetweenSets(rules, parte, serie, { fase: athlete.fase ?? null, level: athlete.level, saidaSegundos }) +
+        (parte === 'principal' ? athlete.intervaloExtra ?? 0 : 0)
     let total = 0
     let ultimo = { saida: 0, descanso: 0 }
     for (const bloco of serie.blocos) {
@@ -699,6 +704,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
                 ? { tipo: 'intensidades', unidade: 'serie_toda', valores: ['A1'], variation: escolha.variation }
                 : drawIntensities(rules, escolha.serie, escolha.variation, athlete, {
                     proibidas: athlete.tabela ? proibidas : [...proibidas, 'AC'], random, fase: athlete.fase ?? null,
+                    tipos: athlete.tiposDaEtapa,
                 })
             if (sorteio) {
                 escolha.variation = sorteio.variation
@@ -720,7 +726,11 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
         // (2x), (3x), (4x)...: um material diferente em cada série, sem repetir em seguida
         escolha.variation = rotateSetMaterials(rules, parte, escolha.serie, escolha.variation, escolha.intensidades, athlete, random)
-        const intervalo = intervalText(intervalRangeFor(rules, parte, escolha.serie, athlete.level))
+        // Intervalo entre as séries (Acumulação 1: maior)
+        const faixa = intervalRangeFor(rules, parte, escolha.serie, athlete.level)
+        const extra = parte === 'principal' ? athlete.intervaloExtra ?? 0 : 0
+        const faixaDoDia = faixa && extra ? { min: faixa.min + extra, max: faixa.max + extra } : faixa
+        const intervalo = intervalText(faixaDoDia)
         let saidas = parte === 'velocidade'
             ? (escolha.serie.blocos.length === 1 ? [saidaVelocidade(rules, athlete, escolha.serie.blocos[0])] : null)
             : saidasDaSerie(rules, athlete, escolha.serie, escolha.intensidades, athlete.fase ?? null)
@@ -737,7 +747,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             serieId: escolha.serie.id,
             serieTexto: escolha.serie.texto,
             ...(escolha.serie.familia && { serieFamilia: escolha.serie.familia }),
-            texto: cardText(escolha.serie, escolha.variation, intervalRangeFor(rules, parte, escolha.serie, athlete.level),
+            texto: cardText(escolha.serie, escolha.variation, faixaDoDia,
                 comoMostrar(rules, athlete, escolha.intensidades), saidas),
             ...(aviso && { aviso }),
             ...(escolha.intensidades && { intensidades: escolha.intensidades }),
@@ -888,21 +898,68 @@ const addDays = (iso, n) => {
 }
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000)
 
-// Fases da periodização (Acumulação, Transição, Realização), na proporção das regras,
-// do início ao fim (a prova alvo). Devolve (data) -> { fase, semanaDaFase }.
+// Etapas da periodização (ATR) para um período de `total` dias: o modelo
+// (Acumulação 1, Acumulação 2, Transição 1, Transição 2, Realização) com cada etapa
+// entre os dias mínimo e máximo. Período curto: um modelo menor. Período longo: repete
+// as etapas antes da Realização. Devolve [{ etapa, dias }].
+export function planStages(rules, total) {
+    const cfg = rules.periodizacao
+    const etapas = cfg?.etapas
+    if (!etapas || !cfg.modelo) return [{ etapa: null, dias: total }]
+    const soma = (modelo, k) => modelo.reduce((s, e) => s + etapas[e].dias[k], 0)
+    let modelo = [cfg.modelo, ...(cfg.modelosCurtos ?? [])].find((m) => soma(m, 0) <= total) ??
+        cfg.modelosCurtos?.at(-1) ?? cfg.modelo
+    // Período longo: repete as etapas antes da Realização (ex.: A1-A2-T1-T2-A1-A2-T1-T2-R)
+    if (modelo === cfg.modelo) {
+        const antes = cfg.modelo.slice(0, -1)
+        for (let vezes = 2; soma(modelo, 1) < total && vezes <= 6; vezes++) {
+            modelo = [...Array.from({ length: vezes }, () => antes).flat(), cfg.modelo.at(-1)]
+        }
+    }
+    // Cada etapa começa no mínimo; os dias que sobram vão um a um para as etapas
+    // que ainda cabem, em rodízio
+    const dias = modelo.map((e) => etapas[e].dias[0])
+    let sobra = total - dias.reduce((s, d) => s + d, 0)
+    if (sobra < 0) {
+        // Mais curto que o mínimo: tira da primeira etapa
+        dias[0] = Math.max(1, dias[0] + sobra)
+        sobra = 0
+    }
+    while (sobra > 0) {
+        let deu = false
+        for (let k = 0; k < modelo.length && sobra > 0; k++) {
+            if (dias[k] < etapas[modelo[k]].dias[1]) {
+                dias[k]++
+                sobra--
+                deu = true
+            }
+        }
+        if (!deu) { dias[0] += sobra; sobra = 0 } // passou do máximo de tudo: vai para a 1ª
+    }
+    return modelo.map((etapa, k) => ({ etapa, dias: dias[k] }))
+}
+
+// Etapa de cada dia da periodização, do início ao fim (a prova alvo).
+// Devolve (data) -> { etapa, nome, fase, semanaDaFase } (semana dentro da etapa).
 export function periodPhases(rules, inicio, fim) {
     const total = Math.max(1, daysBetween(inicio, fim) + 1)
-    const fases = rules.periodizacao?.fases ?? [['acumulacao', 1]]
-    let acumulado = 0
-    const limites = fases.map(([fase, proporcao]) => {
-        const comeca = acumulado
-        acumulado += proporcao
-        return { fase, comeca: Math.round(comeca * total), termina: Math.round(acumulado * total) }
+    const plano = planStages(rules, total)
+    let comeca = 0
+    const limites = plano.map(({ etapa, dias }) => {
+        const l = { etapa, comeca, termina: comeca + dias }
+        comeca += dias
+        return l
     })
     return (date) => {
         const dia = Math.min(total - 1, Math.max(0, daysBetween(inicio, date)))
-        const atual = limites.find((l) => dia < l.termina) ?? limites[limites.length - 1]
-        return { fase: atual.fase, semanaDaFase: Math.floor((dia - atual.comeca) / 7) + 1 }
+        const atual = limites.find((l) => dia < l.termina) ?? limites.at(-1)
+        const cfg = rules.periodizacao?.etapas?.[atual.etapa]
+        return {
+            etapa: atual.etapa,
+            nome: cfg?.nome ?? null,
+            fase: cfg?.fase ?? null,
+            semanaDaFase: Math.floor((dia - atual.comeca) / 7) + 1,
+        }
     }
 }
 
@@ -953,9 +1010,25 @@ export function generateTrainings({
     const horasEntre = (a, b) => (Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 3_600_000
 
     return trainingDates(today, athlete.trainingDays, totalDeDias).map((date, i) => {
-        const { fase = null, semanaDaFase = null } = faseDe ? faseDe(date) : {}
-        const doDia = { ...athlete, fase }
+        // Etapa do dia (Acumulação 1, ..., Realização). Condicionamento: fica na Acumulação.
+        const daData = faseDe ? faseDe(date) : { etapa: null, nome: null, fase: null, semanaDaFase: null }
+        const etapa = condicionamento && daData.fase && daData.fase !== 'acumulacao' ? 'acumulacao2' : daData.etapa
+        const efeitos = rules.periodizacao?.etapas?.[etapa] ?? {}
+        const fase = efeitos.fase ?? daData.fase
+        const doDia = {
+            ...athlete,
+            fase,
+            etapa,
+            descansoExtra: efeitos.descansoExtra ?? 0,
+            intervaloExtra: efeitos.intervaloExtra ?? 0,
+            tiposDaEtapa: efeitos.tipos ?? null,
+            velocidade25: efeitos.velocidadeAvancado25 ?? null,
+            // Transição 2 (força específica): palmar e palmar + pull buoy, se o feedback não pediu outra coisa
+            foco: athlete.foco ?? efeitos.foco ?? null,
+        }
         const proibidas = []
+        // Acumulação: só A1/A2
+        if (efeitos.semA3) proibidas.push('A3')
         // Pesado demais nos últimos treinos: os 2 primeiros sem A3
         if (ajuste.carga < 0 && i < 2) proibidas.push('A3')
         const recuperacao = anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)
@@ -965,9 +1038,10 @@ export function generateTrainings({
         }
         // Tempo da principal: o do feedback; no condicionamento, aumenta um pouco a cada treino
         const cond = rules.condicionamento
-        const fatorPrincipal = condicionamento
-            ? Math.min(cond.fatorMaximo, Math.round((ajuste.fatorPrincipal + i * cond.aumentoPorTreino) * 100) / 100)
-            : ajuste.fatorPrincipal
+        // A etapa também mexe no volume (ex.: Realização com 70%)
+        const fatorPrincipal = Math.round((condicionamento
+            ? Math.min(cond.fatorMaximo, ajuste.fatorPrincipal + i * cond.aumentoPorTreino)
+            : ajuste.fatorPrincipal) * (efeitos.volume ?? 1) * 100) / 100
         // Teste de quem não tem tempo (depois de 1 mês) e o teste da periodização (no
         // começo da Transição). Quem não nada 400 m sem parar não faz teste (condicionamento).
         const testeSemTempo = semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe
@@ -997,7 +1071,9 @@ export function generateTrainings({
             plano: {
                 numero,
                 fase,
-                semanaDaFase,
+                etapa,
+                nomeDaEtapa: rules.periodizacao?.etapas?.[etapa]?.nome ?? null,
+                semanaDaFase: daData.semanaDaFase,
                 intensidade: anterior.intensidade,
                 esforcoEsperado: expectedEffort(rules, partes),
                 metrosPrincipal: principais.reduce((s, p) => s + p.metros, 0),

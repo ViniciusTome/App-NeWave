@@ -466,7 +466,21 @@ Vale para todos os níveis. A nota (e o motivo) aparece na página **Desempenho/
 
 Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia da preparação até a **prova alvo** (sem prova, **8 semanas**). Fica em `periodizacao` no `regras.json`.
 
-- **Fases** (PROVISÓRIO, até você definir): **Acumulação 50%** do período, **Transição 30%**, **Realização 20%**. Cada fase já muda as regras que dependem dela (saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação).
+- **Etapas do ATR** (`periodizacao.etapas` e `modelo` no `regras.json`):
+
+  | Etapa | Dias | O que tem |
+  |---|---|---|
+  | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), intervalos maiores: +1' entre as séries e +10" de descanso (PROVISÓRIO) |
+  | Acumulação 2 | 14 a 45 | Séries aeróbicas A1/A2, intervalos ajustados (os normais) |
+  | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 90% |
+  | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 90% |
+  | Realização | 8 a 15 | Ritmo de prova e velocidade: mais AC e final forte, volume 70%, velocidade do avançado nos 25 m cd 25" |
+
+  - Cada etapa começa com o mínimo de dias e o que sobra é dividido entre elas, sem passar do máximo. Ex.: 12 semanas = Acumulação 1, 18 dias → Acumulação 2, 18 → Transição 1, 18 → Transição 2, 18 → Realização, 12.
+  - **Período curto** (`modelosCurtos`): 8 semanas = Acumulação 1 → Transição 1 → Realização; 4 semanas = Transição 1 → Realização; até ~3 semanas = só Realização.
+  - **Período longo:** repete as etapas antes da Realização. Ex.: 6 meses = A1-A2-T1-T2-A1-A2-T1-T2-R.
+  - **Condicionamento** (não nada 400 m sem parar): fica na Acumulação o tempo todo.
+  - As fases também ligam as regras que já existiam: saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação.
 - **Teste de 400 m** no 1º treino da Transição (veja "Teste de 400 m na periodização").
 - **Plano interno de cada treino** (fica só no banco, o atleta não vê): número do treino, fase e semana da fase, intensidade, esforço esperado (ritmo leve/A1 = 4, A2 = 6, A3 = 8, teste = 9), metros e minutos da principal, tipo da principal (intensidades, AC, NEG, POS, final forte), se é dia de teste, se vem depois de um treino forte (recuperação), material da principal, tempo da principal, carga e foco do feedback.
 - Os treinos já feitos ficam como estão; os que ainda não foram feitos são refeitos quando o atleta gera de novo ou quando o feedback pede (3 seguidos).
