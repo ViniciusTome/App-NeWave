@@ -205,3 +205,27 @@ test('séries com vários blocos somam a metragem e juntam o material', () => {
   // 25 m não fecha numa piscina de 50 m
   assert.deepEqual(serie.piscinas, [25])
 })
+
+// ---------- Glossário (src/data/glossario.json) ----------
+
+test('o glossário está bem formado: categorias, termos sem repetir e com explicação', async () => {
+  const { readFileSync } = await import('node:fs')
+  const glossario = JSON.parse(readFileSync(new URL('../src/data/glossario.json', import.meta.url), 'utf8'))
+  assert.ok(Array.isArray(glossario) && glossario.length > 0)
+  const siglas = new Set()
+  for (const categoria of glossario) {
+    assert.equal(typeof categoria.categoria, 'string')
+    assert.ok(categoria.termos.length > 0, categoria.categoria)
+    for (const termo of categoria.termos) {
+      for (const key of Object.keys(termo)) assert.ok(['sigla', 'nome', 'explicacao'].includes(key), `campo ${key}`)
+      assert.ok(termo.sigla?.trim(), 'sigla vazia')
+      assert.ok(termo.explicacao?.trim(), `${termo.sigla} sem explicação`)
+      assert.ok(!siglas.has(termo.sigla), `${termo.sigla} repetido`)
+      siglas.add(termo.sigla)
+    }
+  }
+  // As abreviações que o treinador usa estão lá
+  for (const s of ['CR', 'CO', 'PE', 'BO', 'MD', 'ME', 'NAD', 'AC', 'NEG', 'POS', 'T/25', 'BR', 'PR', 'Téc', 'SNK', 'PARA', 'BOIA']) {
+    assert.ok(siglas.has(s), `falta ${s}`)
+  }
+})

@@ -1,0 +1,86 @@
+[
+  {
+    "categoria": "Como ler a série",
+    "termos": [
+      { "sigla": "4 x 100 m", "explicacao": "4 repetições de 100 metros." },
+      { "sigla": "(2x)", "explicacao": "Repita o que vem depois 2 vezes. Ex.: (2x) 4 x 100 m = duas séries de 4 x 100 m." },
+      { "sigla": "1x / 2x / 3x (com chaves)", "explicacao": "Quantas vezes o bloco inteiro é repetido." },
+      { "sigla": "cd", "nome": "Cada (saída)", "explicacao": "Tempo de saída de cada repetição: você nada e descansa o que sobrar. Ex.: cd 30\" = sai a cada 30 segundos." },
+      { "sigla": "c/2'", "nome": "Intervalo entre séries", "explicacao": "Descanso entre uma série e outra. Ex.: c/2' = 2 minutos de intervalo." },
+      { "sigla": "Descanso", "explicacao": "Pausa entre uma repetição e outra." },
+      { "sigla": "Intervalo", "explicacao": "Pausa maior, entre uma série e outra (ex.: entre as séries de um (3x))." },
+      { "sigla": "Pirâmide", "explicacao": "Série com metragens diferentes, uma embaixo da outra (ex.: 1 x 400 m, 2 x 200 m, 4 x 100 m, 8 x 50 m)." },
+      { "sigla": "Ida / volta", "explicacao": "Ida é a primeira piscina, volta é a de retorno. Ex.: indo crawl, voltando estilo." },
+      { "sigla": "T/25", "nome": "Trocando a cada 25 m", "explicacao": "Troca o nado a cada 25 metros. Também pode ser T/50 (a cada 50 m) ou T/100 (a cada 100 m)." },
+      { "sigla": "(70)", "nome": "Metragem do treino", "explicacao": "Número circulado no fim do treino: a metragem total em centenas. Ex.: (70) = 7.000 m." }
+    ]
+  },
+  {
+    "categoria": "Nados",
+    "termos": [
+      { "sigla": "CR", "nome": "Crawl", "explicacao": "Nado livre mais comum, o mais rápido." },
+      { "sigla": "CO", "nome": "Costas", "explicacao": "Nado de costas." },
+      { "sigla": "PE", "nome": "Peito", "explicacao": "Nado de peito. Atenção: \"c/ PE\" é \"com pé de pato\"." },
+      { "sigla": "BO", "nome": "Borboleta", "explicacao": "Nado borboleta." },
+      { "sigla": "MD", "nome": "Medley", "explicacao": "Os quatro nados na ordem: borboleta, costas, peito e crawl. Em 150 m é sem crawl: borboleta, costas e peito." },
+      { "sigla": "Medley alternado", "explicacao": "Cada repetição num nado, na ordem do medley (ex.: 8 x 25 m medley = 25 borboleta, 25 costas, 25 peito, 25 crawl, e de novo)." },
+      { "sigla": "ME", "nome": "Melhor estilo", "explicacao": "O estilo em que você é mais rápido, sem contar o crawl (borboleta, costas ou peito). É o que você marcou na anamnese." },
+      { "sigla": "Estilo", "explicacao": "Qualquer nado que não seja o crawl: borboleta, costas ou peito." },
+      { "sigla": "Livre", "explicacao": "Você escolhe o nado (normalmente crawl)." },
+      { "sigla": "CR3 / CR4 / CR10", "nome": "Crawl com respiração", "explicacao": "Crawl respirando a cada 3, 4 ou 10 braçadas." }
+    ]
+  },
+  {
+    "categoria": "Partes do treino",
+    "termos": [
+      { "sigla": "Aquecimento", "explicacao": "Início do treino, leve, para preparar o corpo." },
+      { "sigla": "Téc", "nome": "Técnica", "explicacao": "Educativos para corrigir e melhorar o movimento do nado." },
+      { "sigla": "Velocidade", "explicacao": "Tiros curtos e fortes (ex.: 25 m)." },
+      { "sigla": "Solto", "explicacao": "Nado bem leve, para recuperar." },
+      { "sigla": "Série principal", "explicacao": "A parte mais importante do treino, com o objetivo do dia." },
+      { "sigla": "PR", "nome": "Perna (pernada)", "explicacao": "Série só de pernada." },
+      { "sigla": "BR", "nome": "Braçada", "explicacao": "Série só de braçada, normalmente com pull buoy entre as pernas." },
+      { "sigla": "Soltura", "explicacao": "Final do treino, bem leve, para soltar o corpo." },
+      { "sigla": "Hidratação", "explicacao": "Pausa nos treinos longos para beber água e comer algo leve (uma fruta)." }
+    ]
+  },
+  {
+    "categoria": "Intensidade e ritmo",
+    "termos": [
+      { "sigla": "A1", "nome": "Aeróbico leve", "explicacao": "Ritmo confortável, que dá para manter por muito tempo." },
+      { "sigla": "A2", "nome": "Aeróbico moderado", "explicacao": "Ritmo firme, que você consegue manter na série toda." },
+      { "sigla": "A3", "nome": "Aeróbico forte", "explicacao": "Ritmo forte, perto do ritmo do seu teste de 400 m." },
+      { "sigla": "Forte", "explicacao": "O mais rápido que você consegue naquela distância." },
+      { "sigla": "NAD", "nome": "Nadando", "explicacao": "Nadando normal, sem material." },
+      { "sigla": "AC", "nome": "Acima", "explicacao": "Acima do seu melhor tempo. Ex.: 10 AC = 10 segundos acima do seu melhor tempo naquela distância." },
+      { "sigla": "NEG", "nome": "Negativo", "explicacao": "A segunda metade mais rápida que a primeira: vai nadando e volta mais forte." },
+      { "sigla": "POS", "nome": "Positivo", "explicacao": "O contrário do negativo: vai mais forte e volta nadando." },
+      { "sigla": "50 x 25 fo", "nome": "Final forte", "explicacao": "Dentro da repetição, os primeiros metros nadando e os últimos forte. Ex.: num 75 m, 50 m nadando + 25 m forte. \"25 x 25 forte\" num 50 m: 25 nadando + 25 forte." },
+      { "sigla": "Tempo", "explicacao": "Repetição para marcar o seu tempo (valendo, o mais forte que conseguir)." }
+    ]
+  },
+  {
+    "categoria": "Materiais",
+    "termos": [
+      { "sigla": "c/ PE", "nome": "Com pé de pato", "explicacao": "Nadadeiras nos pés. Deixam o nado mais rápido e fortalecem a pernada." },
+      { "sigla": "Pé de pato de peito", "explicacao": "Nadadeira própria para a pernada de peito." },
+      { "sigla": "PAL / PALM", "nome": "Palmar", "explicacao": "Placa nas mãos que aumenta a força da braçada." },
+      { "sigla": "BOIA", "nome": "Pull buoy", "explicacao": "Flutuador entre as pernas, para nadar só de braço." },
+      { "sigla": "SNK", "nome": "Snorkel", "explicacao": "Tubo de respiração frontal: você nada sem virar a cabeça para respirar." },
+      { "sigla": "PARA", "nome": "Paraquedas", "explicacao": "Preso na cintura, cria resistência na água para treinar força." },
+      { "sigla": "Prancha", "explicacao": "Usada nas séries de perna, para apoiar os braços." }
+    ]
+  },
+  {
+    "categoria": "Planejamento",
+    "termos": [
+      { "sigla": "Prova alvo", "explicacao": "A competição principal da sua preparação: os treinos são montados para ela." },
+      { "sigla": "A / B / C", "nome": "Prioridade da prova", "explicacao": "A = prova alvo; B = prova importante; C = prova de teste ou de \"bate-pronto\"." },
+      { "sigla": "ATR", "nome": "Periodização ATR", "explicacao": "Divisão da preparação em três fases: Acumulação, Transição e Realização." },
+      { "sigla": "Acumulação", "explicacao": "Início da temporada: mais volume, base aeróbica." },
+      { "sigla": "Transição", "explicacao": "Meio da temporada: o treino fica mais específico para a prova." },
+      { "sigla": "Realização", "explicacao": "Final da temporada: perto da prova, menos volume e mais qualidade." },
+      { "sigla": "Teste de 400 m", "explicacao": "400 m no seu melhor tempo. É com ele que o app calcula os ritmos dos treinos." }
+    ]
+  }
+]
