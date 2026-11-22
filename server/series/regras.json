@@ -109,6 +109,10 @@
     "acimaDoMelhor": [20, 15, 10, 5],
     "maxRepeticoesComIntensidade": 7,
     "ritmoUnicoNasSimples": 50,
+    "ritmoPorRepeticao": {
+      "fases": ["acumulacao"],
+      "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]]
+    },
     "ritmoPorDistancia": {
       "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
     }

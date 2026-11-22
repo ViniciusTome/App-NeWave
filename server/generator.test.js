@@ -351,6 +351,29 @@ test('séries simples: um ritmo por repetição ou um ritmo só; 400 m quase sem
   assert.ok(unidades.has('serie_toda'))
 })
 
+test('série simples com um ritmo por repetição: sempre com equipamento, e só no início da temporada', () => {
+  const s6x300 = library.principal.find((s) => s.id === 'pri-6x300')
+  const v = seriesVariations(rules, 'principal', s6x300, avancado)[0] // sem material
+  let porRep = 0
+  for (let seed = 1; seed <= 80; seed++) {
+    const r = drawIntensities(rules, s6x300, v, avancado, { random: seeded(seed) })
+    if (r.tipo === 'intensidades' && r.unidade === 'repeticao') {
+      porRep++
+      assert.ok(r.variation.material.includes('pe_de_pato'), 'ritmo por repetição sem equipamento')
+    }
+    // Fora da Acumulação: nunca um ritmo por repetição
+    const fora = drawIntensities(rules, s6x300, v, avancado, { random: seeded(seed), fase: 'realizacao' })
+    assert.notEqual(fora.unidade, 'repeticao')
+  }
+  assert.ok(porRep > 0)
+  // Sem pé de pato: um ritmo só
+  const semPe = { ...avancado, equipment: ['palmar'] }
+  for (let seed = 1; seed <= 30; seed++) {
+    const r = drawIntensities(rules, s6x300, v, semPe, { random: seeded(seed) })
+    assert.notEqual(r.unidade, 'repeticao')
+  }
+})
+
 test('padrões do treinador e escada; AC diminuindo; final forte por bloco', () => {
   const padroes = rules.intensidadesNaPrincipal.padroes.map((p) => p.join())
   const vistos = new Set()

@@ -124,6 +124,13 @@ export function validateRules(rules) {
         if (!Array.isArray(r.padroes) || r.padroes.some((p) => !Array.isArray(p) || p.length === 0 || p.some((i) => !['A1', 'A2', 'A3'].includes(i)))) {
             problems.push(`${where}.padroes: listas com A1, A2 e A3, ex.: ["A1", "A2", "A1", "A3"].`)
         }
+        if (r.ritmoPorRepeticao !== undefined) {
+            const rr = r.ritmoPorRepeticao
+            if (!Array.isArray(rr.fases) || rr.fases.some((f) => !FASES.includes(f)) ||
+                !Array.isArray(rr.material) || rr.material.some((m) => !Array.isArray(m) || m.some((x) => !MATERIAIS.includes(x)))) {
+                problems.push(`${where}.ritmoPorRepeticao: use { "fases": ["acumulacao"], "material": [["pe_de_pato"]] }.`)
+            }
+        }
         for (const [d, cfg] of Object.entries(r.ritmoPorDistancia ?? {})) {
             if (typeof cfg?.valor !== 'string' || !Array.isArray(cfg.material) ||
                 cfg.material.some((m) => !Array.isArray(m) || m.some((x) => !MATERIAIS.includes(x)))) {
@@ -912,7 +919,7 @@ function pickWeighted(pesos, random) {
 // (um valor por série, bloco ou repetição) e a variação com o material ajustado:
 // A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM), trocando material só entre séries.
 // `proibidas` (ex.: ['A3']) vem da recuperação do treino anterior.
-export function drawIntensities(rules, serie, variation, athlete, { proibidas = [], random = Math.random } = {}) {
+export function drawIntensities(rules, serie, variation, athlete, { proibidas = [], random = Math.random, fase = null } = {}) {
     const regra = rules.intensidadesNaPrincipal
     if (!regra) return null
     let { unidade, n } = intensityUnits(serie)
@@ -945,8 +952,14 @@ export function drawIntensities(rules, serie, variation, athlete, { proibidas = 
 
     let valores
     if (tipo === 'intensidades') {
-        // Série simples: um ritmo só para a série toda, ou um por repetição
-        const ritmoUnico = unidade === 'repeticao' && random() * 100 < (regra.ritmoUnicoNasSimples ?? 0)
+        // Série simples: um ritmo só para a série toda, ou um por repetição.
+        // Um por repetição (5 x 400 = A1, A2, A1, A2, A3) é do início da temporada
+        // (fase ainda não calculada: vale sempre) e sempre com equipamento.
+        const porRep = regra.ritmoPorRepeticao
+        const materialPorRep = porRep?.material.find((m) => m.every((x) => has.has(x)))
+        const fasePermite = !fase || !porRep?.fases || porRep.fases.includes(fase)
+        const ritmoUnico = unidade === 'repeticao' &&
+            (random() * 100 < (regra.ritmoUnicoNasSimples ?? 0) || !fasePermite || (porRep && !materialPorRep))
         if (repeticoesLongas || ritmoUnico) {
             // Muitas repetições (ou ritmo único): a série toda numa intensidade
             unidade = 'serie_toda'
@@ -957,6 +970,10 @@ export function drawIntensities(rules, serie, variation, athlete, { proibidas = 
             const escada = ladder(n, podeA3 ? 'A3' : 'A2')
             const opcoes = [...padroes, escada]
             valores = opcoes[Math.floor(random() * opcoes.length)]
+            // Ritmo por repetição: a série toda com equipamento
+            if (unidade === 'repeticao' && materialPorRep) {
+                variation = { ...variation, padrao: 'serie_inteira', material: materialPorRep, series: undefined }
+            }
         }
     } else if (tipo === 'AC') {
         // Diminuindo: 20, 15, 10, 5 acima do melhor (as últimas n)
