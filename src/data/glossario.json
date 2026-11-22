@@ -46,9 +46,9 @@
   {
     "categoria": "Intensidade e ritmo",
     "termos": [
-      { "sigla": "A1", "nome": "Aeróbico leve", "explicacao": "Ritmo leve: 60 a 70% do seu esforço máximo para quem está começando, 75% para avançados. O corpo se recupera em até 6 horas. Descanso curto entre as repetições (até 20 segundos)." },
-      { "sigla": "A2", "nome": "Aeróbico moderado", "explicacao": "Ritmo firme: 70 a 80% do seu esforço máximo para quem está começando, 80% para avançados. O corpo se recupera em 12 a 24 horas. Descanso de até 30 segundos entre as repetições." },
-      { "sigla": "A3", "nome": "Aeróbico forte", "explicacao": "Ritmo forte: 80 a 85% do seu esforço máximo para quem está começando, 85% para avançados. O corpo se recupera em 24 a 48 horas. Descanso de até 1 minuto. Normalmente com pé de pato ou pé de pato + palmar." },
+      { "sigla": "A1", "nome": "Aeróbico leve", "explicacao": "Ritmo leve: 60 a 70% do seu esforço máximo para quem está começando, 75% para avançados." },
+      { "sigla": "A2", "nome": "Aeróbico moderado", "explicacao": "Ritmo firme: 70 a 80% do seu esforço máximo para quem está começando, 80% para avançados." },
+      { "sigla": "A3", "nome": "Aeróbico forte", "explicacao": "Ritmo forte: 80 a 85% do seu esforço máximo para quem está começando, 85% para avançados." },
       { "sigla": "AA", "nome": "Alático (velocidade)", "explicacao": "Velocidade, perto de 100% do seu esforço máximo, em tiros curtos. O corpo se recupera em 6 a 24 horas. Descanso de até 1 minuto." },
       { "sigla": "Esforço máximo", "explicacao": "O seu melhor ritmo, medido no teste de 400 m. As porcentagens das intensidades (A1, A2, A3, AA) são sobre ele." },
       { "sigla": "Forte", "explicacao": "O mais rápido que você consegue naquela distância. É o mesmo que AA (velocidade)." },
