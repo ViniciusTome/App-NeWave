@@ -11,8 +11,7 @@
       { "sigla": "Intervalo", "explicacao": "Pausa maior, entre uma série e outra (ex.: entre as séries de um (3x))." },
       { "sigla": "Pirâmide", "explicacao": "Série com metragens diferentes, uma embaixo da outra (ex.: 1 x 400 m, 2 x 200 m, 4 x 100 m, 8 x 50 m)." },
       { "sigla": "Ida / volta", "explicacao": "Ida é a primeira piscina, volta é a de retorno. Ex.: indo crawl, voltando estilo." },
-      { "sigla": "T/25", "nome": "Trocando a cada 25 m", "explicacao": "Troca o nado a cada 25 metros. Também pode ser T/50 (a cada 50 m) ou T/100 (a cada 100 m)." },
-      { "sigla": "(70)", "nome": "Metragem do treino", "explicacao": "Número circulado no fim do treino: a metragem total em centenas. Ex.: (70) = 7.000 m." }
+      { "sigla": "T/25", "nome": "Trocando a cada 25 m", "explicacao": "Troca o nado a cada 25 metros. Também pode ser T/50 (a cada 50 m) ou T/100 (a cada 100 m)." }
     ]
   },
   {
