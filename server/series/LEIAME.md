@@ -475,14 +475,15 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
   | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 90% |
   | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 90% |
   | Semana de recuperação | 7 | Depois de cada Transição: só ritmo leve, volume 60%, sem velocidade |
-  | Realização | 8 a 15 | Ritmo de prova e velocidade: mais AC e final forte, volume 70%, velocidade do avançado nos 25 m cd 25" |
+  | Realização | 6 a 8 | Ritmo de prova e velocidade: mais AC e final forte, volume 70%, velocidade do avançado nos 25 m cd 25". **Só uma semana:** com duas, o atleta perde condicionamento e sofre mais na volta aos treinos |
 
   - **Montada de trás para frente**, como o treinador faz: primeiro a **Realização** (antes da prova), depois a **semana de recuperação**, a **Transição** e a **Acumulação**, repetindo o ciclo do nível até encaixar tudo (`periodizacao.ciclo`):
     - **Iniciante** (e intermediário, PROVISÓRIO): **duas Acumulações para cada Transição** (A1-A2-T).
     - **Avançado:** **uma de cada** (A-T), porque suporta mais pancada.
   - **Semana de recuperação** depois de cada Transição (`recuperacaoDepoisDaTransicao`, 7 dias): só ritmo leve, volume 60%, sem velocidade.
-  - Cada etapa começa com os dias ideais (`diasIdeais`: Acumulação 21, Transição 21, Realização 12) e os dias que sobram vão primeiro para a Acumulação, sem passar do máximo. A periodização **sempre começa pela Acumulação** (a base).
-  - Exemplos: iniciante com 12 semanas = A1 (22 dias) → A2 (22) → T1 (21) → recuperação (7) → R (12). Avançado com 4 meses = A1 (26) → T1 (21) → recuperação (7) → A2 (26) → T2 (21) → recuperação (7) → R (12).
+  - Cada etapa começa com os dias ideais (`diasIdeais`: Acumulação 21, Transição 21, Realização 7) e os dias que sobram vão primeiro para a Acumulação, sem passar do máximo. A periodização **sempre começa pela Acumulação** (a base).
+  - Se o primeiro ciclo fica incompleto (ex.: iniciante com uma Acumulação só antes da Transição), o começo vira Acumulação: mais base.
+  - Exemplos: iniciante com 12 semanas = A1 (25 dias) → A2 (24) → T1 (21) → recuperação (7) → R (7). Iniciante com 5 meses = A1 → A2 → T1 → recuperação → A1 → A2 → T2 → recuperação → R. Avançado com 5 meses = A1 → T1 → recuperação → A2 → T2 → recuperação → A2 → T2 → recuperação → R.
   - **Condicionamento** (não nada 400 m sem parar): fica na Acumulação o tempo todo.
   - As fases também ligam as regras que já existiam: saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação.
 - **Teste de 400 m** no 1º treino da Transição (veja "Teste de 400 m na periodização").

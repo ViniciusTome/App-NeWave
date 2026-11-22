@@ -152,7 +152,7 @@
       "avancado": ["acumulacao", "transicao"]
     },
     "recuperacaoDepoisDaTransicao": 7,
-    "diasIdeais": { "acumulacao": 21, "transicao": 21, "realizacao": 12 },
+    "diasIdeais": { "acumulacao": 21, "transicao": 21, "realizacao": 7 },
     "etapas": {
       "acumulacao1": {
         "nome": "Acumulação 1", "fase": "acumulacao", "dias": [14, 45],
@@ -180,8 +180,8 @@
         "tipos": { "intensidades": 100 }, "semA3": true, "soRitmoLeve": true, "volume": 0.6
       },
       "realizacao": {
-        "nome": "Realização", "fase": "realizacao", "dias": [8, 15],
-        "objetivo": "Ritmo de prova e velocidade: baixo volume e alta intensidade",
+        "nome": "Realização", "fase": "realizacao", "dias": [6, 8],
+        "objetivo": "Ritmo de prova e velocidade: baixo volume e alta intensidade. Só uma semana (6 a 8 dias): com duas, o atleta perde condicionamento e sofre mais na volta aos treinos",
         "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": 0.7, "velocidadeAvancado25": 25
       }
     }

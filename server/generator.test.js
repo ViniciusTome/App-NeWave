@@ -922,8 +922,17 @@ test('periodização: montada de trás para frente, com o ciclo do nível e a re
   // Iniciante: duas Acumulações para cada Transição; depois da Transição, 1 semana de recuperação
   assert.equal(nomes(planStages(rules, 84, 'iniciante')), 'acumulacao1 acumulacao2 transicao1 recuperacao realizacao')
   // Avançado: uma de cada (suporta mais pancada)
-  assert.equal(nomes(planStages(rules, 120, 'avancado')),
-    'acumulacao1 transicao1 recuperacao acumulacao2 transicao2 recuperacao realizacao')
+  assert.match(nomes(planStages(rules, 150, 'avancado')), /transicao1 recuperacao acumulacao2 transicao2 recuperacao acumulacao2 transicao2 recuperacao realizacao$/)
+  // Iniciante com a prova mais longe: A1-A2-T-(rec)-A1-A2-T-(rec)-R
+  assert.equal(nomes(planStages(rules, 150, 'iniciante')),
+    'acumulacao1 acumulacao2 transicao1 recuperacao acumulacao1 acumulacao2 transicao2 recuperacao realizacao')
+  // Realização: uma semana só (6 a 8 dias)
+  for (const level of ['iniciante', 'avancado']) {
+    for (const total of [45, 84, 150]) {
+      const r = planStages(rules, total, level).at(-1)
+      assert.ok(r.dias >= 6 && r.dias <= 8, `${level} ${total}: ${r.dias}`)
+    }
+  }
   for (const level of ['iniciante', 'intermediario', 'avancado']) {
     for (const total of [28, 45, 56, 70, 84, 120, 180, 240]) {
       const plano = planStages(rules, total, level)

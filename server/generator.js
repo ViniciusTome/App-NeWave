@@ -949,6 +949,20 @@ export function planStages(rules, total, level = null) {
         const curto = encaixa(minimo)
         if (curto.blocos[0].fase === 'acumulacao') ({ blocos, livre: resta } = curto)
     }
+    // O primeiro ciclo ficou incompleto (ex.: iniciante com uma Acumulação só antes da
+    // Transição): tudo até a recuperação dele vira Acumulação (a base), em etapas de até o máximo
+    const acumulacoesNoCiclo = ciclo.indexOf('transicao')
+    const primeiraT = blocos.findIndex((b) => b.fase === 'transicao')
+    if (primeiraT > 0 && primeiraT < acumulacoesNoCiclo && blocos[primeiraT + 1]?.fase === 'recuperacao' &&
+        blocos.slice(primeiraT + 2).some((b) => b.fase === 'transicao')) {
+        const dias = blocos.slice(0, primeiraT + 2).reduce((s, b) => s + b.dias, 0)
+        const maximo = etapas.acumulacao1.dias[1]
+        const partes = Math.max(acumulacoesNoCiclo, Math.ceil(dias / maximo))
+        const novas = Array.from({ length: partes }, (_, i) => ({
+            fase: 'acumulacao', dias: Math.floor(dias / partes) + (i < dias % partes ? 1 : 0),
+        }))
+        blocos = [...novas, ...blocos.slice(primeiraT + 2)]
+    }
     // Ainda começa pela Transição: ela (e a recuperação) vira Acumulação, porque a
     // periodização começa construindo a base
     while (blocos.length > 1 && blocos[0].fase !== 'acumulacao' && blocos[0].fase !== 'realizacao') {
