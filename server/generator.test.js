@@ -915,35 +915,33 @@ test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () =
 
 // ---------- Periodização inteira ----------
 
-test('periodização: etapas do ATR com os dias de cada uma, conforme o nível', () => {
+test('periodização: montada de trás para frente, com o ciclo do nível e a recuperação', () => {
   const etapas = rules.periodizacao.etapas
-  const dentro = (plano) => plano.every(({ etapa, dias }) => dias >= etapas[etapa].dias[0] && dias <= etapas[etapa].dias[1])
   const soma = (plano) => plano.reduce((s, p) => s + p.dias, 0)
   const nomes = (plano) => plano.map((p) => p.etapa).join(' ')
-  // Iniciante: prioriza a base, A1-A2-T-R; com a prova mais longe, A1-A2-T-A-T-R
-  assert.equal(nomes(planStages(rules, 84, 'iniciante')), 'acumulacao1 acumulacao2 transicao1 realizacao')
-  assert.equal(nomes(planStages(rules, 150, 'iniciante')), 'acumulacao1 acumulacao2 transicao1 acumulacao2 transicao2 realizacao')
-  // Os outros: A1-A2-T1-T2-R; mais longe, também com mais Acumulação
-  assert.equal(nomes(planStages(rules, 84, 'avancado')), 'acumulacao1 acumulacao2 transicao1 transicao2 realizacao')
-  assert.equal(nomes(planStages(rules, 150, 'intermediario')), 'acumulacao1 acumulacao2 transicao1 acumulacao2 transicao2 realizacao')
-  // Curtos: A1-T-R (8 semanas), T-R (4 semanas), só R
-  assert.equal(nomes(planStages(rules, 45, 'avancado')), 'acumulacao1 transicao1 realizacao')
-  assert.equal(nomes(planStages(rules, 28, 'iniciante')), 'transicao1 realizacao')
-  assert.equal(nomes(planStages(rules, 10, 'avancado')), 'realizacao')
+  // Iniciante: duas Acumulações para cada Transição; depois da Transição, 1 semana de recuperação
+  assert.equal(nomes(planStages(rules, 84, 'iniciante')), 'acumulacao1 acumulacao2 transicao1 recuperacao realizacao')
+  // Avançado: uma de cada (suporta mais pancada)
+  assert.equal(nomes(planStages(rules, 120, 'avancado')),
+    'acumulacao1 transicao1 recuperacao acumulacao2 transicao2 recuperacao realizacao')
   for (const level of ['iniciante', 'intermediario', 'avancado']) {
-    for (const total of [30, 45, 60, 84, 120, 150, 180]) {
+    for (const total of [28, 45, 56, 70, 84, 120, 180, 240]) {
       const plano = planStages(rules, total, level)
-      assert.equal(soma(plano), total)
-      assert.ok(dentro(plano), `${level} ${total}: ${JSON.stringify(plano)}`)
-      // A Acumulação tem pelo menos tanto quanto a Transição
-      const de = (fase) => plano.filter((p) => etapas[p.etapa].fase === fase).reduce((s, p) => s + p.dias, 0)
-      if (de('acumulacao') > 0) assert.ok(de('acumulacao') >= de('transicao'), `${level} ${total}`)
+      const texto = `${level} ${total}: ${JSON.stringify(plano)}`
+      assert.equal(soma(plano), total, texto)
+      // Sempre termina na Realização (antes da prova) e começa na Acumulação (base)
+      assert.equal(plano.at(-1).etapa, 'realizacao', texto)
+      assert.equal(etapas[plano[0].etapa].fase, 'acumulacao', texto)
+      plano.forEach((p, k) => {
+        assert.ok(p.dias <= etapas[p.etapa].dias[1], texto)
+        // Toda Transição é seguida da semana de recuperação
+        if (etapas[p.etapa].fase === 'transicao') assert.equal(plano[k + 1].etapa, 'recuperacao', texto)
+        if (p.etapa === 'recuperacao') assert.equal(p.dias, 7)
+      })
     }
   }
-  // Muito longo (8 meses): entram mais etapas de Acumulação
-  const longo = planStages(rules, 240, 'avancado')
-  assert.ok(longo.filter((p) => etapas[p.etapa].fase === 'acumulacao').length >= 4)
-  assert.equal(soma(longo), 240)
+  // Curtíssimo: só a Realização
+  assert.equal(nomes(planStages(rules, 10, 'avancado')), 'realizacao')
   // A semana dentro da etapa
   const etapaDe = periodPhases(rules, '2026-01-01', '2026-03-31', 'avancado')
   assert.deepEqual(etapaDe('2026-01-01'), { etapa: 'acumulacao1', nome: 'Acumulação 1', fase: 'acumulacao', semanaDaFase: 1 })
@@ -973,6 +971,12 @@ test('periodização: cada etapa muda o treino', () => {
   // Realização: o avançado faz a velocidade nos 25 m a cada 25"
   const velocidade = daEtapa('realizacao').flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade'))
   assert.ok(velocidade.filter((p) => /25 m/.test(p.texto)).every((p) => /cd 25"/.test(p.texto)))
+  // Semana de recuperação: só ritmo leve, volume baixo, sem velocidade
+  for (const t of daEtapa('recuperacao')) {
+    assert.ok(!t.partes.some((p) => p.parte === 'velocidade'))
+    for (const p of t.partes.filter((x) => x.parte === 'principal')) assert.deepEqual(p.intensidades.valores, ['A1'])
+  }
+  assert.ok(daEtapa('recuperacao').length > 0)
   // Plano guarda a etapa
   assert.ok(treinos.every((t) => t.plano.nomeDaEtapa))
 })
@@ -985,7 +989,7 @@ test('periodização: gera todos os treinos até a prova, com o plano de cada um
   assert.equal(treinos.at(-1).date <= '2027-01-31', true)
   assert.deepEqual(treinos.map((t) => t.plano.numero), treinos.map((_, i) => i + 1))
   const fases = treinos.map((t) => t.plano.fase)
-  assert.deepEqual([...new Set(fases)], ['acumulacao', 'transicao', 'realizacao'])
+  assert.deepEqual([...new Set(fases)], ['acumulacao', 'transicao', 'recuperacao', 'realizacao'])
   for (const t of treinos) {
     for (const campo of ['semanaDaFase', 'intensidade', 'esforcoEsperado', 'metrosPrincipal', 'tipoPrincipal', 'diaDeTeste', 'recuperacao', 'material']) {
       assert.ok(t.plano[campo] !== undefined, campo)

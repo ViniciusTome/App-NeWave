@@ -660,7 +660,7 @@ export function trainingDates(today, trainingDays, dias = DIAS_PADRAO) {
 
 // Monta um treino: uma série para cada parte da estrutura do nível e do tempo de aula.
 function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1 }) {
-    const leve = soRitmoLeve(rules, athlete)
+    const leve = soRitmoLeve(rules, athlete) || Boolean(athlete.soLeve)
     const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes).filter((p) => !leve || p !== 'velocidade')
     const pausas = estrutura.map((p) => pauseOf(rules, p)).filter(Boolean)
     const segundosLivres = (athlete.sessionMinutes - pausas.reduce((s, p) => s + p.minutos, 0)) * 60
@@ -898,49 +898,96 @@ const addDays = (iso, n) => {
 }
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000)
 
-// Etapas da periodização (ATR) para um período de `total` dias e o nível do atleta.
-// O modelo vem do nível e do tempo até a prova (ex.: iniciante A1-A2-T-R, ou
-// A1-A2-T-A-T-R com a prova mais longe). Quanto mais longa a
-// preparação, mais Acumulação: os dias que sobram vão o dobro para ela, e acima do
-// maior modelo entram mais etapas de Acumulação. Devolve [{ etapa, dias }].
+// Etapas da periodização (ATR) para um período de `total` dias e o nível do atleta,
+// montadas de trás para frente, como o treinador faz: primeiro a Realização (antes
+// da prova), depois a semana de recuperação, a Transição e a Acumulação, repetindo o
+// ciclo do nível até encaixar tudo (iniciante: duas Acumulações para cada Transição;
+// avançado: uma de cada). Depois de cada Transição vem 1 semana de recuperação.
+// Devolve [{ etapa, dias }] na ordem do treino.
 export function planStages(rules, total, level = null) {
     const cfg = rules.periodizacao
     const etapas = cfg?.etapas
-    const modelos = cfg?.modelos?.[level] ?? cfg?.modelos?.padrao
-    if (!etapas || !modelos?.length) return [{ etapa: null, dias: total }]
-    const soma = (modelo, k) => modelo.reduce((s, e) => s + etapas[e].dias[k], 0)
-    const ehAcumulacao = (e) => etapas[e].fase === 'acumulacao'
-    const escolhido = modelos.find((m) => total >= m.aPartirDeDias) ?? modelos.at(-1)
-    let modelo = escolhido.etapas
-    // Mais longo que o maior modelo: mais Acumulação no começo (constrói a base)
-    if (escolhido === modelos[0]) {
-        while (soma(modelo, 1) < total && modelo.length < 12) {
-            const depois = modelo.findIndex((e) => !ehAcumulacao(e))
-            modelo = [...modelo.slice(0, depois), 'acumulacao2', ...modelo.slice(depois)]
+    const ciclo = cfg?.ciclo?.[level] ?? cfg?.ciclo?.intermediario
+    if (!etapas || !ciclo) return [{ etapa: null, dias: total }]
+    const minimo = (fase) => etapas[fase === 'acumulacao' ? 'acumulacao1' : fase === 'transicao' ? 'transicao1' : fase].dias[0]
+    const ideal = (fase) => cfg.diasIdeais?.[fase] ?? minimo(fase)
+    const recuperacao = cfg.recuperacaoDepoisDaTransicao ?? 0
+
+    // De trás para frente: [{ fase, dias }], a última etapa (Realização) primeiro.
+    // `tamanho` = dias de cada etapa ao encaixar (o ideal; se não sobrar espaço para
+    // começar pela Acumulação, tenta de novo com o mínimo)
+    const encaixa = (tamanho) => {
+        const blocos = [{ fase: 'realizacao', dias: Math.min(total, Math.max(minimo('realizacao'), tamanho('realizacao'))) }]
+        let livre = total - blocos[0].dias
+        let k = ciclo.length - 1 // o ciclo de trás para frente: transição, acumulação, acumulação...
+        for (;;) {
+            const fase = ciclo[k]
+            // A Transição vem seguida da semana de recuperação (se não couber, sem ela)
+            let extra = fase === 'transicao' && recuperacao > 0 ? recuperacao : 0
+            if (livre < minimo(fase) + extra) extra = 0
+            if (livre < minimo(fase)) break
+            if (extra) blocos.push({ fase: 'recuperacao', dias: extra })
+            const dias = Math.min(tamanho(fase), livre - extra)
+            blocos.push({ fase, dias })
+            livre -= dias + extra
+            k = (k - 1 + ciclo.length) % ciclo.length
         }
+        // Sobrou espaço e o ciclo pede outra Acumulação antes da primeira: divide em duas
+        // (ex.: iniciante com 70 dias = A1 + A2, não uma Acumulação longa)
+        const primeira = blocos.at(-1)
+        if (ciclo[k] === 'acumulacao' && primeira.fase === 'acumulacao' && primeira.dias + livre >= 2 * minimo('acumulacao')) {
+            const dias = primeira.dias + livre
+            primeira.dias = Math.ceil(dias / 2)
+            blocos.push({ fase: 'acumulacao', dias: Math.floor(dias / 2) })
+            livre = 0
+        }
+        return { blocos: blocos.reverse(), livre }
     }
-    // Cada etapa começa no mínimo; os dias que sobram vão em rodízio para as que ainda
-    // cabem, 2 por vez para a Acumulação e 1 para as outras
-    const dias = modelo.map((e) => etapas[e].dias[0])
-    let sobra = total - dias.reduce((s, d) => s + d, 0)
-    if (sobra < 0) {
-        // Mais curto que o mínimo: tira da primeira etapa
-        dias[0] = Math.max(1, dias[0] + sobra)
-        sobra = 0
+    let { blocos, livre: resta } = encaixa(ideal)
+    // Período curto em que, com os dias ideais, não coube nenhuma Acumulação: tenta com o mínimo
+    if (blocos.length > 1 && !blocos.some((b) => b.fase === 'acumulacao')) {
+        const curto = encaixa(minimo)
+        if (curto.blocos[0].fase === 'acumulacao') ({ blocos, livre: resta } = curto)
     }
-    while (sobra > 0) {
-        let deu = false
-        for (let k = 0; k < modelo.length && sobra > 0; k++) {
-            const vez = Math.min(ehAcumulacao(modelo[k]) ? 2 : 1, sobra, etapas[modelo[k]].dias[1] - dias[k])
-            if (vez > 0) {
-                dias[k] += vez
-                sobra -= vez
-                deu = true
+    // Ainda começa pela Transição: ela (e a recuperação) vira Acumulação, porque a
+    // periodização começa construindo a base
+    while (blocos.length > 1 && blocos[0].fase !== 'acumulacao' && blocos[0].fase !== 'realizacao') {
+        const inicio = blocos.findIndex((b) => b.fase === 'acumulacao' || b.fase === 'realizacao')
+        const dias = blocos.slice(0, inicio).reduce((s, b) => s + b.dias, 0)
+        blocos = [{ fase: 'acumulacao', dias }, ...blocos.slice(inicio)]
+    }
+
+    // Dá o nome de cada etapa: a 1ª Acumulação de cada ciclo é a Acumulação 1 (intervalos
+    // maiores), a seguinte a Acumulação 2; a 1ª Transição é a Transição 1, as outras a 2.
+    let transicoes = 0
+    let anterior = null
+    const plano = blocos.map(({ fase, dias }) => {
+        let etapa = fase
+        if (fase === 'acumulacao') etapa = anterior === 'acumulacao' || (ciclo.filter((f) => f === 'acumulacao').length === 1 && transicoes > 0) ? 'acumulacao2' : 'acumulacao1'
+        if (fase === 'transicao') etapa = ++transicoes === 1 ? 'transicao1' : 'transicao2'
+        anterior = fase
+        return { etapa, dias }
+    })
+
+    // Os dias que sobram: primeiro para a Acumulação, depois Transição e Realização,
+    // sem passar do máximo de cada etapa
+    for (const fase of ['acumulacao', 'transicao', 'realizacao']) {
+        let deu = true
+        while (resta > 0 && deu) {
+            deu = false
+            for (const p of plano) {
+                if (resta > 0 && etapas[p.etapa].fase === fase && p.dias < etapas[p.etapa].dias[1]) {
+                    p.dias++
+                    resta--
+                    deu = true
+                }
             }
         }
-        if (!deu) { dias[0] += sobra; sobra = 0 } // passou do máximo de tudo: vai para a 1ª
     }
-    return modelo.map((etapa, k) => ({ etapa, dias: dias[k] }))
+    // Passou do máximo de tudo: uma Acumulação curta no começo (ou a 1ª etapa fica maior)
+    if (resta >= 5 && etapas[plano[0].etapa].fase !== 'acumulacao') plano.unshift({ etapa: 'acumulacao1', dias: resta })
+    else if (resta > 0) plano[0].dias += resta
+    return plano
 }
 
 // Etapa de cada dia da periodização, do início ao fim (a prova alvo).
@@ -1016,7 +1063,7 @@ export function generateTrainings({
     return trainingDates(today, athlete.trainingDays, totalDeDias).map((date, i) => {
         // Etapa do dia (Acumulação 1, ..., Realização). Condicionamento: fica na Acumulação.
         const daData = faseDe ? faseDe(date) : { etapa: null, nome: null, fase: null, semanaDaFase: null }
-        const etapa = condicionamento && daData.fase && daData.fase !== 'acumulacao' ? 'acumulacao2' : daData.etapa
+        const etapa = condicionamento && ['transicao', 'realizacao'].includes(daData.fase) ? 'acumulacao2' : daData.etapa
         const efeitos = rules.periodizacao?.etapas?.[etapa] ?? {}
         const fase = efeitos.fase ?? daData.fase
         const doDia = {
@@ -1027,6 +1074,8 @@ export function generateTrainings({
             intervaloExtra: efeitos.intervaloExtra ?? 0,
             tiposDaEtapa: efeitos.tipos ?? null,
             velocidade25: efeitos.velocidadeAvancado25 ?? null,
+            // Semana de recuperação: só ritmo leve, sem velocidade
+            soLeve: Boolean(efeitos.soRitmoLeve),
             // Transição 2 (força específica): palmar e palmar + pull buoy, se o feedback não pediu outra coisa
             foco: athlete.foco ?? efeitos.foco ?? null,
         }

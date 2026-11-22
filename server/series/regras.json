@@ -145,23 +145,14 @@
     "_comentario": "Todos os treinos da periodização são gerados de uma vez: do dia da preparação até a prova alvo (sem prova: 'semanasSemProva' semanas). O período é dividido nas etapas de um dos 'modelos' do nível (Acumulação 1, Acumulação 2, Transição 1, Transição 2, Realização), cada uma entre os 'dias' mínimo e máximo. Cada etapa muda o treino ('efeitos'). Quem está no condicionamento (não nada 400 m sem parar) fica na Acumulação.",
     "semanasSemProva": 8,
     "maximoDeDias": 366,
-    "_comentarioModelos": "Modelo de cada nível pelo tempo até a prova: vale o primeiro com 'aPartirDeDias' menor ou igual ao período (PROVISÓRIO). Quanto mais longa a preparação, mais Acumulação (base): os dias que sobram vão o dobro para a Acumulação, e se o período passa do máximo do maior modelo, entram mais etapas de Acumulação.",
-    "modelos": {
-      "iniciante": [
-        { "aPartirDeDias": 120, "etapas": ["acumulacao1", "acumulacao2", "transicao1", "acumulacao2", "transicao2", "realizacao"] },
-        { "aPartirDeDias": 50, "etapas": ["acumulacao1", "acumulacao2", "transicao1", "realizacao"] },
-        { "aPartirDeDias": 36, "etapas": ["acumulacao1", "transicao1", "realizacao"] },
-        { "aPartirDeDias": 22, "etapas": ["transicao1", "realizacao"] },
-        { "aPartirDeDias": 0, "etapas": ["realizacao"] }
-      ],
-      "padrao": [
-        { "aPartirDeDias": 120, "etapas": ["acumulacao1", "acumulacao2", "transicao1", "acumulacao2", "transicao2", "realizacao"] },
-        { "aPartirDeDias": 70, "etapas": ["acumulacao1", "acumulacao2", "transicao1", "transicao2", "realizacao"] },
-        { "aPartirDeDias": 36, "etapas": ["acumulacao1", "transicao1", "realizacao"] },
-        { "aPartirDeDias": 22, "etapas": ["transicao1", "realizacao"] },
-        { "aPartirDeDias": 0, "etapas": ["realizacao"] }
-      ]
+    "_comentarioMontagem": "Montada de trás para frente: primeiro a Realização (antes da prova), depois a semana de recuperação, a Transição e a Acumulação, repetindo o 'ciclo' do nível até encaixar tudo. Iniciante: duas Acumulações para cada Transição; avançado: uma de cada (suporta mais pancada). Depois de cada Transição, 'recuperacaoDepoisDaTransicao' dias de recuperação. Cada etapa começa com 'diasIdeais' e os dias que sobram vão para a Acumulação (depois Transição e Realização), sempre dentro do mínimo e máximo de cada etapa.",
+    "ciclo": {
+      "iniciante": ["acumulacao", "acumulacao", "transicao"],
+      "intermediario": ["acumulacao", "acumulacao", "transicao"],
+      "avancado": ["acumulacao", "transicao"]
     },
+    "recuperacaoDepoisDaTransicao": 7,
+    "diasIdeais": { "acumulacao": 21, "transicao": 21, "realizacao": 12 },
     "etapas": {
       "acumulacao1": {
         "nome": "Acumulação 1", "fase": "acumulacao", "dias": [14, 45],
@@ -182,6 +173,11 @@
         "nome": "Transição 2", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Força específica, resistência mista e aeróbica intensa",
         "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.9, "foco": "forca"
+      },
+      "recuperacao": {
+        "nome": "Semana de recuperação", "fase": "recuperacao", "dias": [7, 7],
+        "objetivo": "Recuperar depois da Transição: só ritmo leve, volume baixo",
+        "tipos": { "intensidades": 100 }, "semA3": true, "soRitmoLeve": true, "volume": 0.6
       },
       "realizacao": {
         "nome": "Realização", "fase": "realizacao", "dias": [8, 15],

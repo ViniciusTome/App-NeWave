@@ -391,7 +391,7 @@ test('3 treinos seguidos pesados refazem os próximos; o plano interno fica só 
   for (const p of novos) {
     assert.equal(p.carga, -1)
     assert.equal(p.foco, 'forca')
-    assert.ok(['acumulacao', 'transicao', 'realizacao'].includes(p.fase))
+    assert.ok(['acumulacao', 'transicao', 'recuperacao', 'realizacao'].includes(p.fase))
   }
   // Concluir mais um (bem) não refaz de novo pelos mesmos 3
   const [t4] = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
