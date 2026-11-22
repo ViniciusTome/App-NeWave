@@ -465,6 +465,52 @@ test('melhorEstiloEMedley só em séries onde cabem o estilo e o medley', () => 
   assert.deepEqual(validate([{ id: 'y', texto: '6 x 150', outrosNados: ['medley'], blocos: [{ repeticoes: 6, distancia: 150, nado: 'livre' }] }]), [])
 })
 
+// ---------- Perna ----------
+
+const perna400 = () => loadPart('perna').find((s) => s.id === 'perna-400')
+const pernaDe = (athlete) => seriesVariations(rules, 'perna', perna400(), { level: 'avancado', ...athlete })
+
+test('perna: 400 sempre com pé de pato; quem não tem não recebe', () => {
+  const lista = pernaDe({ equipment: ['pe_de_pato'], strokes: ['crawl'] })
+  assert.deepEqual(lista.map((v) => v.texto), ['400 perna com pé de pato'])
+  assert.deepEqual(lista[0].material, ['pe_de_pato'])
+  // Material fixo da série: sem pé de pato não dá
+  const semPe = pernaDe({ equipment: [], strokes: ['crawl'] })
+  assert.ok(semPe.every((v) => v.material.includes('pe_de_pato') || v.material.includes('pe_de_pato_peito')))
+})
+
+test('perna: 400 indo crawl e voltando uma vez borboleta e outra costas', () => {
+  const lista = pernaDe({ equipment: ['pe_de_pato'], strokes: QUATRO_ESTILOS, bestStroke: 'costas' })
+  const alternando = lista.find((v) => v.nado === 'ida_crawl_volta_borboleta_e_costas')
+  assert.equal(alternando.texto, '400 perna com pé de pato · ida crawl, voltando uma vez borboleta e outra costas')
+  assert.deepEqual(alternando.piscinas, [25, 50])
+})
+
+test('perna: 400 indo crawl e voltando no melhor estilo', () => {
+  const costas = pernaDe({ equipment: ['pe_de_pato'], strokes: QUATRO_ESTILOS, bestStroke: 'costas' })
+  assert.ok(costas.some((v) => v.texto === '400 perna com pé de pato · ida crawl, volta costas (melhor estilo)'))
+
+  // Melhor estilo peito sem pé de pato de peito: volta de borboleta ou de costas
+  const peito = pernaDe({ equipment: ['pe_de_pato'], strokes: QUATRO_ESTILOS, bestStroke: 'peito' }).map((v) => v.texto)
+  assert.ok(peito.includes('400 perna com pé de pato · ida crawl, volta borboleta (no lugar do peito, sem pé de pato de peito)'))
+  assert.ok(peito.includes('400 perna com pé de pato · ida crawl, volta costas (no lugar do peito, sem pé de pato de peito)'))
+  assert.ok(!peito.some((t) => t.includes('volta peito')))
+
+  // Com pé de pato de peito: volta de peito, usando ele no lugar do pé de pato comum
+  const comPePeito = pernaDe({ equipment: ['pe_de_pato', 'pe_de_pato_peito'], strokes: QUATRO_ESTILOS, bestStroke: 'peito' })
+  const voltaPeito = comPePeito.find((v) => v.texto.includes('volta peito'))
+  assert.equal(voltaPeito.texto, '400 perna · ida crawl, volta peito (melhor estilo) · com pé de pato de peito')
+  assert.deepEqual(voltaPeito.material, ['pe_de_pato_peito'])
+})
+
+test('perna: as outras séries entram como estão', () => {
+  const perna = loadPart('perna')
+  assert.deepEqual(perna.map((s) => s.texto), [
+    '8 x 50 perna', '(2x) 8 x 50 perna', '4 x 100 perna', '400 perna com pé de pato', '3 x 200 perna', '6 x 100 perna',
+  ])
+  assert.deepEqual(perna.map((s) => s.volume), [400, 800, 400, 400, 600, 600])
+})
+
 // ---------- 2ª série principal ----------
 
 // Séries principais de exemplo (o principal.json ainda não existe)

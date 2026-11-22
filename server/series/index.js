@@ -18,7 +18,7 @@ export const NADOS = ['livre', 'crawl', 'costas', 'peito', 'borboleta', 'estilo'
 // "solto": nado leve, de recuperação. "forte": acima do A3 (velocidade).
 export const INTENSIDADES = ['solto', 'A1', 'A2', 'A3', 'forte']
 export const USOS = ['treino', 'teste']
-export const MATERIAIS = ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snorkel']
+export const MATERIAIS = ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas']
 export const PISCINAS = [25, 50]
 
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
@@ -27,7 +27,12 @@ const SERIE_KEYS = ['id', 'texto', 'observacao', 'vezes', 'blocos', 'usos', 'out
 // "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
 // "estilo" (toda no estilo do atleta: borboleta, costas ou peito).
 // "melhorEstiloEMedley": as repetições alternam entre o melhor estilo e o medley.
-export const OUTROS_NADOS = ['medley', 'estilo', 'melhorEstiloEMedley']
+// "idaCrawlVoltaBorboletaECostas": ida crawl; as voltas alternam borboleta e costas.
+// "idaCrawlVoltaMelhorEstilo": ida crawl, volta no melhor estilo.
+export const OUTROS_NADOS = [
+    'medley', 'estilo', 'melhorEstiloEMedley', 'idaCrawlVoltaBorboletaECostas', 'idaCrawlVoltaMelhorEstilo',
+]
+const IDA_E_VOLTA = ['idaCrawlVoltaBorboletaECostas', 'idaCrawlVoltaMelhorEstilo']
 
 // Provas de piscina: a distância de uma repetição num nado segue as provas
 // oficiais. Borboleta, costas e peito vão até 200 m; medley (cada repetição
@@ -174,6 +179,10 @@ export function validate(series) {
                     report('"medley" não cabe nesta série: medley alternado precisa de repetições em múltiplo de 4 ' +
                         'de até 200 m; medley individual, repetições de 200 ou 400 m (100 m na piscina de 25 m); ' +
                         'medley sem crawl, de 150 m.')
+                }
+                // Ida e volta: cada repetição fecha em idas e voltas (múltiplo de 50 m)
+                if (list.some((n) => IDA_E_VOLTA.includes(n)) && serie.blocos.some((b) => b.distancia % 50 !== 0)) {
+                    report('ida crawl e volta em outro nado precisa de repetições em múltiplo de 50 m (ida e volta).')
                 }
                 if (list.includes('melhorEstiloEMedley') && !canSwimInStroke(serie.blocos)) {
                     report('"melhorEstiloEMedley" não cabe nesta série: o melhor estilo vai até 200 m (provas de piscina).')

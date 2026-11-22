@@ -1,0 +1,33 @@
+[
+  {
+    "id": "perna-8x50",
+    "texto": "8 x 50 perna",
+    "blocos": [{ "repeticoes": 8, "distancia": 50, "nado": "livre" }]
+  },
+  {
+    "id": "perna-2x8x50",
+    "texto": "(2x) 8 x 50 perna",
+    "blocos": [{ "vezes": 2, "repeticoes": 8, "distancia": 50, "nado": "livre" }]
+  },
+  {
+    "id": "perna-4x100",
+    "texto": "4 x 100 perna",
+    "blocos": [{ "repeticoes": 4, "distancia": 100, "nado": "livre" }]
+  },
+  {
+    "id": "perna-400",
+    "texto": "400 perna com pé de pato",
+    "outrosNados": ["idaCrawlVoltaBorboletaECostas", "idaCrawlVoltaMelhorEstilo"],
+    "blocos": [{ "repeticoes": 1, "distancia": 400, "nado": "crawl", "material": ["pe_de_pato"] }]
+  },
+  {
+    "id": "perna-3x200",
+    "texto": "3 x 200 perna",
+    "blocos": [{ "repeticoes": 3, "distancia": 200, "nado": "livre" }]
+  },
+  {
+    "id": "perna-6x100",
+    "texto": "6 x 100 perna",
+    "blocos": [{ "repeticoes": 6, "distancia": 100, "nado": "livre" }]
+  }
+]

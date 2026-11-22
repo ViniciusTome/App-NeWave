@@ -7,7 +7,7 @@ Cada parte do treino tem o seu arquivo:
 | `aquecimento.json` | Aquecimento |
 | `velocidade.json` | Velocidade |
 | `solto.json` | Solto: nado de recuperação (entre a velocidade e a série principal; no iniciante, no final do treino) |
-| `perna.json` | Série de perna, nos treinos acima de 50 min (ainda não criado) |
+| `perna.json` | Série de perna, nos treinos acima de 50 min |
 | `principal.json` | Série principal |
 | `soltura.json` | Soltura (ainda não criado) |
 
@@ -47,7 +47,7 @@ Cada bloco:
 | `intensidade` | `solto`, `A1`, `A2`, `A3` ou `forte`. Opcional: sem ela, a intensidade fica em aberto e é definida na hora de gerar o treino (é o caso da série principal, por enquanto). |
 | `trechos` | No lugar de `intensidade`, quando a repetição muda no meio. Ex.: 15 m forte + 10 m solto: `[{ "metros": 15, "intensidade": "forte" }, { "metros": 10, "intensidade": "solto" }]`. Os trechos precisam somar a `distancia`. |
 | `descanso` | Opcional. Segundos de descanso entre as repetições. |
-| `material` | Opcional. Lista com `pe_de_pato`, `palmar`, `prancha`, `pull_buoy`, `snorkel`. |
+| `material` | Opcional. Lista com `pe_de_pato`, `pe_de_pato_peito`, `palmar`, `prancha`, `pull_buoy`, `snorkel`, `paraquedas`. |
 
 O que cada `nado` quer dizer:
 
@@ -261,6 +261,14 @@ O validador também recusa um bloco escrito com o nado fora das provas, como `"n
 - séries escritas em borboleta no JSON.
 
 O medley individual (cada repetição um medley) não é afetado: num 200 medley são só 50 m de borboleta.
+
+### Perna
+
+O `400 perna com pé de pato` sempre usa pé de pato, e pode sair:
+
+- só perna de crawl;
+- **ida crawl, voltando uma vez borboleta e outra costas** até fechar os 400 (`"idaCrawlVoltaBorboletaECostas"`);
+- **ida crawl, volta no melhor estilo** (`"idaCrawlVoltaMelhorEstilo"`). Se o melhor estilo for peito, a volta é de borboleta ou de costas, a não ser que o atleta tenha **pé de pato de peito**: aí a volta é de peito, com ele no lugar do pé de pato comum.
 
 ### Medley e estilo
 

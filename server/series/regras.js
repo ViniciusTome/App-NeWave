@@ -19,7 +19,10 @@ const FORMATOS = ['igual', 'espelhado', 'diferentes']
 // Fases da periodização ATR: Acumulação, Transição, Realização
 export const FASES = ['acumulacao', 'transicao', 'realizacao']
 
-const NOMES = { pe_de_pato: 'pé de pato', palmar: 'palmar', prancha: 'prancha', pull_buoy: 'pull buoy', snorkel: 'snorkel' }
+const NOMES = {
+    pe_de_pato: 'pé de pato', pe_de_pato_peito: 'pé de pato de peito', palmar: 'palmar',
+    prancha: 'prancha', pull_buoy: 'pull buoy', snorkel: 'snorkel', paraquedas: 'paraquedas',
+}
 const ORDINAIS = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª', '7ª', '8ª', '9ª', '10ª']
 
 // "pé de pato + palmar"
@@ -406,6 +409,38 @@ function strokeOptions(rules, serie, athlete) {
         if (outro === 'medley' && canSwimMedleyWithoutCrawl(serie.blocos) && ESTILOS.every((s) => has.has(s))) {
             options.push({ nado: 'medley_sem_crawl', texto: MEDLEY_SEM_CRAWL_TEXTO })
         }
+        // Ida crawl; as voltas alternam borboleta e costas até fechar a distância.
+        // Em cada piscina as voltas precisam ser em número par (borboleta, costas, ...).
+        if (outro === 'idaCrawlVoltaBorboletaECostas' && has.has('borboleta') && has.has('costas')) {
+            const pools = [25, 50].filter((pool) => serie.blocos.every((b) => (b.distancia / pool / 2) % 2 === 0))
+            if (pools.length > 0) {
+                options.push({
+                    nado: 'ida_crawl_volta_borboleta_e_costas',
+                    texto: 'ida crawl, voltando uma vez borboleta e outra costas',
+                    piscinas: pools,
+                })
+            }
+        }
+        // Ida crawl, volta no melhor estilo. Se o melhor estilo for peito: com pé de pato
+        // de peito, volta de peito; sem ele, a volta é de borboleta ou de costas.
+        if (outro === 'idaCrawlVoltaMelhorEstilo') {
+            const melhor = bestStrokeOf(athlete, ESTILOS.filter((s) => has.has(s)))
+            if (melhor === 'peito' && athlete.equipment?.includes('pe_de_pato_peito')) {
+                options.push({
+                    nado: 'ida_crawl_volta_melhor_estilo', texto: 'ida crawl, volta peito (melhor estilo)',
+                    trocaMaterial: { de: 'pe_de_pato', para: 'pe_de_pato_peito' },
+                })
+            } else if (melhor === 'peito') {
+                for (const outroEstilo of ['borboleta', 'costas'].filter((s) => has.has(s))) {
+                    options.push({
+                        nado: 'ida_crawl_volta_melhor_estilo',
+                        texto: `ida crawl, volta ${outroEstilo} (no lugar do peito, sem pé de pato de peito)`,
+                    })
+                }
+            } else if (melhor) {
+                options.push({ nado: 'ida_crawl_volta_melhor_estilo', texto: `ida crawl, volta ${melhor} (melhor estilo)` })
+            }
+        }
         // Repetições alternando: melhor estilo, medley, melhor estilo, medley...
         if (outro === 'melhorEstiloEMedley') {
             const melhor = bestStrokeOf(athlete, ESTILOS.filter(podeNadar))
@@ -473,6 +508,18 @@ export function seriesVariations(rules, parte, serie, athlete) {
 
     const variations = []
     for (const stroke of strokeOptions(rules, serie, athlete)) {
+        // Volta de peito na perna: o pé de pato da série vira o pé de pato de peito
+        if (stroke.trocaMaterial) {
+            const { de, para } = stroke.trocaMaterial
+            const { trocaMaterial: _troca, texto: nadoTexto, ...strokeInfo } = stroke
+            const material = serie.exige.material.map((m) => (m === de ? para : m))
+            const base = serie.texto.replace(` com ${materialText(serie.exige.material)}`, '')
+            variations.push({
+                ...strokeInfo, padrao: 'fixo', material,
+                texto: [base, nadoTexto, `com ${materialText(material)}`].join(' · '),
+            })
+            continue
+        }
         for (const option of materialOptions(rules, parte, serie, athlete.equipment)) {
             const { texto: _nadoTexto, ...strokeInfo } = stroke
             variations.push({ ...strokeInfo, ...option, texto: variationText(serie, stroke, option) })

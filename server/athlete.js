@@ -14,7 +14,7 @@ export const OPTIONS = {
   strokes: ['crawl', 'costas', 'peito', 'borboleta'],
   sessionMinutes: [30, 45, 60, 75, 90, 120],
   poolLength: [25, 50],
-  equipment: ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snorkel'],
+  equipment: ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas'],
   modality: ['triatlo', 'maratona_aquatica', 'piscina_25', 'piscina_50'],
   priority: ['A', 'B', 'C'],
   goal: ['competir', 'condicionamento', 'saude'],

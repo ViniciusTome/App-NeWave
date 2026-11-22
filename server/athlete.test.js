@@ -64,7 +64,7 @@ const sampleProfile = {
   trainingDays: [5, 1, 3],
   sessionMinutes: 60,
   poolLength: 25,
-  equipment: ['palmar', 'pe_de_pato'],
+  equipment: ['palmar', 'pe_de_pato', 'pe_de_pato_peito', 'paraquedas'],
   injuries: '  Dor no ombro direito  ',
   reported400Hundredths: null,
   bestStroke: 'peito',
@@ -115,6 +115,7 @@ test('salva a anamnese, organiza as listas e calcula o nível', async () => {
   assert.deepEqual(profile.trainingDays, [1, 3, 5])
   assert.equal(profile.injuries, 'Dor no ombro direito')
   assert.equal(profile.bestStroke, 'peito')
+  assert.deepEqual(profile.equipment, ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'paraquedas'])
   assert.equal(level.level, 'avancado')
   assert.equal(level.returning, false)
 
