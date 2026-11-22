@@ -468,11 +468,16 @@ Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), n
 - Não usa **AC**, porque o atleta ainda não sabe o melhor tempo.
 - O **primeiro treino é o teste**: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir, séries **para recuperar** e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
 - **Para recuperar:** 10 x 100 m e/ou 10 x 50 m em **A1 com pé de pato** (sem pé de pato, nadando), as que couberem no resto da aula, da maior para a menor. Ficam em `diaDoTeste` no `regras.json`. A **técnica** também vai entrar aqui quando tiver as séries de técnica.
-- Quem só **informou** o tempo na anamnese não ganha o teste agora: ele fica para o fim da periodização.
+- Quem só **informou** o tempo na anamnese não ganha o teste agora: ele entra na periodização (veja abaixo).
 
-### Teste no fim da periodização (a fazer, junto com o ATR)
+### Teste de 400 m na periodização (a fazer, junto com o ATR)
 
-Sempre haverá um **teste de 400 m no fim da periodização, no fim da Realização (R)**, para atualizar os ritmos e as saídas da próxima periodização. Vale para todos, inclusive quem só informou o tempo na anamnese.
+Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m na troca da Acumulação (A) para a Transição (T)**. Não fica na Realização (R) porque lá está a prova alvo do atleta. Vale para todos, inclusive quem só informou o tempo na anamnese.
+
+- **Exceção:** se a prova alvo é **em piscina** (25 ou 50 m) e é **de 400 m**, o teste fica no **fim da Realização** (a própria prova).
+- **Só a partir da 2ª vez** que o atleta usa o "Gerar treinos". Na primeira periodização não tem esse teste.
+- Isso é diferente do teste do primeiro treino de quem **não tem nenhum tempo** (veja acima), que continua valendo sempre.
+- A regra fica em `testeNaPeriodizacao` no `regras.json`; o gerador passa a usar quando as fases do ATR existirem.
 
 ### Como a série aparece no card
 
