@@ -41,7 +41,6 @@
   "material": {
     "perna": {
       "opcoes": [["pe_de_pato"]],
-      "semMaterial": "soQuemNadaPeito",
       "pesoComMaterial": 3
     },
     "principal": {

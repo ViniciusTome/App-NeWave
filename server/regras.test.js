@@ -503,18 +503,16 @@ test('perna: 400 indo crawl e voltando no melhor estilo', () => {
   assert.deepEqual(voltaPeito.material, ['pe_de_pato_peito'])
 })
 
-test('perna: com pé de pato na maioria; sem pé de pato só para quem nada peito', () => {
+test('perna: com pé de pato na maioria, e sem material também, para treinar a pernada', () => {
   const serie = loadPart('perna').find((s) => s.id === 'perna-8x50')
   const de = (athlete) => seriesVariations(rules, 'perna', serie, { level: 'avancado', ...athlete })
 
-  // Não nada peito: só com pé de pato
-  const crawl = de({ equipment: ['pe_de_pato'], strokes: ['crawl', 'costas'] })
-  assert.deepEqual(crawl.map((v) => v.texto), ['8 x 50 perna · com pé de pato'])
-  assert.equal(crawl[0].peso, 3)
-
-  // Nada peito: com pé de pato (mais vezes) e sem
-  const peito = de({ equipment: ['pe_de_pato'], strokes: ['crawl', 'peito'] })
-  assert.deepEqual(peito.map((v) => v.texto), ['8 x 50 perna', '8 x 50 perna · com pé de pato'])
+  for (const strokes of [['crawl', 'costas'], ['crawl', 'peito']]) {
+    const lista = de({ equipment: ['pe_de_pato'], strokes })
+    assert.deepEqual(lista.map((v) => v.texto), ['8 x 50 perna', '8 x 50 perna · com pé de pato'])
+    // Com pé de pato pesa 3: sai três vezes mais
+    assert.equal(lista.find((v) => v.padrao === 'serie_inteira').peso, 3)
+  }
 
   // Sem pé de pato: faz sem, não tem outro jeito
   assert.deepEqual(de({ equipment: [], strokes: ['crawl'] }).map((v) => v.texto), ['8 x 50 perna'])
@@ -588,6 +586,8 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.materialObrigatorio[0].emPiramidesAPartirDe = 0 }, '"emPiramidesAPartirDe"'],
     [(r) => { r.material.principal.piramides = 'aleatorio' }, 'material.principal.piramides'],
     [(r) => { r.material.perna.semMaterial = 'nunca' }, 'material.perna.semMaterial'],
+    // A opção "soQuemNadaPeito" continua existindo, caso volte a ser usada
+    [(r) => { r.material.perna.semMaterial = 'soQuemNadaPeito'; r.niveis.iniciante.estruturas[0].partes = ['nado'] }, 'niveis.iniciante'],
     [(r) => { r.material.perna.pesoComMaterial = 0 }, 'material.perna.pesoComMaterial'],
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
     [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
