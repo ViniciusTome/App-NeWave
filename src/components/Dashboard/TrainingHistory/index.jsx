@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '../../Modal'
 import { Training } from '../../Training'
-import { api } from '../../../services/api'
-import { formatDate, formatShortDate } from '../../../utils/format'
+import { api, TRAININGS_CHANGED } from '../../../services/api'
+import { formatDate, formatShortDate, todayIso } from '../../../utils/format'
 import styles from './traininghistory.module.css'
 
 const HISTORY_SIZE = 7
@@ -12,17 +12,27 @@ export const TrainingHistory = () => {
     const [loadError, setLoadError] = useState('')
     const [selected, setSelected] = useState(null)
 
+    // Histórico = treinos concluídos + treinos que passaram da data sem serem feitos.
+    // Recarrega quando um treino é concluído no carrossel.
     useEffect(() => {
         let cancelled = false
-        api(`/trainings?limit=${HISTORY_SIZE}`)
-            .then(({ trainings }) => {
-                if (!cancelled) setTrainings(trainings)
-            })
-            .catch((err) => {
-                if (!cancelled) setLoadError(err.message)
-            })
+        const load = () => {
+            api(`/trainings?limit=${HISTORY_SIZE}&today=${todayIso()}`)
+                .then(({ trainings }) => {
+                    if (!cancelled) {
+                        setTrainings(trainings)
+                        setLoadError('')
+                    }
+                })
+                .catch((err) => {
+                    if (!cancelled) setLoadError(err.message)
+                })
+        }
+        load()
+        window.addEventListener(TRAININGS_CHANGED, load)
         return () => {
             cancelled = true
+            window.removeEventListener(TRAININGS_CHANGED, load)
         }
     }, [])
 
@@ -37,8 +47,8 @@ export const TrainingHistory = () => {
 
             {trainings && trainings.length === 0 && (
                 <div className={styles.empty}>
-                    <p>Nenhum treino realizado ainda.</p>
-                    <p className={styles.message}>Os treinos que você concluir vão aparecer aqui.</p>
+                    <p>Nenhum treino no histórico ainda.</p>
+                    <p className={styles.message}>Os treinos que você concluir ou que passarem da data vão aparecer aqui.</p>
                 </div>
             )}
 
@@ -54,7 +64,10 @@ export const TrainingHistory = () => {
                             >
                                 <span className={styles.date}>{formatShortDate(training.date)}</span>
                                 <span className={styles.info}>
-                                    <span className={styles.title}>{titleOf(training)}</span>
+                                    <span className={styles.title}>
+                                        {titleOf(training)}
+                                        {!training.completed && <span className={styles.missed}>Não realizado</span>}
+                                    </span>
                                     {training.mainSeries && (
                                         <span className={styles.preview}>{training.mainSeries}</span>
                                     )}
@@ -75,6 +88,9 @@ export const TrainingHistory = () => {
             >
                 {selected && (
                     <>
+                        {!selected.completed && (
+                            <p className={styles.missedNote}>Este treino passou da data sem ser concluído.</p>
+                        )}
                         <Training training={selected} />
                         {selected.notes && (
                             <div className={styles.notes}>

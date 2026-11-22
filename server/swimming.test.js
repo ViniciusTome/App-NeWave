@@ -62,6 +62,8 @@ test('sem login, nenhuma rota de dados funciona', async () => {
     ['DELETE', '/api/tests/1'],
     ['GET', '/api/trainings'],
     ['POST', '/api/trainings', { date: '2025-10-01', warmUp: '200 crawl' }],
+    ['GET', '/api/trainings/upcoming'],
+    ['POST', '/api/trainings/1/complete'],
   ]
   for (const [method, path, body] of calls) {
     const res = await api(path, { method, body })
@@ -228,4 +230,78 @@ test('o limite de treinos funciona e tem teto', async () => {
 test('cada usuário só vê os próprios treinos', async () => {
   const res = await api('/api/trainings', { cookie: bia })
   assert.deepEqual(res.body.trainings, [])
+})
+
+// ---------- Agenda de treinos (carrossel da Home) ----------
+
+// Data a N dias de hoje (negativo = passado), no formato AAAA-MM-DD
+const daysFromToday = (days) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
+const plan = (cookie, date, title) =>
+  addTraining(cookie, { date, title, mainSeries: '5 x 400 crawl', planned: true })
+
+test('agenda um treino no futuro, ainda não concluído', async () => {
+  const res = await plan(bia, daysFromToday(3), 'Agendado')
+  assert.equal(res.status, 201)
+  assert.equal(res.body.training.completed, false)
+
+  // Treino realizado (sem `planned`) já nasce concluído
+  const done = await addTraining(bia, { date: today(), warmUp: '200 crawl' })
+  assert.equal(done.body.training.completed, true)
+})
+
+test('valida a data do treino agendado', async () => {
+  for (const date of ['2026-02-30', 'amanhã', daysFromToday(400)]) {
+    const res = await plan(bia, date, 'Inválido')
+    assert.equal(res.status, 400, date)
+  }
+})
+
+test('próximos treinos: só os não concluídos, de hoje em diante, do mais próximo', async () => {
+  const carla = await signUpAndLogin('Carla Lima', 'carla@example.com')
+  await plan(carla, daysFromToday(5), 'Daqui a 5 dias')
+  await plan(carla, daysFromToday(-2), 'Passou sem fazer')
+  await plan(carla, today(), 'Hoje')
+  await plan(carla, daysFromToday(1), 'Amanhã')
+  await addTraining(carla, { date: today(), title: 'Já feito hoje', warmUp: '200 crawl' })
+
+  const res = await api(`/api/trainings/upcoming?today=${today()}`, { cookie: carla })
+  assert.equal(res.status, 200)
+  assert.deepEqual(
+    res.body.trainings.map((t) => t.title),
+    ['Hoje', 'Amanhã', 'Daqui a 5 dias'],
+  )
+
+  // O histórico fica com o que foi feito e o que passou da data
+  const history = await api(`/api/trainings?today=${today()}`, { cookie: carla })
+  assert.deepEqual(
+    history.body.trainings.map((t) => [t.title, t.completed]),
+    [['Já feito hoje', true], ['Passou sem fazer', false]],
+  )
+})
+
+test('concluir um treino tira ele dos próximos e coloca no histórico', async () => {
+  const dani = await signUpAndLogin('Dani Alves', 'dani@example.com')
+  const { body } = await plan(dani, today(), 'Treino de hoje')
+  const id = body.training.id
+
+  const done = await api(`/api/trainings/${id}/complete`, { method: 'POST', cookie: dani })
+  assert.equal(done.status, 200)
+  assert.equal(done.body.training.completed, true)
+
+  const upcoming = await api(`/api/trainings/upcoming?today=${today()}`, { cookie: dani })
+  assert.deepEqual(upcoming.body.trainings, [])
+  const history = await api(`/api/trainings?today=${today()}`, { cookie: dani })
+  assert.deepEqual(history.body.trainings.map((t) => t.id), [id])
+
+  // Concluir de novo não muda nada
+  const again = await api(`/api/trainings/${id}/complete`, { method: 'POST', cookie: dani })
+  assert.equal(again.status, 409)
+})
+
+test('não deixa concluir o treino de outra pessoa', async () => {
+  const { body } = await plan(bia, daysFromToday(2), 'Da Bia')
+  const res = await api(`/api/trainings/${body.training.id}/complete`, { method: 'POST', cookie: ana })
+  assert.equal(res.status, 404)
+  const missing = await api('/api/trainings/abc/complete', { method: 'POST', cookie: ana })
+  assert.equal(missing.status, 404)
 })

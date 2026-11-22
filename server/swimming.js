@@ -1,4 +1,4 @@
-// Rotas de dados de natação: testes de tempo e treinos realizados.
+// Rotas de dados de natação: testes de tempo e treinos (agendados e realizados).
 // Todas exigem login e só enxergam os dados do próprio usuário.
 import { HttpError, readJson, sendJson } from './http.js'
 
@@ -7,15 +7,33 @@ const MAX_TIME_HUNDREDTHS = 2 * 60 * 60 * 100 // 2 horas
 const MAX_SECTION_LENGTH = 2000
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const DAY_MS = 24 * 60 * 60 * 1000
+const MAX_PLAN_DAYS = 366 // até quanto tempo à frente dá para agendar um treino
+const MAX_UPCOMING = 50
 
-// Aceita só datas reais (ex.: recusa 2026-02-30), a partir de 1900
-// e até amanhã (folga para fuso horário diferente entre aparelho e servidor).
-function isValidDate(value) {
+// Aceita só datas reais (ex.: recusa 2026-02-30), a partir de 1900.
+function isRealDate(value) {
   if (typeof value !== 'string' || !DATE_PATTERN.test(value)) return false
   const time = Date.parse(`${value}T00:00:00Z`)
   if (Number.isNaN(time)) return false
-  if (new Date(time).toISOString().slice(0, 10) !== value) return false
-  return value >= '1900-01-01' && time <= Date.now() + DAY_MS
+  return new Date(time).toISOString().slice(0, 10) === value && value >= '1900-01-01'
+}
+
+// Datas de algo que já aconteceu: até amanhã (folga para fuso horário
+// diferente entre aparelho e servidor).
+function isValidDate(value) {
+  return isRealDate(value) && Date.parse(`${value}T00:00:00Z`) <= Date.now() + DAY_MS
+}
+
+// Datas de treino agendado: até um ano à frente.
+function isValidPlanDate(value) {
+  return isRealDate(value) && Date.parse(`${value}T00:00:00Z`) <= Date.now() + MAX_PLAN_DAYS * DAY_MS
+}
+
+// "Hoje" no fuso do aparelho do atleta, enviado pelo front em ?today=AAAA-MM-DD.
+// Sem esse dado (ou se vier inválido), usa a data do servidor em UTC.
+function readToday(url) {
+  const today = url.searchParams.get('today')
+  return isRealDate(today) ? today : new Date().toISOString().slice(0, 10)
 }
 
 const optionalText = (value) => (typeof value === 'string' ? value.trim() : '')
@@ -36,6 +54,7 @@ const publicTraining = (row) => ({
   mainSeries: row.main_series,
   release: row.release,
   notes: row.notes,
+  completed: row.completed_at !== null,
 })
 
 function parseId(value) {
@@ -55,14 +74,27 @@ export function createSwimmingRoutes({ db, requireUser }) {
   `)
   const deleteTest = db.prepare('DELETE FROM tests WHERE id = ? AND user_id = ?')
 
-  const listTrainings = db.prepare(`
-    SELECT id, date, title, warm_up, speed, main_series, release, notes FROM trainings
-    WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?
+  const TRAINING_COLUMNS = 'id, date, title, warm_up, speed, main_series, release, notes, completed_at'
+  // Histórico: treinos concluídos e treinos cuja data já passou
+  const listHistory = db.prepare(`
+    SELECT ${TRAINING_COLUMNS} FROM trainings
+    WHERE user_id = ? AND (completed_at IS NOT NULL OR date < ?)
+    ORDER BY date DESC, id DESC LIMIT ?
   `)
+  // Próximos: ainda não concluídos, de hoje em diante (o carrossel da Home)
+  const listUpcoming = db.prepare(`
+    SELECT ${TRAINING_COLUMNS} FROM trainings
+    WHERE user_id = ? AND completed_at IS NULL AND date >= ?
+    ORDER BY date, id LIMIT ?
+  `)
+  const findTraining = db.prepare(`SELECT ${TRAINING_COLUMNS} FROM trainings WHERE id = ? AND user_id = ?`)
   const insertTraining = db.prepare(`
     INSERT INTO trainings
-      (user_id, date, title, warm_up, speed, main_series, release, notes, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (user_id, date, title, warm_up, speed, main_series, release, notes, created_at, completed_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+  const completeTraining = db.prepare(`
+    UPDATE trainings SET completed_at = ? WHERE id = ? AND user_id = ? AND completed_at IS NULL
   `)
 
   return {
@@ -107,20 +139,50 @@ export function createSwimmingRoutes({ db, requireUser }) {
       res.end()
     },
 
-    // GET /api/trainings?limit=10 -> últimos treinos realizados, do mais recente
+    // GET /api/trainings?limit=10&today=AAAA-MM-DD -> histórico, do mais recente:
+    // treinos concluídos e os que passaram da data sem serem feitos (completed: false)
     getTrainings(req, res) {
       const user = requireUser(req)
-      const requested = Number(new URL(req.url, 'http://localhost').searchParams.get('limit') ?? 10)
+      const url = new URL(req.url, 'http://localhost')
+      const requested = Number(url.searchParams.get('limit') ?? 10)
       const limit = Number.isInteger(requested) ? Math.min(Math.max(requested, 1), 50) : 10
-      sendJson(res, 200, { trainings: listTrainings.all(user.id, limit).map(publicTraining) })
+      const trainings = listHistory.all(user.id, readToday(url), limit)
+      sendJson(res, 200, { trainings: trainings.map(publicTraining) })
     },
 
-    // POST /api/trainings  { date, title?, warmUp?, speed?, mainSeries?, release?, notes? }
+    // GET /api/trainings/upcoming?today=AAAA-MM-DD -> treinos agendados de hoje em diante,
+    // ainda não concluídos, do mais próximo ao mais distante
+    getUpcomingTrainings(req, res) {
+      const user = requireUser(req)
+      const today = readToday(new URL(req.url, 'http://localhost'))
+      const trainings = listUpcoming.all(user.id, today, MAX_UPCOMING)
+      sendJson(res, 200, { trainings: trainings.map(publicTraining) })
+    },
+
+    // POST /api/trainings/:id/complete -> marca o treino como realizado
+    completeTraining(req, res, { id }) {
+      const user = requireUser(req)
+      const trainingId = parseId(id)
+      if (completeTraining.run(new Date().toISOString(), trainingId, user.id).changes === 0) {
+        // Filtrar pelo usuário impede concluir o treino de outra pessoa
+        if (!findTraining.get(trainingId, user.id)) throw new HttpError(404, 'Treino não encontrado.')
+        throw new HttpError(409, 'Esse treino já foi concluído.')
+      }
+      sendJson(res, 200, { training: publicTraining(findTraining.get(trainingId, user.id)) })
+    },
+
+    // POST /api/trainings  { date, title?, warmUp?, speed?, mainSeries?, release?, notes?, planned? }
+    // Sem `planned`: registra um treino já realizado (data até hoje).
+    // Com `planned: true`: agenda um treino (data até um ano à frente), ainda não concluído.
     async createTraining(req, res) {
       const user = requireUser(req)
       const body = await readJson(req)
+      const planned = body.planned === true
 
-      if (!isValidDate(body.date)) {
+      if (planned && !isValidPlanDate(body.date)) {
+        throw new HttpError(400, 'Informe uma data válida, de até um ano à frente.')
+      }
+      if (!planned && !isValidDate(body.date)) {
         throw new HttpError(400, 'Informe uma data válida, que não esteja no futuro.')
       }
 
@@ -141,6 +203,7 @@ export function createSwimmingRoutes({ db, requireUser }) {
         throw new HttpError(400, 'Preencha pelo menos uma parte do treino.')
       }
 
+      const now = new Date().toISOString()
       const id = insertTraining.run(
         user.id,
         body.date,
@@ -150,10 +213,13 @@ export function createSwimmingRoutes({ db, requireUser }) {
         fields.mainSeries,
         fields.release,
         fields.notes,
-        new Date().toISOString(),
+        now,
+        planned ? null : now,
       ).lastInsertRowid
 
-      sendJson(res, 201, { training: { id: Number(id), date: body.date, ...fields } })
+      sendJson(res, 201, {
+        training: { id: Number(id), date: body.date, ...fields, completed: !planned },
+      })
     },
   }
 }

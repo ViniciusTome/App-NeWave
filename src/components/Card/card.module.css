@@ -81,3 +81,35 @@
     }
 
 }
+/* Treino vindo do banco: um respiro nas bordas */
+.real {
+    padding: 12px 10px;
+}
+
+/* No cartão pequeno (páginas de Treinos e Feedback) o texto acompanha o tamanho */
+.trainingPageContent.real {
+    padding: 6px 4px;
+}
+
+.trainingPageContent.real h3 {
+    font-size: 7px;
+    margin-bottom: 1px;
+}
+
+.trainingPageContent.real p {
+    font-size: 6px;
+    line-height: 1.3;
+}
+
+.trainingPageContent.real > div > div {
+    margin-bottom: 4px;
+}
+
+/* Cartão pequeno: título do treino numa linha só (o nome completo aparece ao abrir) */
+.trainingPageContainer .realHeader {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 4px;
+}

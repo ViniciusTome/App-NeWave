@@ -316,7 +316,9 @@ export function createApp({
     ['POST', '/api/tests', swimming.createTest],
     ['DELETE', '/api/tests/:id', swimming.removeTest],
     ['GET', '/api/trainings', swimming.getTrainings],
+    ['GET', '/api/trainings/upcoming', swimming.getUpcomingTrainings],
     ['POST', '/api/trainings', swimming.createTraining],
+    ['POST', '/api/trainings/:id/complete', swimming.completeTraining],
   ].map(([method, path, handler]) => {
     const names = []
     const pattern = path.replace(/:(\w+)/g, (_, name) => {

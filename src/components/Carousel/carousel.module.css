@@ -36,9 +36,104 @@
 }
 
 .cards {
-    margin: 20px 0;
+    margin: 6px 0 12px;
+    /* Espaço para a moldura e o selo do treino em destaque não serem cortados */
+    padding: 16px 10px 10px;
     display: flex;
-    width: 400px;
+    align-items: flex-start;
+    gap: 14px;
+    width: max-content;
+}
+
+.message {
+    color: #ffffff;
+    font-size: 16px;
+    margin: 20px 0;
+}
+
+/* Cada cartão do carrossel */
+.slide {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    transition: opacity 150ms ease;
+}
+
+.slide > div {
+    margin-right: 0;
+}
+
+/* Os treinos seguintes ficam mais apagados, para o de hoje/próximo chamar atenção */
+.dimmed {
+    opacity: 0.55;
+}
+
+.dimmed:hover,
+.dimmed:focus-within {
+    opacity: 1;
+}
+
+/* Treino de hoje ou próximo treino: moldura clara com brilho */
+.slide .featuredCard {
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 4px #ffc93c, 0 8px 22px rgba(0, 47, 87, 0.45);
+}
+
+.badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1;
+    white-space: nowrap;
+    background-color: #ffc93c;
+    color: #0b2f57;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 12px;
+    border-radius: 999px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.complete {
+    font: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 8px 20px;
+    border: none;
+    border-radius: 999px;
+    background-color: #ffc93c;
+    color: #0b2f57;
+    cursor: pointer;
+    transition: filter 120ms ease;
+}
+
+.complete:hover:not(:disabled) {
+    filter: brightness(1.08);
+}
+
+.complete:focus-visible {
+    outline: 3px solid #ffffff;
+    outline-offset: 2px;
+}
+
+.complete:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.error {
+    color: #ffffff;
+    background-color: rgba(176, 0, 32, 0.8);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 13px;
+    max-width: 280px;
+    text-align: center;
 }
 
 @media screen and (min-width: 1024px) and (max-width: 1400px) {
