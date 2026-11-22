@@ -578,6 +578,19 @@ O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, 
 
 Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
 
+### Teste de estresse
+
+Para conferir todas as regras de uma vez, com centenas de atletas diferentes (iniciante, intermediário e avançado; com e sem tempo; com e sem prova; piscinas, materiais, estilos, dias e tempos de aula):
+
+```
+npm run stress -- 600        # o gerador: 600 atletas, periodização inteira de cada um
+npm run stress:api -- 54     # o app inteiro (cadastro, anamnese, provas, gerar, feedback, trocar prova alvo)
+```
+
+Cada regra aparece como OK ou FALHA, com exemplos do que falhou. Rode depois de mudar o `regras.json` ou a biblioteca de séries.
+
+- **Aula de 30 min:** qualquer nível pode fazer uma série só nas (2x), (3x)... para caber no tempo (`seriesAjustaveis.aulaCurtaAteMinutos`, PROVISÓRIO).
+
 ### A decidir
 
 - **Esforço do intermediário** em cada intensidade (hoje é um meio termo provisório).

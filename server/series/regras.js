@@ -1043,11 +1043,12 @@ export function drawIntensities(rules, serie, variation, athlete, {
         }
     } else if (tipo === 'AC') {
         // Diminuindo: 20, 15, 10, 5 acima do melhor (as últimas n)
-        const escada = regra.acimaDoMelhor
+        // Sem A3 (recuperação): o AC de 10" ou menos conta como A3, então fica de fora
+        const escada = podeA3 ? regra.acimaDoMelhor : regra.acimaDoMelhor.filter((x) => x > 10)
         valores = (repeticoesLongas || n > escada.length) ? null : escada.slice(escada.length - n).map((x) => `${x} AC`)
         if (!valores) {
             unidade = 'serie_toda'
-            valores = ['10 AC']
+            valores = [podeA3 ? '10 AC' : `${Math.min(...escada)} AC`]
         }
     } else if (tipo === 'finalForte' && serie.blocos.length > 1) {
         // Pirâmides e grupos: o final forte é de cada bloco (175 NAD x 25 fo nos 200...)

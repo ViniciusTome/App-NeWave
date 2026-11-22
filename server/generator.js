@@ -230,29 +230,40 @@ export function rotateSetMaterials(rules, parte, serie, variation, intensidades,
     const valorDa = (i) => (intensidades?.unidade === 'serie' ? intensidades.valores[i]
         : intensidades?.unidade === 'serie_toda' ? intensidades.valores[0] : null)
     const comPe = opcoes.filter((m) => m.includes('pe_de_pato'))
-    const permitidas = (i) => (valorDa(i) === 'A3' && comPe.length > 0 ? comPe : opcoes)
-    const sorteia = (lista) => lista[Math.floor(random() * lista.length)]
+    // A3 vai com pé de pato; a série adaptada com os 75 m (quem nada pouco) também, toda
+    const precisaPe = (i) => serie.exigePe || valorDa(i) === 'A3'
+    const permitidas = (i) => (precisaPe(i) && comPe.length > 0 ? comPe : opcoes)
+    const embaralha = (lista) => lista.map((m) => ({ m, r: random() })).sort((a, b) => a.r - b.r).map((x) => x.m)
+    const comecaNadando = random() * 100 < (cfg.comecarNadando?.[athlete.level] ?? 0)
+    const soBracos = (m) => m.includes('palmar') && !m.includes('pe_de_pato')
+    const forca = parte === 'principal' && athlete.foco === 'forca'
+    // Ordem de preferência de cada série: a 1ª nadando (iniciante e intermediário quase
+    // sempre); depois, vai colocando material (faltou força: palmar e palmar + pull buoy)
+    const preferencia = (i) => {
+        const lista = embaralha(permitidas(i))
+        const peso = (m) => (i === 0 && comecaNadando && m.length === 0 ? -3 : 0) +
+            (i > 0 && m.length === 0 ? (random() < 0.8 ? 2 : 0) : 0) + (forca && soBracos(m) && random() < 0.8 ? -2 : 0)
+        return lista.sort((a, b) => peso(a) - peso(b))
+    }
+    // Procura uma combinação em que nenhuma série repete o material da anterior. Só
+    // pode repetir entre duas séries que precisam do mesmo pé de pato (ex.: A3 e A3 de
+    // quem só tem pé de pato), porque aí não tem outro jeito.
     const series = []
-    for (let i = 0; i < sets; i++) {
-        let candidatas = permitidas(i).filter((m) => i === 0 || chave(m) !== chave(series[i - 1]))
-        // A próxima só tem uma opção (ex.: A3 só com pé de pato): esta não pode ser ela
-        const proxima = i + 1 < sets ? permitidas(i + 1) : null
-        if (proxima?.length === 1) {
-            const semElas = candidatas.filter((m) => chave(m) !== chave(proxima[0]))
-            if (semElas.length > 0) candidatas = semElas
+    const semSaida = (i) => i > 0 && permitidas(i).length === 1 && permitidas(i - 1).length === 1
+    const busca = (i) => {
+        if (i === sets) return true
+        for (const m of preferencia(i)) {
+            if (i > 0 && chave(m) === chave(series[i - 1]) && !semSaida(i)) continue
+            series.push(m)
+            if (busca(i + 1)) return true
+            series.pop()
         }
-        if (candidatas.length === 0) candidatas = permitidas(i)
-        const nadando = candidatas.find((m) => m.length === 0)
-        if (i === 0 && nadando && random() * 100 < (cfg.comecarNadando?.[athlete.level] ?? 0)) {
-            series.push(nadando)
-            continue
-        }
-        // Depois do 1º, vai colocando material (nadando de novo é menos provável).
-        // Faltou força (feedback): de preferência palmar ou palmar + pull buoy, sem pé de pato
-        let comMaterial = candidatas.filter((m) => m.length > 0)
-        const soBracos = comMaterial.filter((m) => m.includes('palmar') && !m.includes('pe_de_pato'))
-        if (parte === 'principal' && athlete.foco === 'forca' && soBracos.length > 0 && random() < 0.8) comMaterial = soBracos
-        series.push(comMaterial.length > 0 && random() < 0.8 ? sorteia(comMaterial) : sorteia(candidatas))
+        return false
+    }
+    if (!busca(0)) {
+        // Não tem como (ex.: só pé de pato e todas as séries em A3): repete o possível
+        series.length = 0
+        for (let i = 0; i < sets; i++) series.push(preferencia(i)[0])
     }
     const material = ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'pull_buoy', 'prancha', 'snorkel', 'paraquedas']
         .filter((m) => series.some((s) => s.includes(m)))
@@ -555,14 +566,18 @@ function weightedPick(options, random) {
 // de alternar crawl e estilo.
 function pickForPart(args) {
     const { rules, parte, bloqueadas } = args
-    // A série do treino anterior não se repete (só se não houver outra que sirva)
+    // A série do treino anterior não se repete (só se não houver outra que sirva). Na 2ª
+    // principal, não repetir vale mais que alternar crawl e estilo: se só a série de
+    // ontem serve como estilo, vai outra (sem repetir), mesmo sem alternar.
     const semRepetir = (rules.naoRepetirNoTreinoSeguinte?.partes ?? []).includes(parte) && bloqueadas?.size > 0
-    return (semRepetir && pickAmong(args, bloqueadas)) || pickAmong(args, null)
+    return (semRepetir && pickAmong(args, bloqueadas)) ||
+        (semRepetir && args.primeiraPrincipal && pickAmong({ ...args, semAlternar: true }, bloqueadas)) ||
+        pickAmong(args, null)
 }
 
 // Séries (2x), (3x), (4x)...: as opções de quantas séries o atleta faz (a escrita
 // primeiro). De `minimo` até o número escrito + `aumentarAte` do nível.
-export function setOptions(rules, parte, serie, level) {
+export function setOptions(rules, parte, serie, level, sessionMinutes = null) {
     const cfg = rules.seriesAjustaveis
     const escrito = /^\((\d+)x\) /.exec(serie.texto)
     if (!cfg || !cfg.partes.includes(parte) || !escrito || serie.materialPorSerie) return [serie]
@@ -572,7 +587,9 @@ export function setOptions(rules, parte, serie, level) {
     if (!doGrupo && !doBloco) return [serie]
     const ate = Math.min(cfg.maximo, n + (cfg.aumentarAte?.[level] ?? 0))
     const opcoes = [serie]
-    const minimo = cfg.minimoPorNivel?.[level] ?? cfg.minimo
+    // Aula curta (30 min): qualquer nível pode fazer uma série só
+    const aulaCurta = sessionMinutes !== null && sessionMinutes <= (cfg.aulaCurtaAteMinutos ?? 0)
+    const minimo = aulaCurta ? 1 : cfg.minimoPorNivel?.[level] ?? cfg.minimo
     for (let vezes = Math.min(minimo, n); vezes <= ate; vezes++) {
         if (vezes === n) continue
         opcoes.push(describe({
@@ -585,7 +602,7 @@ export function setOptions(rules, parte, serie, level) {
     return opcoes
 }
 
-function pickAmong({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal }, evitar) {
+function pickAmong({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal, semAlternar = false }, evitar) {
     const candidatas = []
     // Passar do tempo é pior que ficar um pouco abaixo (a aula tem hora para acabar)
     const foraDoTempo = (segundos) => (segundos > budget ? 1.5 : 1) * Math.abs(segundos - budget)
@@ -596,7 +613,8 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
         if (primeiraPrincipal && original.id === primeiraPrincipal.serie.id) continue
         // (2x), (3x), (4x)...: o número de séries que melhor cabe no tempo da parte.
         // Fora as que ficariam iguais à do treino anterior (ex.: (4x) 4 x 50 e (6x) 4 x 50 viram (3x) 4 x 50)
-        const opcoes = setOptions(rules, parte, original, athlete.level).filter((s) => !evitar?.has(`texto:${s.texto}`))
+        const opcoes = setOptions(rules, parte, original, athlete.level, athlete.sessionMinutes)
+            .filter((s) => !evitar?.has(`texto:${s.texto}`))
         if (opcoes.length === 0) continue
         const serie = opcoes.length === 1 ? opcoes[0] : opcoes
             .map((s) => ({ s, fora: foraDoTempo(estimateSeconds(rules, parte, s, { material: [] }, athlete, pace)) }))
@@ -606,7 +624,7 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
         let variations = seriesVariations(rules, parte, serie, athlete).filter(serve)
         const mistura = drawMixedStrokes(rules, parte, serie, athlete, random)
         if (mistura && serve(mistura)) variations.push(mistura)
-        if (primeiraPrincipal) {
+        if (primeiraPrincipal && !semAlternar) {
             variations = variations.filter((variation) =>
                 allowedAsSecondMain(rules, primeiraPrincipal, { serie, variation }, athlete.strokes))
         }
@@ -627,9 +645,10 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     const comPalmar = (v) => v.material.includes('palmar') && !v.material.includes('pe_de_pato')
     const bonus = (c) => (foco === 'respiracao' && c.serie.maiorDistancia <= 50 ? 90 : 0) +
         (foco === 'forca' && c.variations.some(comPalmar) ? 90 : 0)
-    const distancia = (c) => foraDoTempo(c.segundos) - bonus(c) +
-        60 * (recentes.vezes(c.serie.id) + recentes.vezes(`texto:${c.serie.texto}`) +
-            (c.serie.familia ? recentes.vezes(`familia:${c.serie.familia}`) : 0))
+    // (o solto e a soltura podem repetir: lá, só o tempo conta)
+    const variar = (rules.naoRepetirNoTreinoSeguinte?.partes ?? []).includes(parte)
+    const distancia = (c) => foraDoTempo(c.segundos) - bonus(c) + (variar ? 60 * (recentes.vezes(c.serie.id) +
+        recentes.vezes(`texto:${c.serie.texto}`) + (c.serie.familia ? recentes.vezes(`familia:${c.serie.familia}`) : 0)) : 0)
     // Sorteia só entre as que ficam perto da melhor (até 1 min ou 15% do tempo da parte a mais)
     const ordenadas = candidatas.sort((a, b) => distancia(a) - distancia(b))
     const limite = distancia(ordenadas[0]) + Math.max(60, budget * 0.15)

@@ -1105,3 +1105,9 @@ test('sem prova: periodização padrão A-T-R (8 semanas = A 28, T 21, R 7)', ()
     ])
   }
 })
+
+test('aula de 30 min: qualquer nível pode fazer uma série só, para caber no tempo', () => {
+  const opcoes = (minutos) => setOptions(rules, 'principal', serieById('pri-2x10x100'), 'avancado', minutos).map((s) => s.texto)
+  assert.ok(opcoes(30).includes('10 x 100'))
+  assert.ok(!opcoes(60).includes('10 x 100'))
+})
