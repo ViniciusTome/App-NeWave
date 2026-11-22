@@ -98,6 +98,21 @@
       "recuperacaoHoras": [6, 24]
     }
   },
+  "intensidadesNaPrincipal": {
+    "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 },
+    "padroes": [
+      ["A1", "A2", "A3"],
+      ["A1", "A2", "A1", "A3"],
+      ["A1", "A2", "A1", "A2", "A3"],
+      ["A1", "A2", "A1", "A3", "A1", "A2", "A1"]
+    ],
+    "acimaDoMelhor": [20, 15, 10, 5],
+    "maxRepeticoesComIntensidade": 7,
+    "ritmoUnicoNasSimples": 50,
+    "ritmoPorDistancia": {
+      "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
+    }
+  },
   "tabelaDeTempos": {
     "50": { "divisor": 8, "ajustes": { "A1": [-3, -2], "A2": [-5, -4], "A3": [-7, -6] } },
     "100": { "divisor": 4, "ajustes": { "A1": [0, 0], "A2": [-2, -2], "A3": [-4, -4] } },

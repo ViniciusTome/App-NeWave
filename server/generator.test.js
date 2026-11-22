@@ -6,7 +6,9 @@ import { join } from 'node:path'
 import { createApp } from './app.js'
 import { abbreviate, cardText, estimateSeconds, generateTrainings, trainingDates, withMeters } from './generator.js'
 import { loadLibrary } from './series/index.js'
-import { intervalBetweenSets, intervalRangeFor, loadRules, partsForLevel, strokeCategory } from './series/regras.js'
+import {
+  drawIntensities, intervalBetweenSets, intervalRangeFor, loadRules, partsForLevel, seriesVariations, strokeCategory,
+} from './series/regras.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -254,6 +256,117 @@ test('o intervalo entra no tempo estimado e aparece no card', () => {
       }
     }
   }
+})
+
+// ---------- Intensidades na série principal ----------
+
+const diario = { ...avancado, trainingDays: [0, 1, 2, 3, 4, 5, 6] }
+const principaisDe = (athlete, seeds = 8) => {
+  const lista = []
+  for (let seed = 1; seed <= seeds; seed++) {
+    for (const t of gerar(athlete, seed)) lista.push(...t.partes.filter((p) => p.parte === 'principal').map((p) => ({ ...p, date: t.date })))
+  }
+  return lista
+}
+
+test('a série principal sempre tem um jeito de nadar, e os tipos nunca se misturam', () => {
+  const tipos = new Set()
+  for (const p of principaisDe(diario)) {
+    assert.ok(p.intensidades, p.texto)
+    tipos.add(p.intensidades.tipo)
+    const aLevels = p.intensidades.valores.filter((v) => /^A[123]$/.test(v))
+    // Ou só A1/A2/A3, ou nenhum deles
+    assert.ok(aLevels.length === 0 || aLevels.length === p.intensidades.valores.length, p.intensidades.valores.join())
+    assert.equal(p.intensidades.tipo === 'intensidades', aLevels.length > 0)
+  }
+  assert.deepEqual([...tipos].sort(), ['AC', 'NEG', 'POS', 'finalForte', 'intensidades'])
+})
+
+test('A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM)', () => {
+  let vistos = 0
+  for (const p of principaisDe(diario)) {
+    if (!p.intensidades.valores.includes('A3')) continue
+    vistos++
+    const linhas = p.texto.split('\n')
+    // O material da série toda fica no cabeçalho ou, nas pirâmides e grupos, na linha depois dos blocos
+    const daSerieToda = linhas.filter((l) => !/ª série:/.test(l) && !/^\d+ x \d+ m/.test(l))
+    for (const linha of linhas.filter((l) => /\bA3\b/.test(l))) {
+      assert.ok(linha.includes('c/PÉ') || daSerieToda.some((l) => l.includes('c/PÉ')), p.texto)
+    }
+  }
+  assert.ok(vistos > 0, 'nenhuma série em A3 foi sorteada')
+})
+
+test('A3 sem pé de pato: quem não é avançado não recebe; com pé de pato, sim', () => {
+  const semPe = { ...diario, level: 'intermediario', continuousDistance: '1000_2000', equipment: ['palmar'] }
+  for (const p of principaisDe(semPe, 4)) assert.ok(!p.intensidades.valores.includes('A3'), p.texto)
+  const serie = library.principal.find((s) => s.id === 'pri-4x4x100')
+  const variacao = seriesVariations(rules, 'principal', serie, { ...avancado, equipment: ['pe_de_pato'] })[0]
+  let comA3 = 0
+  for (let seed = 1; seed <= 40; seed++) {
+    const r = drawIntensities(rules, serie, variacao, { ...avancado, equipment: ['pe_de_pato'] }, { random: seeded(seed) })
+    r.valores.forEach((v, i) => {
+      if (v !== 'A3') return
+      comA3++
+      assert.ok(r.variation.series[i].includes('pe_de_pato'), `série ${i + 1} em A3 sem pé de pato`)
+    })
+  }
+  assert.ok(comA3 > 0)
+})
+
+test('recuperação: depois de um treino com A3, o próximo dentro de 48 h não tem A3', () => {
+  for (let seed = 1; seed <= 8; seed++) {
+    const treinos = gerar(diario, seed)
+    for (let i = 1; i < treinos.length; i++) {
+      const pesado = (t) => t.partes.some((p) => p.intensidades?.valores.some((v) => v === 'A3' || /^([5-9]|10) AC$/.test(v)))
+      if (pesado(treinos[i - 1])) {
+        const temA3 = treinos[i].partes.some((p) => p.intensidades?.valores.includes('A3'))
+        assert.ok(!temA3, `${treinos[i - 1].date} e ${treinos[i].date} com A3`)
+      }
+    }
+  }
+})
+
+test('séries simples: um ritmo por repetição ou um ritmo só; 400 m quase sempre 30 AC c/PÉ + PALM', () => {
+  const s5x400 = library.principal.find((s) => s.id === 'pri-5x400')
+  const variacao = seriesVariations(rules, 'principal', s5x400, avancado)[0]
+  let trinta = 0
+  for (let seed = 1; seed <= 60; seed++) {
+    const r = drawIntensities(rules, s5x400, variacao, avancado, { random: seeded(seed) })
+    if (r.valores[0] === '30 AC') {
+      trinta++
+      assert.equal(r.unidade, 'serie_toda')
+      assert.deepEqual(r.variation.material, ['pe_de_pato', 'palmar'])
+    }
+  }
+  assert.ok(trinta > 30 && trinta < 60, `${trinta} de 60`)
+  // 10 x 200: às vezes um ritmo só, às vezes um por repetição
+  const s10x200 = library.principal.find((s) => s.id === 'pri-10x200')
+  const v200 = seriesVariations(rules, 'principal', s10x200, avancado)[0]
+  const unidades = new Set()
+  for (let seed = 1; seed <= 60; seed++) {
+    const r = drawIntensities(rules, s10x200, v200, avancado, { random: seeded(seed) })
+    if (r.tipo === 'intensidades') unidades.add(r.unidade)
+  }
+  assert.ok(unidades.has('serie_toda'))
+})
+
+test('padrões do treinador e escada; AC diminuindo; final forte por bloco', () => {
+  const padroes = rules.intensidadesNaPrincipal.padroes.map((p) => p.join())
+  const vistos = new Set()
+  for (const p of principaisDe(diario)) {
+    const { tipo, unidade, valores } = p.intensidades
+    if (tipo === 'intensidades' && padroes.includes(valores.join())) vistos.add(valores.join())
+    if (tipo === 'AC' && valores.length > 1) {
+      const n = valores.map((v) => Number(v.split(' ')[0]))
+      assert.deepEqual(n, [...n].sort((a, b) => b - a), 'AC precisa diminuir')
+    }
+    if (tipo === 'finalForte' && unidade === 'bloco') {
+      const serie = serieById(p.serieId)
+      assert.deepEqual(valores, serie.blocos.map((b) => `${b.distancia - 25} NAD x 25 fo`))
+    }
+  }
+  assert.ok(vistos.size > 0, 'nenhum padrão do treinador foi usado')
 })
 
 // ---------- Rota POST /api/trainings/generate ----------

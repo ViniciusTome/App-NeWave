@@ -12,6 +12,9 @@ import {
 
 const NIVEIS = ['iniciante', 'intermediario', 'avancado']
 const ESTILOS = ['borboleta', 'costas', 'peito'] // "estilo" = qualquer um que não seja o crawl
+// Tipos de "como nadar" na série principal (nunca dois juntos)
+const TIPOS_DE_INTENSIDADE = ['intensidades', 'AC', 'finalForte', 'NEG', 'POS']
+
 // Formatos de cada série na mistura de nados: igual (costas, costas, costas),
 // espelhado (medley, peito, medley) e diferentes (melhor estilo, peito, medley)
 const FORMATOS = ['igual', 'espelhado', 'diferentes']
@@ -108,6 +111,27 @@ export function validateRules(rules) {
             if (!(Array.isArray(faixa) && faixa.length === 2 && faixa.every((x) => typeof x === 'number') && faixa[0] <= faixa[1])) {
                 problems.push(`${where}.ajustes.${nome}: use [de, até] em segundos, ex.: [-3, -2].`)
             }
+        }
+    }
+
+    if (rules.intensidadesNaPrincipal !== undefined) {
+        const r = rules.intensidadesNaPrincipal
+        const where = 'intensidadesNaPrincipal'
+        const tipos = Object.entries(r.tipos ?? {})
+        if (tipos.length === 0 || tipos.some(([t, p]) => !TIPOS_DE_INTENSIDADE.includes(t) || !(p > 0))) {
+            problems.push(`${where}.tipos: pesos maiores que 0 para: ${TIPOS_DE_INTENSIDADE.join(', ')}.`)
+        }
+        if (!Array.isArray(r.padroes) || r.padroes.some((p) => !Array.isArray(p) || p.length === 0 || p.some((i) => !['A1', 'A2', 'A3'].includes(i)))) {
+            problems.push(`${where}.padroes: listas com A1, A2 e A3, ex.: ["A1", "A2", "A1", "A3"].`)
+        }
+        for (const [d, cfg] of Object.entries(r.ritmoPorDistancia ?? {})) {
+            if (typeof cfg?.valor !== 'string' || !Array.isArray(cfg.material) ||
+                cfg.material.some((m) => !Array.isArray(m) || m.some((x) => !MATERIAIS.includes(x)))) {
+                problems.push(`${where}.ritmoPorDistancia.${d}: use { "valor": "30 AC", "material": [["pe_de_pato", "palmar"]] }.`)
+            }
+        }
+        if (!Array.isArray(r.acimaDoMelhor) || r.acimaDoMelhor.some((x) => !(Number.isInteger(x) && x > 0))) {
+            problems.push(`${where}.acimaDoMelhor: segundos acima do melhor, ex.: [20, 15, 10, 5].`)
         }
     }
 
@@ -850,4 +874,144 @@ export function repSeconds(rules, tabela, distancia, intensidade) {
         ritmo = r0 + ((r1 - r0) * (distancia - d0)) / (d1 - d0)
     }
     return (ritmo * distancia) / 100
+}
+
+// ---------- Intensidades na série principal ----------
+
+// Escada progressiva com n partes, sempre começando no A1 e terminando no teto
+// (ex.: 3 -> A1, A2, A3; 4 -> A1, A2, A2, A3; 6 -> A1, A1, A2, A2, A3, A3)
+export function ladder(n, teto = 'A3') {
+    const niveis = teto === 'A3' ? ['A1', 'A2', 'A3'] : ['A1', 'A2']
+    if (n === 1) return ['A2']
+    if (n === 2) return ['A1', 'A2']
+    return Array.from({ length: n }, (_, i) => niveis[Math.round((i * (niveis.length - 1)) / (n - 1))])
+}
+
+// Partes da série que recebem a intensidade: as séries de um (2x), (4x)...; os
+// blocos de uma pirâmide; ou as repetições de uma série simples.
+export function intensityUnits(serie) {
+    const sets = setsOf(serie)
+    if (sets >= 2) return { unidade: 'serie', n: sets }
+    if (serie.blocos.length > 1) return { unidade: 'bloco', n: serie.blocos.length }
+    return { unidade: 'repeticao', n: serie.blocos[0].repeticoes }
+}
+
+// Escolhe com peso: { nome: peso }
+function pickWeighted(pesos, random) {
+    const lista = Object.entries(pesos).filter(([, p]) => p > 0)
+    let r = random() * lista.reduce((s, [, p]) => s + p, 0)
+    for (const [nome, p] of lista) {
+        r -= p
+        if (r < 0) return nome
+    }
+    return lista.at(-1)[0]
+}
+
+// Sorteia como nadar a série principal: um tipo só (intensidades A1/A2/A3, AC,
+// NEG, POS ou final forte), nunca dois juntos. Devolve { tipo, unidade, valores }
+// (um valor por série, bloco ou repetição) e a variação com o material ajustado:
+// A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM), trocando material só entre séries.
+// `proibidas` (ex.: ['A3']) vem da recuperação do treino anterior.
+export function drawIntensities(rules, serie, variation, athlete, { proibidas = [], random = Math.random } = {}) {
+    const regra = rules.intensidadesNaPrincipal
+    if (!regra) return null
+    let { unidade, n } = intensityUnits(serie)
+    const distancias = unidade === 'bloco' ? serie.blocos.map((b) => b.distancia) : Array(n).fill(serie.blocos[0].distancia)
+    const todasAsDistancias = serie.blocos.map((b) => b.distancia)
+    const repeticoesLongas = unidade === 'repeticao' && n > (regra.maxRepeticoesComIntensidade ?? 7)
+
+    const has = new Set(athlete.equipment ?? [])
+    const a3 = rules.intensidades?.A3?.material
+    const opcoesA3 = (a3?.opcoes ?? [['pe_de_pato']]).filter((o) => o.every((m) => has.has(m)))
+    const podeA3 = !proibidas.includes('A3') && (opcoesA3.length > 0 || a3?.semMaterialSo?.includes(athlete.level))
+
+    // Ritmo próprio da distância nas séries simples (ex.: 400 = 30 AC c/PÉ + PALM,
+    // a série toda num ritmo só)
+    const proprio = unidade === 'repeticao' ? regra.ritmoPorDistancia?.[String(distancias[0])] : null
+    if (proprio && random() * 100 < (proprio.chance ?? 100)) {
+        const material = proprio.material.find((m) => m.every((x) => has.has(x)))
+        if (material) {
+            return {
+                tipo: 'AC', unidade: 'serie_toda', valores: [proprio.valor],
+                variation: { ...variation, padrao: 'serie_inteira', material, series: undefined },
+            }
+        }
+    }
+
+    // Tipos possíveis (NEG, POS e final forte precisam de repetições de pelo menos 50 m)
+    const tipos = { ...regra.tipos }
+    if (todasAsDistancias.some((d) => d < 50)) delete tipos.NEG, delete tipos.POS, delete tipos.finalForte
+    const tipo = pickWeighted(tipos, random)
+
+    let valores
+    if (tipo === 'intensidades') {
+        // Série simples: um ritmo só para a série toda, ou um por repetição
+        const ritmoUnico = unidade === 'repeticao' && random() * 100 < (regra.ritmoUnicoNasSimples ?? 0)
+        if (repeticoesLongas || ritmoUnico) {
+            // Muitas repetições (ou ritmo único): a série toda numa intensidade
+            unidade = 'serie_toda'
+            const opcoes = podeA3 ? ['A1', 'A2', 'A3'] : ['A1', 'A2']
+            valores = [opcoes[Math.floor(random() * opcoes.length)]]
+        } else {
+            const padroes = regra.padroes.filter((p) => p.length === n && (podeA3 || !p.includes('A3')))
+            const escada = ladder(n, podeA3 ? 'A3' : 'A2')
+            const opcoes = [...padroes, escada]
+            valores = opcoes[Math.floor(random() * opcoes.length)]
+        }
+    } else if (tipo === 'AC') {
+        // Diminuindo: 20, 15, 10, 5 acima do melhor (as últimas n)
+        const escada = regra.acimaDoMelhor
+        valores = (repeticoesLongas || n > escada.length) ? null : escada.slice(escada.length - n).map((x) => `${x} AC`)
+        if (!valores) {
+            unidade = 'serie_toda'
+            valores = ['10 AC']
+        }
+    } else if (tipo === 'finalForte' && serie.blocos.length > 1) {
+        // Pirâmides e grupos: o final forte é de cada bloco (175 NAD x 25 fo nos 200...)
+        unidade = 'bloco'
+        valores = todasAsDistancias.map((d) => `${d - 25} NAD x 25 fo`)
+    } else if (tipo === 'finalForte') {
+        unidade = 'serie_toda'
+        valores = [`${distancias[0] - 25} NAD x 25 fo`]
+    } else {
+        // NEG ou POS: a série toda
+        unidade = 'serie_toda'
+        valores = [tipo]
+    }
+
+    // Tudo igual em todas as séries: vale para a série toda
+    if (unidade === 'serie' && valores.every((v) => v === valores[0])) {
+        unidade = 'serie_toda'
+        valores = [valores[0]]
+    }
+
+    // A3 sempre com equipamento
+    let ajustada = variation
+    const comA3 = valores.map((v) => v === 'A3')
+    if (comA3.some(Boolean) && opcoesA3.length > 0) {
+        const escolhaA3 = (atual) =>
+            atual?.some((m) => m === 'pe_de_pato') ? atual : opcoesA3[Math.floor(random() * opcoesA3.length)]
+        if (unidade === 'serie') {
+            const base = variation.series ?? Array(n).fill(variation.material)
+            const series = base.map((m, i) => (comA3[i] ? escolhaA3(m) : m))
+            ajustada = { ...variation, padrao: 'por_serie', series, material: MATERIAIS.filter((x) => series.some((s) => s.includes(x))) }
+        } else if (unidade === 'bloco') {
+            const base = variation.porBloco ?? Array(n).fill(variation.material)
+            const porBloco = base.map((m, i) => (comA3[i] ? escolhaA3(m) : m))
+            ajustada = { ...variation, padrao: 'piramide_alternada', porBloco, material: MATERIAIS.filter((x) => porBloco.some((s) => s.includes(x))) }
+        } else {
+            // Repetições ou série toda: o material não muda no meio, então a série toda vai com ele
+            const material = escolhaA3(variation.material)
+            ajustada = { ...variation, padrao: 'serie_inteira', material, series: undefined }
+        }
+    }
+    return { tipo, unidade, valores, variation: ajustada }
+}
+
+// Intensidade "mais pesada" de uma série principal, para a recuperação:
+// A3 e AC até 10 contam como A3; NEG, POS e final forte, como A2 (PROVISÓRIO).
+export function hardestIntensity(intensidades) {
+    if (!intensidades) return null
+    const peso = (v) => (v === 'A3' || /^([5-9]|10) AC$/.test(v) ? 3 : v === 'A1' ? 1 : 2)
+    return ['A1', 'A2', 'A3'][Math.max(...intensidades.valores.map(peso)) - 1]
 }

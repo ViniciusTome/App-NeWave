@@ -694,6 +694,15 @@ test('tempo de nado de cada repetição pela tabela; outras distâncias estimada
   assert.equal(repSeconds(rules, t, 25, 'forte'), null)
 })
 
+test('escada progressiva: começa no A1 e termina no A3 (ou no A2, se A3 não pode)', async () => {
+  const { ladder } = await import('./series/regras.js')
+  assert.deepEqual(ladder(3), ['A1', 'A2', 'A3'])
+  assert.deepEqual(ladder(4), ['A1', 'A2', 'A2', 'A3'])
+  assert.deepEqual(ladder(6), ['A1', 'A1', 'A2', 'A2', 'A3', 'A3'])
+  assert.deepEqual(ladder(4, 'A2'), ['A1', 'A1', 'A2', 'A2'])
+  assert.deepEqual(ladder(2), ['A1', 'A2'])
+})
+
 // ---------- Validação do arquivo de regras ----------
 
 test('a validação das regras aponta os erros', () => {

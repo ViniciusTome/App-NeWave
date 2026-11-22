@@ -56,7 +56,7 @@
       { "sigla": "AC", "nome": "Acima", "explicacao": "Acima do seu melhor tempo. Ex.: 10 AC = 10 segundos acima do seu melhor tempo naquela distância." },
       { "sigla": "NEG", "nome": "Negativo", "explicacao": "A segunda metade mais rápida que a primeira: vai nadando e volta mais forte." },
       { "sigla": "POS", "nome": "Positivo", "explicacao": "O contrário do negativo: vai mais forte e volta nadando." },
-      { "sigla": "50 x 25 fo", "nome": "Final forte", "explicacao": "Dentro da repetição, os primeiros metros nadando e os últimos forte. Ex.: num 75 m, 50 m nadando + 25 m forte. \"25 x 25 forte\" num 50 m: 25 nadando + 25 forte." },
+      { "sigla": "75 NAD x 25 fo", "detectar": "\\d+ NAD x \\d+ fo", "nome": "Final forte", "explicacao": "Dentro de cada repetição, os primeiros metros nadando e os últimos 25 m forte. Ex.: num 100 m, 75 m nadando + 25 m forte; num 50 m, 25 nadando + 25 forte." },
       { "sigla": "Tempo", "explicacao": "Repetição para marcar o seu tempo (valendo, o mais forte que conseguir)." }
     ]
   },

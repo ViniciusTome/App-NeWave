@@ -319,6 +319,35 @@ Se uma série tiver `material` escrito no próprio JSON, ela é fixa e o gerador
 - **A3 com equipamento:** séries em A3 saem com pé de pato ou pé de pato + palmar; sem material só para avançado e raramente (`pesoSemMaterial`). Sem pé de pato, quem não é avançado não recebe a série.
 - **Recuperação:** horas que o corpo leva para se recuperar. Vai ser usada para planejar a semana (olhando o treino inteiro, com mais peso na série principal) quando as séries principais tiverem intensidade.
 
+### Como nadar a série principal
+
+```json
+"intensidadesNaPrincipal": {
+  "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 },
+  "padroes": [["A1","A2","A3"], ["A1","A2","A1","A3"], ["A1","A2","A1","A2","A3"], ["A1","A2","A1","A3","A1","A2","A1"]],
+  "acimaDoMelhor": [20, 15, 10, 5],
+  "maxRepeticoesComIntensidade": 7,
+  "ritmoUnicoNasSimples": 50,
+  "ritmoPorDistancia": {
+    "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
+  }
+}
+```
+
+A cada treino, o gerador sorteia **um tipo** para a série principal (pelos pesos de `tipos`). Os tipos **nunca se misturam**: A1/A2/A3 não vão junto com NEG, POS, AC ou final forte.
+
+- **intensidades:** um dos `padroes` do tamanho certo, ou a escada progressiva (A1 → A2 → A3). Vai uma por série nos `(2x)`, `(4x)`, uma por bloco nas pirâmides, ou uma por repetição nas séries simples (até `maxRepeticoesComIntensidade`; acima disso, uma intensidade para a série toda).
+- **Séries simples:** metade das vezes (`ritmoUnicoNasSimples`) um ritmo só para a série toda (ex.: `10 x 200 m · A2`); nas outras, um ritmo por repetição.
+- **Ritmo próprio da distância** (`ritmoPorDistancia`): nas séries de **400 m**, na maioria das vezes (`chance`: 70%) a série toda em **30 AC com c/PÉ + PALM**, como o treinador passa. Com o equipamento, não conta como A3 na recuperação.
+- **AC:** diminuindo, como em `acimaDoMelhor` (ex.: 3 séries = 15, 10, 5 AC).
+- **final forte:** `75 NAD x 25 fo` num 100, `25 NAD x 25 fo` num 50; nas pirâmides e grupos, bloco por bloco.
+- **NEG / POS:** a série toda.
+- Final forte, NEG e POS só em séries sem repetições de 25 m.
+- **A3 sempre com equipamento:** a série, o bloco ou (nas séries simples) a série toda em A3 recebe c/PÉ ou c/PÉ + PALM. Quem não é avançado e não tem pé de pato não recebe A3.
+- **Recuperação:** depois de um treino com A3 (ou AC de 10 ou menos) na série principal, o próximo treino dentro de 48 h (recuperação do A3) não tem A3.
+
+No card: A1/A2/A3 como estão, os outros entre parênteses (`(15 AC)`, `(NEG)`, `(75 NAD x 25 fo)`). O que é igual em todas as séries aparece uma vez, no cabeçalho.
+
 ### Tabela de tempos (método do treinador)
 
 ```json
@@ -411,7 +440,8 @@ Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `de
 ### A decidir
 
 - **Esforço do intermediário** em cada intensidade (hoje é um meio termo provisório).
-- **Planejamento da semana pela recuperação** das intensidades (entra junto com as intensidades das séries principais).
+- **Recuperação:** hoje só evita A3 seguido; falta pesar o treino inteiro (velocidade, AC) com mais precisão.
+- **Tempo das séries com intensidade:** o tempo estimado ainda usa A2 para a série principal toda.
 
 - **Metragem e tempo de cada parte no card** ("100 m · ~2 min"): escondidos para sobrar espaço. Para voltar a mostrar, troque `MOSTRAR_METRAGEM_E_TEMPO` para `true` em `src/components/Training/index.jsx`. O total do treino vai aparecer em outro lugar.
 
