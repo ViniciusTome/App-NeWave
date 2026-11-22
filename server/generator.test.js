@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, cardText, estimateSeconds, generateTrainings, saidaFor, saidaText, trainingDates, withMeters,
+  abbreviate, cardText, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
 import {
@@ -520,4 +520,22 @@ test('o card mostra a saída (cd) da série principal', () => {
   const textos = [1, 2, 3].flatMap((seed) => gerar(avancado, seed))
     .map((t) => t.partes.find((p) => p.parte === 'principal').texto)
   assert.ok(textos.some((t) => /cd \d+'\d{2}"/.test(t)), 'nenhum treino com saída')
+})
+
+test('na acumulação, A2/A3 perto do A1 ficam com a saída do A1; na transição, cada um com a sua', () => {
+  const serie = { blocos: [{ repeticoes: 4, distancia: 100 }] }
+  const I = { unidade: 'repeticao', valores: ['A1', 'A2', 'A1', 'A3'] }
+  const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  // Sem fase definida vale a acumulação
+  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I), [115, 115, 115, 115])
+  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I, 'acumulacao'), [115, 115, 115, 115])
+  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I, 'transicao'), [115, 115, 115, 110])
+})
+
+test('iniciante: a saída do A3 fica só um pouco acima da do A1', () => {
+  const serie = { blocos: [{ repeticoes: 3, distancia: 100 }] }
+  const I = { unidade: 'repeticao', valores: ['A1', 'A2', 'A3'] }
+  const iniciante = { level: 'iniciante', tabela: timeTable(rules, 360), teste400: 360 }
+  // Sem o limite seria 1'40" / 1'45" / 1'55"
+  assert.deepEqual(saidasDaSerie(rules, iniciante, serie, I), [100, 105, 110])
 })

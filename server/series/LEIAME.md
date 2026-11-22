@@ -436,7 +436,9 @@ A saída é **o tempo que o atleta tem que fazer na intensidade + o descanso**, 
 - O tempo vem da **tabela de tempos** (teste de 400 m). O descanso segue a tabela de descanso: por distância para o avançado e o intermediário, por intensidade para o iniciante e o recém-intermediário.
 - Ex. (teste em 6'00", avançado): 100 m A1 = 1'30" + 25" = **cd 1'55"**; A3 = 1'26" + 25" = **cd 1'50"**.
 - **30 AC nos 400:** melhor tempo + 30" + 1' de descanso. Ex.: 6'00" + 30" + 1' = **cd 7'30"**.
-- No iniciante, a saída do A3 pode ficar **maior** que a do A1, porque o descanso do A3 é maior (até 1').
+- **Perto do A1, fica a saída do A1:** se a saída do A2 ou do A3 é até 10" menor que a do A1, usa a do A1. Na fase de **Transição** cada intensidade fica com a sua. Enquanto a fase da temporada não é definida, vale a da Acumulação.
+- **Iniciante:** como o descanso do A3 é maior, a saída do A3 pode ficar acima da do A1, mas **no máximo 10" acima** (ele sempre faz A3 com equipamento). Ex.: 1'40" / 1'45" / 1'50" (sem o limite seria 1'55").
+- Os 10" são provisórios: mude em `saidas` no `regras.json` (`igualarAoA1Ate`, `maximoAcimaDoA1`, `fasesComSaidaPorIntensidade`).
 - Ainda **sem saída**: AC em outras distâncias, NEG, POS, final forte, 75 NAD x 25 fo, velocidade e grupos com vários blocos e uma intensidade por série.
 
 ### Como a série aparece no card

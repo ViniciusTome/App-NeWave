@@ -101,6 +101,15 @@ export function validateRules(rules) {
         }
     }
 
+    if (rules.saidas !== undefined) {
+        const { igualarAoA1Ate, maximoAcimaDoA1, fasesComSaidaPorIntensidade = [] } = rules.saidas
+        for (const [k, v] of Object.entries({ igualarAoA1Ate, maximoAcimaDoA1 })) {
+            if (v !== undefined && !(Number.isFinite(v) && v >= 0)) problems.push(`saidas.${k} precisa ser um número de segundos.`)
+        }
+        if (!Array.isArray(fasesComSaidaPorIntensidade) || fasesComSaidaPorIntensidade.some((f) => !FASES.includes(f))) {
+            problems.push(`saidas.fasesComSaidaPorIntensidade: use fases entre ${FASES.join(', ')}.`)
+        }
+    }
     for (const [distancia, cfg] of Object.entries(rules.tabelaDeTempos ?? {})) {
         const where = `tabelaDeTempos.${distancia}`
         if (!(Number(distancia) > 0)) problems.push(`${where}: a chave precisa ser a distância em metros.`)

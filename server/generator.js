@@ -87,13 +87,29 @@ export const saidaText = (segundos) =>
     segundos >= 60 ? `${Math.floor(segundos / 60)}'${String(segundos % 60).padStart(2, '0')}"` : `${segundos}"`
 
 // Saídas de cada parte que recebeu intensidade (série, bloco, repetição ou a série toda)
-function saidasDaSerie(rules, athlete, serie, intensidades) {
+export function saidasDaSerie(rules, athlete, serie, intensidades, fase = null) {
     if (!intensidades) return null
     const { unidade, valores } = intensidades
     if (unidade === 'bloco') return serie.blocos.map((b, i) => saidaFor(rules, athlete, b, valores[i]))
     // Grupos com vários blocos e intensidade por série: cada bloco teria uma saída diferente (por enquanto, sem)
     if (serie.blocos.length > 1) return null
-    return valores.map((v) => saidaFor(rules, athlete, serie.blocos[0], v))
+    const bloco = serie.blocos[0]
+    return ajustarAoA1(rules, valores, valores.map((v) => saidaFor(rules, athlete, bloco, v)),
+        saidaFor(rules, athlete, bloco, 'A1'), fase)
+}
+
+// A2/A3 perto do A1: mesma saída do A1 (na transição, cada intensidade com a sua).
+// Acima do A1 (iniciante, que descansa mais no A3): só um pouco acima.
+function ajustarAoA1(rules, valores, saidas, saidaA1, fase) {
+    const cfg = rules.saidas
+    if (!cfg || !saidaA1) return saidas
+    const porIntensidade = (cfg.fasesComSaidaPorIntensidade ?? []).includes(fase)
+    return saidas.map((s, i) => {
+        if (!s || !['A2', 'A3'].includes(valores[i])) return s
+        if (s > saidaA1) return Math.min(s, saidaA1 + (cfg.maximoAcimaDoA1 ?? Infinity))
+        if (!porIntensidade && saidaA1 - s <= (cfg.igualarAoA1Ate ?? 0)) return saidaA1
+        return s
+    })
 }
 
 // Segundos que o atleta leva na série, com os descansos. `pace` = segundos por

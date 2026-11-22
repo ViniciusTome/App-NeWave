@@ -122,6 +122,12 @@
       "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
     }
   },
+  "saidas": {
+    "_comentario": "Saída = tempo da intensidade + descanso. Em A2/A3 com saída até 'igualarAoA1Ate' segundos menor que a do A1, usa a do A1 (exceto nas fases de 'fasesComSaidaPorIntensidade'). Saída maior que a do A1 (iniciante, descanso maior no A3) fica no máximo 'maximoAcimaDoA1' segundos acima. PROVISÓRIO: 10 e 10.",
+    "igualarAoA1Ate": 10,
+    "fasesComSaidaPorIntensidade": ["transicao"],
+    "maximoAcimaDoA1": 10
+  },
   "tabelaDeTempos": {
     "50": { "divisor": 8, "ajustes": { "A1": [-3, -2], "A2": [-5, -4], "A3": [-7, -6] } },
     "100": { "divisor": 4, "ajustes": { "A1": [0, 0], "A2": [-2, -2], "A3": [-4, -4] } },
