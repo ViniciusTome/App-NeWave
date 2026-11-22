@@ -36,12 +36,35 @@ export const EvolutionOfTheTimes = () => {
     const best = shown.length ? Math.min(...shown.map((t) => t.timeHundredths)) : null
     const change = shown.length > 1 ? shown.at(-1).timeHundredths - shown[0].timeHundredths : 0
 
-    const handleSaved = (test) => {
+    // Registrou um tempo e tem um teste de 400 m planejado: pergunta se vai fazer
+    const [plannedTest, setPlannedTest] = useState(null) // { id, date }
+    const [answering, setAnswering] = useState(false)
+    const [answerError, setAnswerError] = useState('')
+    const answerPlannedTest = async (fazer) => {
+        setAnswering(true)
+        setAnswerError('')
+        try {
+            await api(`/trainings/${plannedTest.id}/planned-test`, { method: 'POST', body: { fazer } })
+            setPlannedTest(null)
+            setOpenModal(null)
+            notifyTrainingsChanged()
+        } catch (err) {
+            setAnswerError(err.message)
+        } finally {
+            setAnswering(false)
+        }
+    }
+
+    // Fecha só a janela que pediu (fechar uma janela não pode fechar a próxima que abriu)
+    const closeModal = (nome) => setOpenModal((atual) => (atual === nome ? null : atual))
+
+    const handleSaved = (test, testePlanejado) => {
         setTests((current) =>
             [...(current ?? []), test].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id),
         )
         setChosenDistance(test.distance)
-        setOpenModal(null)
+        setPlannedTest(testePlanejado ?? null)
+        setOpenModal(testePlanejado ? 'testePlanejado' : null)
     }
 
     const handleDelete = async (test) => {
@@ -130,11 +153,29 @@ export const EvolutionOfTheTimes = () => {
                 </>
             )}
 
-            <Modal open={openModal === 'add'} onClose={() => setOpenModal(null)} title='Registrar teste'>
+            <Modal open={openModal === 'add'} onClose={() => closeModal('add')} title='Registrar teste'>
                 <AddTestForm defaultDistance={distance} onSaved={handleSaved} />
             </Modal>
 
-            <Modal open={openModal === 'list'} onClose={() => setOpenModal(null)} title='Seus testes'>
+            <Modal open={openModal === 'testePlanejado'} onClose={() => closeModal('testePlanejado')} title='Teste de 400 m planejado'>
+                {plannedTest && (
+                    <div className={styles.form}>
+                        <p>
+                            Seu tempo já entrou nos treinos. Você tem um <strong>teste de 400 m</strong> planejado
+                            para <strong>{formatDate(plannedTest.date)}</strong>. Pretende fazer esse teste?
+                        </p>
+                        {answerError && <p className={styles.formError} role='alert'>{answerError}</p>}
+                        <button type='button' className={styles.primaryButton} disabled={answering} onClick={() => answerPlannedTest(true)}>
+                            Sim, vou fazer o teste
+                        </button>
+                        <button type='button' className={styles.secondaryButton} disabled={answering} onClick={() => answerPlannedTest(false)}>
+                            Não, troque por um treino normal
+                        </button>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal open={openModal === 'list'} onClose={() => closeModal('list')} title='Seus testes'>
                 {allTests.length === 0 ? (
                     <p>Nenhum teste registrado.</p>
                 ) : (

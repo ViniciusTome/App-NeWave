@@ -26,7 +26,7 @@ export const AddTestForm = ({ defaultDistance, onSaved }) => {
         setError('')
         setIsSubmitting(true)
         try {
-            const { test } = await api('/tests', {
+            const { test, testePlanejado } = await api('/tests', {
                 method: 'POST',
                 body: {
                     distance: Number(form.get('distance')),
@@ -34,7 +34,7 @@ export const AddTestForm = ({ defaultDistance, onSaved }) => {
                     date: form.get('date'),
                 },
             })
-            onSaved(test)
+            onSaved(test, testePlanejado)
             // Um teste novo (de 400 m) muda a tabela de tempos e o nível, e os treinos
             // que ainda não foram feitos ganham os tempos (cd)
             notifyAthleteChanged()

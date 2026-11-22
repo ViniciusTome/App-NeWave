@@ -310,6 +310,7 @@ export function createApp({
     db, requireUser, onTrainingCompleted: (userId) => athlete.reformulateIfNeeded(userId),
     // Tempo novo (teste de 400 m): os treinos não feitos ganham os tempos, sem mudar as séries
     onTimesChanged: (userId) => athlete.refreshTrainingTimes(userId),
+    plannedTest: (userId) => athlete.plannedTest(userId),
   })
   const athlete = createAthleteRoutes({ db, requireUser, library: loadLibrary(), rules: loadRules() })
 
@@ -335,6 +336,7 @@ export function createApp({
     ['POST', '/api/competitions', athlete.createCompetition],
     ['PATCH', '/api/competitions/:id', athlete.updateCompetitionPriority],
     ['DELETE', '/api/competitions/:id', athlete.removeCompetition],
+    ['POST', '/api/trainings/:id/planned-test', athlete.answerPlannedTest],
     ['GET', '/api/preparations/current', athlete.getCurrentPreparation],
     ['POST', '/api/preparations', athlete.createPreparation],
   ].map(([method, path, handler]) => {

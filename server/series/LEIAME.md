@@ -552,6 +552,9 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 
 Quando o atleta registra um **teste de 400 m** (ou apaga um), os treinos que ele **ainda não fez** são reescritos com os tempos atuais: o **cd**, o ritmo (A1, A2, A3 no lugar de "ritmo leve...") e a saída da velocidade. **As séries, o material e as intensidades não mudam.** Para isso, cada treino guarda no plano interno como cada parte foi montada (`plano.montagem`).
 
+- **Teste planejado:** se o atleta não tinha tempo, ele tem um teste de 400 m planejado (depois de 1 mês). Ao registrar um tempo, o app pergunta se ele **vai fazer esse teste**. **Sim:** o teste fica (ele pode ter colocado o tempo por curiosidade ou como estimativa), e os tempos novos continuam entrando nos treinos. **Não:** no lugar entra um treino normal da etapa, sem repetir as séries do treino anterior nem do seguinte.
+- **Evolução dos tempos vazia de novo** (apagou todos os testes e não informou tempo na anamnese): os treinos não feitos voltam ao **planejamento sem tempos** (descanso no lugar do cd, ritmo por extenso, sem AC e o teste depois de 1 mês).
+
 ### Sem tempos de referência (sem teste de 400 m)
 
 Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), não dá para montar a saída:

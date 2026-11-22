@@ -537,3 +537,51 @@ test('registrar o teste de 400 m coloca os tempos (cd) nos treinos já montados,
   assert.equal(linha.main_series.includes('ritmo leve'), false)
   db.close()
 })
+
+test('tempo novo com teste planejado: pergunta se vai fazer; sem tempos de novo, volta ao planejamento sem tempos', async () => {
+  const cookie = await userFor('periodizacao')
+  const { user } = (await api('/api/auth/me', { cookie })).body
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
+  db.prepare('DELETE FROM trainings WHERE user_id = ?').run(user.id)
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: null })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const proximos = async () => (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  const diaDoTeste = (ts) => ts.find((t) => t.partes.some((p) => p.parte === 'teste'))
+  const teste = diaDoTeste(await proximos())
+  assert.ok(teste, 'sem tempo: teste depois de 1 mês')
+
+  // Registra um tempo: os treinos ganham o cd e o app pergunta do teste planejado
+  const registrar = () => api('/api/tests', { method: 'POST', cookie, body: { distance: 400, timeHundredths: 36000, date: hoje } })
+  const r1 = await registrar()
+  assert.deepEqual(r1.body.testePlanejado, { id: teste.id, date: teste.date })
+  // "Não vou fazer": no lugar entra um treino normal
+  const nao = await api(`/api/trainings/${teste.id}/planned-test`, { method: 'POST', cookie, body: { fazer: false } })
+  assert.equal(nao.status, 200)
+  const semTeste = await proximos()
+  assert.equal(diaDoTeste(semTeste), undefined)
+  const trocado = semTeste.find((t) => t.date === teste.date)
+  assert.ok(trocado.partes.some((p) => p.parte === 'principal'))
+  assert.match(trocado.partes.find((p) => p.parte === 'principal').texto, /cd \d|A1|A2|A3/)
+
+  // Apaga o tempo: a evolução fica vazia e volta o planejamento sem tempos (com o teste)
+  const { tests } = (await api('/api/tests', { cookie })).body
+  for (const t of tests) await api(`/api/tests/${t.id}`, { method: 'DELETE', cookie })
+  const deNovo = await proximos()
+  assert.ok(diaDoTeste(deNovo), 'o teste volta')
+  assert.ok(deNovo.every((t) => !/cd \d/.test(t.partes.find((p) => p.parte === 'principal')?.texto ?? '')))
+
+  // Registra de novo e diz que vai fazer: o teste fica e não pergunta mais
+  const r2 = await registrar()
+  assert.ok(r2.body.testePlanejado)
+  const sim = await api(`/api/trainings/${r2.body.testePlanejado.id}/planned-test`, { method: 'POST', cookie, body: { fazer: true } })
+  assert.equal(sim.body.mantido, true)
+  assert.ok(diaDoTeste(await proximos()))
+  assert.equal((await registrar()).body.testePlanejado, null)
+  // Resposta inválida
+  assert.equal((await api(`/api/trainings/${r2.body.testePlanejado.id}/planned-test`, { method: 'POST', cookie, body: {} })).status, 400)
+  db.close()
+})

@@ -85,7 +85,9 @@ function parseId(value) {
   return id
 }
 
-export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = () => 0, onTimesChanged = () => 0 }) {
+export function createSwimmingRoutes({
+  db, requireUser, onTrainingCompleted = () => 0, onTimesChanged = () => 0, plannedTest = () => null,
+}) {
   const listTests = db.prepare(`
     SELECT id, distance, time_hundredths, date FROM tests
     WHERE user_id = ? ORDER BY date, id
@@ -149,9 +151,11 @@ export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = ()
 
       const id = insertTest.run(user.id, distance, timeHundredths, date, new Date().toISOString())
         .lastInsertRowid
-      // Teste de 400 m: os treinos que ainda não foram feitos ganham os tempos novos (cd, ritmo)
+      // Teste de 400 m: os treinos que ainda não foram feitos ganham os tempos novos (cd,
+      // ritmo). Se ainda tem um teste planejado, o app pergunta se ele vai fazer.
       const treinosAtualizados = distance === 400 ? onTimesChanged(user.id) : 0
-      sendJson(res, 201, { test: { id: Number(id), distance, timeHundredths, date }, treinosAtualizados })
+      const testePlanejado = distance === 400 ? plannedTest(user.id) : null
+      sendJson(res, 201, { test: { id: Number(id), distance, timeHundredths, date }, treinosAtualizados, testePlanejado })
     },
 
     // DELETE /api/tests/:id

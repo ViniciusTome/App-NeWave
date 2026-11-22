@@ -1160,12 +1160,13 @@ export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana 
 // `historico` = treinos feitos, com o feedback e o plano interno (para ajustar os próximos).
 // `fatorDoProximo` = tempo da principal do próximo treino já montado (para o feedback
 // não ajustar duas vezes pelos mesmos treinos).
+// `semTeste` = nenhum dia de teste (ex.: o atleta disse que não vai fazer o teste planejado).
 // `periodizacao` = { inicio, fim, testeNaTransicao, numeroInicial, provas, semProva }: gera todos os
 // treinos até o fim, cada um com a sua fase. `provas` = datas das provas importantes no
 // meio da preparação (o volume cai na semana delas). Sem ela, gera `dias` dias, sem fase.
 export function generateTrainings({
     rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
-    inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null,
+    inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null, semTeste = false,
 }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
@@ -1256,8 +1257,8 @@ export function generateTrainings({
             : ajuste.fatorPrincipal) * volume * volumeDaProva(date) * 100) / 100
         // Teste de quem não tem tempo (depois de 1 mês) e o teste da periodização (no
         // começo da Transição). Quem não nada 400 m sem parar não faz teste (condicionamento).
-        const testeSemTempo = semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe
-        const testeNaTransicao = periodizacao?.testeNaTransicao && !semReferencia && !condicionamento &&
+        const testeSemTempo = !semTeste && semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe
+        const testeNaTransicao = !semTeste && periodizacao?.testeNaTransicao && !semReferencia && !condicionamento &&
             !testeDaPeriodizacao && fase === 'transicao'
         if (testeSemTempo) testeMarcado = true
         if (testeNaTransicao) testeDaPeriodizacao = true
@@ -1295,6 +1296,8 @@ export function generateTrainings({
                 minutosPrincipal: principais.reduce((s, p) => s + p.minutos, 0),
                 tipoPrincipal: principais.map((p) => p.intensidades?.tipo ?? null),
                 diaDeTeste,
+                // Qual teste: o de quem não tem tempo (depois de 1 mês) ou o da periodização
+                ...(diaDeTeste && { tipoDeTeste: testeSemTempo ? 'semTempo' : 'periodizacao' }),
                 recuperacao: Boolean(recuperacao),
                 material: [...new Set(principais.flatMap((p) => p.material ?? []))],
                 fatorPrincipal,
