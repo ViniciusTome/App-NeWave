@@ -253,16 +253,16 @@ export function abbreviate(texto) {
         .replace(/\bperna\b/g, 'PR')
 }
 
-// "c/2'" ou "c/2' a 3'" (intervalo entre as séries)
+// "c/2' de intervalo" ou "c/2' a 3' de intervalo" (intervalo entre as séries)
 const minutosCurto = (s) => (s % 60 === 0 ? `${s / 60}'` : `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`)
 const intervalAbbrev = (faixa) =>
-    faixa && `c/${faixa.min === faixa.max ? minutosCurto(faixa.min) : `${minutosCurto(faixa.min)} a ${minutosCurto(faixa.max)}`}`
+    faixa && `c/${faixa.min === faixa.max ? minutosCurto(faixa.min) : `${minutosCurto(faixa.min)} a ${minutosCurto(faixa.max)}`} de intervalo`
 
 // Texto do card, abreviado como no caderno do treinador.
 // - Série simples: uma linha ("5 x 400 m · c/PALM").
 // - Quando o nado ou o material muda entre as séries de um (2x), (4x)...:
 //   cabeçalho e uma linha por série
-//     (4x) 3 x 200 m · c/2'
+//     (4x) 3 x 200 m · c/2' de intervalo
 //     1ª série: NAD · MD / PE / MD
 //     2ª série: c/PÉ · ME / MD / ME
 // - Pirâmides e grupos: uma metragem por linha, com o material do bloco.
