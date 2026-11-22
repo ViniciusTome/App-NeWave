@@ -1,4 +1,5 @@
 import { Training } from '../Training'
+import { TrainingGlossary } from '../TrainingGlossary'
 import { formatDate } from '../../utils/format'
 import styles from './card.module.css'
 
@@ -14,9 +15,13 @@ export const Card = ({ treino, data, inTrainingPage, training, className = '' })
     return (
         <div className={`${style} ${className}`}>
             {training ? (
-                <p className={`${styles.header} ${styles.realHeader}`}>
-                    <strong>{training.title || 'Treino'}</strong> - {formatDate(training.date)}
-                </p>
+                <div className={!inTrainingPage && training.partes ? styles.headerRow : undefined}>
+                    <p className={`${styles.header} ${styles.realHeader}`}>
+                        <strong>{training.title || 'Treino'}</strong> - {formatDate(training.date)}
+                    </p>
+                    {/* Glossário só dos termos deste treino (nos cards grandes) */}
+                    {!inTrainingPage && training.partes && <TrainingGlossary training={training} />}
+                </div>
             ) : (
                 <p className={styles.header}>Treino <strong>{treino}</strong> - {data}</p>
             )}

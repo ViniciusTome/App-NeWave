@@ -217,7 +217,9 @@ test('o glossário está bem formado: categorias, termos sem repetir e com expli
     assert.equal(typeof categoria.categoria, 'string')
     assert.ok(categoria.termos.length > 0, categoria.categoria)
     for (const termo of categoria.termos) {
-      for (const key of Object.keys(termo)) assert.ok(['sigla', 'nome', 'explicacao'].includes(key), `campo ${key}`)
+      for (const key of Object.keys(termo)) assert.ok(['sigla', 'nome', 'explicacao', 'detectar'].includes(key), `campo ${key}`)
+      // "detectar": regex que acha o termo no texto do treino, ou false (nunca entra no glossário do treino)
+      if (termo.detectar !== undefined && termo.detectar !== false) new RegExp(termo.detectar, 'u')
       assert.ok(termo.sigla?.trim(), 'sigla vazia')
       assert.ok(termo.explicacao?.trim(), `${termo.sigla} sem explicação`)
       assert.ok(!siglas.has(termo.sigla), `${termo.sigla} repetido`)

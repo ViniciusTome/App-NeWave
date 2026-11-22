@@ -119,3 +119,26 @@
     text-overflow: ellipsis;
     padding: 0 4px;
 }
+
+/* Título do treino e, embaixo, o botão do glossário */
+.headerRow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px 4px;
+}
+
+/* Com o botão do glossário, o conteúdo ocupa o espaço que sobra (e rola por dentro) */
+.container:has(.headerRow) {
+    display: flex;
+    flex-direction: column;
+}
+
+.container:has(.headerRow) .content {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    margin-bottom: 6px;
+}

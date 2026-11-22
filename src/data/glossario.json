@@ -2,14 +2,14 @@
   {
     "categoria": "Como ler a série",
     "termos": [
-      { "sigla": "4 x 100 m", "explicacao": "4 repetições de 100 metros." },
-      { "sigla": "(2x)", "explicacao": "Repita o que vem depois 2 vezes. Ex.: (2x) 4 x 100 m = duas séries de 4 x 100 m." },
-      { "sigla": "1x / 2x / 3x (com chaves)", "explicacao": "Quantas vezes o bloco inteiro é repetido." },
+      { "sigla": "4 x 100 m", "detectar": "\\d+ x \\d+ m", "explicacao": "4 repetições de 100 metros." },
+      { "sigla": "(2x)", "detectar": "\\(\\d+x\\)", "explicacao": "Repita o que vem depois 2 vezes. Ex.: (2x) 4 x 100 m = duas séries de 4 x 100 m." },
+      { "sigla": "1x / 2x / 3x (com chaves)", "detectar": false, "explicacao": "Quantas vezes o bloco inteiro é repetido." },
       { "sigla": "cd", "nome": "Cada (saída)", "explicacao": "Tempo de saída de cada repetição: você nada e descansa o que sobrar. Ex.: cd 30\" = sai a cada 30 segundos." },
-      { "sigla": "c/2'", "nome": "Intervalo entre séries", "explicacao": "Descanso entre uma série e outra. Ex.: c/2' = 2 minutos de intervalo." },
+      { "sigla": "c/2'", "detectar": "c/\\d+'", "nome": "Intervalo entre séries", "explicacao": "Descanso entre uma série e outra. Ex.: c/2' = 2 minutos de intervalo." },
       { "sigla": "Descanso", "explicacao": "Pausa entre uma repetição e outra." },
       { "sigla": "Intervalo", "explicacao": "Pausa maior, entre uma série e outra (ex.: entre as séries de um (3x))." },
-      { "sigla": "Pirâmide", "explicacao": "Série com metragens diferentes, uma embaixo da outra (ex.: 1 x 400 m, 2 x 200 m, 4 x 100 m, 8 x 50 m)." },
+      { "sigla": "Pirâmide", "detectar": false, "explicacao": "Série com metragens diferentes, uma embaixo da outra (ex.: 1 x 400 m, 2 x 200 m, 4 x 100 m, 8 x 50 m)." },
       { "sigla": "Ida / volta", "explicacao": "Ida é a primeira piscina, volta é a de retorno. Ex.: indo crawl, voltando estilo." },
       { "sigla": "T/25", "nome": "Trocando a cada 25 m", "explicacao": "Troca o nado a cada 25 metros. Também pode ser T/50 (a cada 50 m) ou T/100 (a cada 100 m)." }
     ]
@@ -62,7 +62,7 @@
     "categoria": "Materiais",
     "termos": [
       { "sigla": "c/ PÉ", "nome": "Com pé de pato", "explicacao": "Nadadeiras nos pés. Deixam o nado mais rápido e fortalecem a pernada." },
-      { "sigla": "Pé de pato de peito", "explicacao": "Nadadeira própria para a pernada de peito." },
+      { "sigla": "Pé de pato de peito", "detectar": "PÉ de peito", "explicacao": "Nadadeira própria para a pernada de peito." },
       { "sigla": "PAL / PALM", "nome": "Palmar", "explicacao": "Placa nas mãos que aumenta a força da braçada." },
       { "sigla": "BOIA", "nome": "Pull buoy", "explicacao": "Flutuador entre as pernas, para nadar só de braço." },
       { "sigla": "SNK", "nome": "Snorkel", "explicacao": "Tubo de respiração frontal: você nada sem virar a cabeça para respirar." },

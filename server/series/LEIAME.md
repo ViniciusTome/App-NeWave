@@ -355,6 +355,16 @@ Entre as séries de um `(2x)`, `(4x)`... o intervalo é **uma saída da repetiç
 
 As fases são `acumulacao`, `transicao` e `realizacao`.
 
+### Como a série aparece no card
+
+O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, MD, ME, NAD, c/ PÉ, PAL, BOIA, SNK, PARA, PR), e o "m" entra depois das distâncias. Cada card tem um botão **Glossário** que mostra só os termos usados naquele treino; no **ME**, mostra o melhor estilo do atleta.
+
+- Quando o material ou o nado muda entre as séries de um `(2x)`, `(4x)`: cabeçalho e **uma linha por série** (`1ª série: NAD · MD / PE / MD`).
+- Pirâmides e grupos: **uma metragem por linha**, com o material do bloco.
+- O intervalo entre as séries da série principal vai no cabeçalho (`c/2'`).
+
+Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
+
 ### A decidir
 
 - **Metragem e tempo de cada parte no card** ("100 m · ~2 min"): escondidos para sobrar espaço. Para voltar a mostrar, troque `MOSTRAR_METRAGEM_E_TEMPO` para `true` em `src/components/Training/index.jsx`. O total do treino vai aparecer em outro lugar.

@@ -10,7 +10,6 @@
 // - intensidade e fase da temporada das séries principais (ainda ignoradas);
 // - o valor usado dentro das faixas de descanso (o meio da faixa).
 import { fitsSession } from './series/index.js'
-import { materialText } from './series/regras.js'
 import {
     allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, intervalRangeFor, partsForLevel, pauseOf, restFor,
     seriesVariations,
@@ -91,35 +90,107 @@ export function withMeters(texto) {
         .replace(/\bos (\d+)\b(?! ?m\b)/g, 'os $1 m')
 }
 
-// Texto do card. Séries com várias metragens (pirâmides, grupos como
-// "(2x) 1 x 200, 2 x 100, 4 x 50") ficam com uma metragem por linha; quando o
-// material muda por bloco, ele vai na linha do bloco:
-//   1 x 400 m · com pé de pato + palmar
-//   2 x 200 m · com palmar
-//   4 x 100 m · nadando
-// O que vale para a série toda (ex.: "com palmar") fica na última linha.
-export function cardText(serie, variation) {
-    if (serie.blocos.length < 2) return withMeters(variation.texto)
+// ---------- Abreviações do card (as mesmas do glossário) ----------
 
-    const linhas = []
-    if ((serie.vezes ?? 1) > 1) linhas.push(`(${serie.vezes}x)`)
-    const alternada = variation.padrao === 'piramide_alternada'
-    serie.blocos.forEach((bloco, i) => {
-        const vezes = bloco.vezes > 1 ? `(${bloco.vezes}x) ` : ''
-        let linha = `${vezes}${bloco.repeticoes} x ${bloco.distancia} m`
-        const material = variation.porBloco?.[i]
-        if (material?.length > 0) linha += ` · com ${materialText(material)}`
-        else if (alternada) linha += ' · nadando'
-        linhas.push(linha)
-    })
-    // O resto do texto da variação (o que vem depois do texto da série), sem a
-    // parte "os 400 com ..." que já foi para as linhas dos blocos
-    if (!variation.porBloco && variation.texto.startsWith(serie.texto)) {
-        const resto = variation.texto.slice(serie.texto.length).replace(/^ · /, '')
-        if (resto) linhas.push(withMeters(resto).split(' · ').join(', '))
-    }
-    return linhas.join('\n')
+const MATERIAL_ABREV = {
+    pe_de_pato: 'PÉ', pe_de_pato_peito: 'PÉ de peito', palmar: 'PAL', pull_buoy: 'BOIA',
+    snorkel: 'SNK', paraquedas: 'PARA', prancha: 'prancha',
 }
+const NADO_ABREV = { crawl: 'CR', costas: 'CO', peito: 'PE', borboleta: 'BO', medley: 'MD', livre: 'livre' }
+
+// ["pe_de_pato", "palmar"] -> "c/ PÉ + PAL"; [] -> "NAD"
+export const materialAbbrev = (material) =>
+    material.length === 0 ? 'NAD' : `c/ ${material.map((m) => MATERIAL_ABREV[m]).join(' + ')}`
+
+// Troca as palavras do texto pelas abreviações do treinador:
+// "100 indo crawl, voltando estilo" -> "100 indo CR, voltando estilo";
+// "com pé de pato + palmar" -> "c/ PÉ + PAL"; "nadando" -> "NAD"
+export function abbreviate(texto) {
+    return texto
+        .replace(/\bpé de pato de peito\b/g, 'PÉ de peito')
+        .replace(/\bpé de pato\b/g, 'PÉ')
+        .replace(/\bpalmar\b/g, 'PAL')
+        .replace(/\bpull buoy\b/g, 'BOIA')
+        .replace(/\bsnorkel\b/g, 'SNK')
+        .replace(/\bparaquedas\b/g, 'PARA')
+        .replace(/\bcom (?=PÉ|PAL|BOIA|SNK|PARA|prancha)/g, 'c/ ')
+        .replace(/\bnadando\b/g, 'NAD')
+        // "costas (melhor estilo)" -> "ME" (o glossário mostra qual é o do atleta)
+        .replace(/\b(?:crawl|costas|peito|borboleta) \(melhor estilo\)/g, 'ME')
+        .replace(/\bmelhor estilo\b/g, 'ME')
+        .replace(/\bcrawl\b/g, 'CR')
+        .replace(/\bcostas\b/g, 'CO')
+        .replace(/(?<!PÉ de )\bpeito\b/g, 'PE') // "PÉ de peito" (o material) fica por extenso
+        .replace(/\bborboleta\b/g, 'BO')
+        .replace(/\bmedley\b/g, 'MD')
+        .replace(/\bperna\b/g, 'PR')
+}
+
+// "c/2'" ou "c/2' a 3'" (intervalo entre as séries)
+const minutosCurto = (s) => (s % 60 === 0 ? `${s / 60}'` : `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`)
+const intervalAbbrev = (faixa) =>
+    faixa && `c/${faixa.min === faixa.max ? minutosCurto(faixa.min) : `${minutosCurto(faixa.min)} a ${minutosCurto(faixa.max)}`}`
+
+// Texto do card, abreviado como no caderno do treinador.
+// - Série simples: uma linha ("5 x 400 m · c/ PAL").
+// - Quando o nado ou o material muda entre as séries de um (2x), (4x)...:
+//   cabeçalho e uma linha por série
+//     (4x) 3 x 200 m · c/2'
+//     1ª série: NAD · MD / PE / MD
+//     2ª série: c/ PÉ · ME / MD / ME
+// - Pirâmides e grupos: uma metragem por linha, com o material do bloco.
+// `intervalo` = { min, max } do intervalo entre as séries (ou null).
+export function cardText(serie, variation, intervalo = null) {
+    const c = intervalAbbrev(intervalo)
+    const nadoDaSerie = variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
+        ? null : abbreviate(variation.texto.slice(serie.texto.length).split(' · ')[1] ?? '')
+    const materialDaSerie = ['serie_inteira', 'obrigatorio'].includes(variation.padrao)
+        ? materialAbbrev(variation.material) : null
+
+    // Pirâmides e grupos
+    if (serie.blocos.length > 1) {
+        const linhas = []
+        const cabecalho = [(serie.vezes ?? 1) > 1 ? `(${serie.vezes}x)` : null, c].filter(Boolean).join(' · ')
+        if (cabecalho) linhas.push(cabecalho)
+        const alternada = variation.padrao === 'piramide_alternada'
+        serie.blocos.forEach((bloco, i) => {
+            const vezes = bloco.vezes > 1 ? `(${bloco.vezes}x) ` : ''
+            let linha = `${vezes}${bloco.repeticoes} x ${bloco.distancia} m`
+            const material = variation.porBloco?.[i]
+            if (material?.length > 0) linha += ` · ${materialAbbrev(material)}`
+            else if (alternada) linha += ' · NAD'
+            linhas.push(linha)
+        })
+        const resto = [nadoDaSerie, materialDaSerie].filter(Boolean).join(' · ')
+        if (resto) linhas.push(resto)
+        return linhas.join('\n')
+    }
+
+    const base = abbreviate(withMeters(serie.texto))
+    const porSerie = variation.series || variation.nados || variation.porSerie
+    if (!porSerie) {
+        // Série simples: o texto da variação, abreviado, mais o intervalo
+        return [abbreviate(withMeters(variation.texto)), c].filter(Boolean).join(' · ')
+    }
+
+    // Uma linha por série
+    const cabecalho = [base, nadoDaSerie, materialDaSerie, c].filter(Boolean).join(' · ')
+    const linhas = porSerie.map((_, i) => {
+        const material = variation.series ? materialAbbrev(variation.series[i]) : null
+        let nados = null
+        if (variation.porSerie) {
+            // O melhor estilo aparece como ME
+            const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME' : NADO_ABREV[n] ?? n))
+            nados = daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' / ')
+        } else if (variation.nados) {
+            nados = NADO_ABREV[variation.nados[i]] ?? variation.nados[i]
+        }
+        return `${ORDINAIS[i]} série: ${[material, nados].filter(Boolean).join(' · ')}`
+    })
+    return [cabecalho, ...linhas].join('\n')
+}
+
+const ORDINAIS = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª', '7ª', '8ª', '9ª', '10ª']
 
 // "2' de intervalo entre as séries" / "2' a 3' de intervalo entre as séries"
 const minutos = (s) => (s % 60 === 0 ? `${s / 60}'` : `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`)
@@ -261,7 +332,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes }) {
             parte,
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
             serieId: escolha.serie.id,
-            texto: cardText(escolha.serie, escolha.variation),
+            texto: cardText(escolha.serie, escolha.variation, intervalRangeFor(rules, parte, escolha.serie, athlete.level)),
             ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,
             material: escolha.variation.material,
