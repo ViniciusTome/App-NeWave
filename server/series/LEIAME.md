@@ -183,6 +183,21 @@ Toda série pode ser feita **sem equipamento**, e só aparece o material que o a
 - Nas **pirâmides** (séries com vários blocos), as repetições **a partir de 400 m** usam o material, e o resto é nadando: `1 x 400, 2 x 200, 4 x 100, 8 x 50 · os 400 com pé de pato + palmar`.
 - Quem não tem os dois materiais não recebe a série.
 
+### Material na série principal e nas pirâmides
+
+```json
+"principal": {
+  "opcoes": [["pe_de_pato"], ["palmar"], ["pe_de_pato", "palmar"], ["palmar", "pull_buoy"]],
+  "piramides": "material_diferente_por_distancia"
+}
+```
+
+- Séries principais podem sair nadando ou com um material na série inteira (das `opcoes`).
+- Nas **pirâmides**, cada distância pode ter um material diferente, escolhido pelo gerador; "nadando" também conta como opção. Os 400 continuam sempre com pé de pato + palmar, e esse material não se repete nas outras distâncias:
+  `1 x 400, 2 x 200, 4 x 100, 8 x 50 · os 400 com pé de pato + palmar, os 200 com palmar, os 100 com pé de pato, os 50 nadando`.
+- A mesma distância tem sempre o mesmo material (os dois blocos de 100 de uma pirâmide de ida e volta, por exemplo).
+- Grupos repetidos, como `(2x) 1 x 200, 4 x 50`, não são pirâmide: não trocam material por bloco.
+
 ### Provas de piscina
 
 A distribuição dos nados segue as **provas de piscina**: uma repetição não passa da maior prova daquele nado.
@@ -200,6 +215,22 @@ Então **não existe 400 de estilo, a não ser medley**:
 - **Medley individual** (cada repetição é um medley completo): repetições de 200 ou 400 m, e de 100 m só na piscina de 25 m. Ex.: `5 x 400 · medley`.
 
 O validador também recusa um bloco escrito com o nado fora das provas, como `"nado": "costas"` com `"distancia": 400`.
+
+### Limite por nível
+
+```json
+"limitesPorNivel": {
+  "borboleta": { "iniciante": 100, "intermediario": 100 }
+}
+```
+
+**Borboleta de 200 m só para avançado.** Para iniciante e intermediário, a borboleta vai até 100 m por repetição. Isso vale para:
+
+- séries no estilo borboleta;
+- medley alternado e medley por série (cada repetição é inteira num estilo);
+- séries escritas em borboleta no JSON.
+
+O medley individual (cada repetição um medley) não é afetado: num 200 medley são só 50 m de borboleta.
 
 ### Medley e estilo
 

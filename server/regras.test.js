@@ -193,15 +193,46 @@ test('repetições acima de 400 m sempre com pé de pato + palmar; nas pirâmide
   // 5 x 400: 400 m não é "acima de 400", continua podendo ser nadando
   assert.ok(de('pri-5x400', []).some((v) => v.padrao === 'sem_material'))
 
-  // Pirâmides: só os 400 com pé de pato + palmar, o resto nadando
+  // Pirâmides: os 400 sempre com pé de pato + palmar; o resto nadando...
   const piramide = de('pri-piramide-400-50', TODO_MATERIAL)
-  assert.deepEqual(piramide.map((v) => v.texto), ['1 x 400, 2 x 200, 4 x 100, 8 x 50 · os 400 com pé de pato + palmar'])
+  assert.equal(piramide[0].texto, '1 x 400, 2 x 200, 4 x 100, 8 x 50 · os 400 com pé de pato + palmar')
   assert.deepEqual(piramide[0].porBloco, [['pe_de_pato', 'palmar'], [], [], []])
+  // ...ou cada distância com um material diferente
+  assert.ok(piramide.some((v) => v.texto ===
+    '1 x 400, 2 x 200, 4 x 100, 8 x 50 · os 400 com pé de pato + palmar, os 200 com palmar, os 100 com pé de pato, os 50 nadando'))
+  for (const v of piramide.filter((x) => x.padrao === 'piramide_alternada')) {
+    assert.deepEqual(v.porBloco[0], ['pe_de_pato', 'palmar'], 'os 400 nunca mudam')
+    const resto = v.porBloco.slice(1).map((m) => m.join('+'))
+    assert.equal(new Set(resto).size, resto.length, `materiais repetidos: ${v.texto}`)
+    assert.ok(!resto.includes('pe_de_pato+palmar'), 'o material dos 400 não se repete')
+  }
   const ida_e_volta = de('pri-piramide-400-50-400', TODO_MATERIAL)[0]
   assert.deepEqual(ida_e_volta.porBloco.map((m) => m.length > 0), [true, false, false, false, false, false, true])
   assert.deepEqual(de('pri-piramide-400-50', ['palmar']), [])
   // Pirâmide sem 400: nada muda
   assert.ok(de('pri-piramide-50-200-50', []).some((v) => v.padrao === 'sem_material'))
+})
+
+test('pirâmide sem 400: cada distância com um material diferente, a mesma distância com o mesmo material', () => {
+  const serie = loadPart('principal').find((s) => s.id === 'pri-piramide-50-200-50')
+  const lista = seriesVariations(rules, 'principal', serie, { equipment: TODO_MATERIAL, strokes: ['crawl'] })
+  const alternadas = lista.filter((v) => v.padrao === 'piramide_alternada')
+  assert.ok(alternadas.length > 0)
+  for (const v of alternadas) {
+    // 8 x 50, 4 x 100, 2 x 200, 4 x 100, 8 x 50: os dois blocos de 50 (e os de 100) iguais
+    assert.deepEqual(v.porBloco[0], v.porBloco[4])
+    assert.deepEqual(v.porBloco[1], v.porBloco[3])
+  }
+  assert.ok(lista.some((v) => v.texto === '8 x 50, 4 x 100, 2 x 200, 4 x 100, 8 x 50 · os 50 com palmar, os 100 com pé de pato, os 200 nadando'))
+  // Só com o material que o atleta tem
+  const soPalmar = seriesVariations(rules, 'principal', serie, { equipment: ['palmar'], strokes: ['crawl'] })
+  assert.ok(soPalmar.every((v) => v.material.every((m) => m === 'palmar')))
+})
+
+test('grupo repetido não é pirâmide: (2x) 1 x 200, 4 x 50 não alterna material por bloco', () => {
+  const serie = loadPart('principal').find((s) => s.id === 'pri-2x-200-50')
+  const lista = seriesVariations(rules, 'principal', serie, { equipment: TODO_MATERIAL, strokes: ['crawl'] })
+  assert.ok(!lista.some((v) => v.padrao === 'piramide_alternada'))
 })
 
 // ---------- Intervalo entre as séries ----------
@@ -269,6 +300,39 @@ test('provas de piscina: a validação recusa estilo acima de 200 m', () => {
   assert.deepEqual(serie(['medley'], 5, 400), [])
 })
 
+// ---------- Borboleta de 200 só para avançado ----------
+
+test('borboleta de 200 m só para avançado; nos outros níveis, até 100 m', () => {
+  const serie = comNados('8 x 200', 8, 200)
+  const para = (level) => seriesVariations(rules, 'principal', serie, { equipment: [], strokes: QUATRO_ESTILOS, level })
+    .map((v) => v.texto)
+
+  const avancado = para('avancado')
+  assert.ok(avancado.includes('8 x 200 · borboleta'))
+  assert.ok(avancado.includes('8 x 200 · medley alternado (um estilo por repetição)'))
+
+  for (const level of ['iniciante', 'intermediario']) {
+    const lista = para(level)
+    assert.ok(!lista.includes('8 x 200 · borboleta'), level)
+    // No medley alternado cada repetição é inteira num estilo: teria 200 de borboleta
+    assert.ok(!lista.some((t) => t.includes('medley alternado')), level)
+    // Costas e peito continuam; o medley individual (só 50 de borboleta) também
+    assert.ok(lista.includes('8 x 200 · costas'), level)
+    assert.ok(lista.includes('8 x 200 · medley'), level)
+  }
+
+  // Até 100 m, a borboleta vale para todos
+  const cem = seriesVariations(rules, 'principal', comNados('8 x 100', 8, 100), { equipment: [], strokes: QUATRO_ESTILOS, level: 'intermediario' })
+  assert.ok(cem.some((v) => v.texto === '8 x 100 · borboleta'))
+})
+
+test('série escrita em 200 borboleta não vai para quem não é avançado', () => {
+  const serie = describe({ id: 'b-1', texto: '4 x 200 borboleta', blocos: [{ repeticoes: 4, distancia: 200, nado: 'borboleta' }] })
+  const de = (level) => seriesVariations(rules, 'principal', serie, { equipment: [], strokes: QUATRO_ESTILOS, level })
+  assert.deepEqual(de('intermediario'), [])
+  assert.ok(de('avancado').length > 0)
+})
+
 // ---------- 2ª série principal ----------
 
 // Séries principais de exemplo (o principal.json ainda não existe)
@@ -324,6 +388,10 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.segundaPrincipal.alternarCrawlEEstilo = 'sim' }, 'segundaPrincipal.alternarCrawlEEstilo'],
     [(r) => { r.materialObrigatorio[0].distanciaAcimaDe = '400m' }, '"distanciaAcimaDe"'],
     [(r) => { r.materialObrigatorio[0].emPiramidesAPartirDe = 0 }, '"emPiramidesAPartirDe"'],
+    [(r) => { r.material.principal.piramides = 'aleatorio' }, 'material.principal.piramides'],
+    [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
+    [(r) => { r.limitesPorNivel.borboleta.iniciante = 110 }, 'limitesPorNivel.borboleta.iniciante'],
+    [(r) => { r.limitesPorNivel.borboleta.junior = 100 }, '"junior"'],
     [(r) => { r.materialObrigatorio[0].material = ['nadadeira'] }, 'materialObrigatorio, regra 1: "material"'],
     [(r) => { r.pausas.hidratacao.texto = '' }, 'pausas.hidratacao.texto'],
     [(r) => { r.pausas.principal = { minutos: 5, texto: 'x' } }, 'já é uma parte do treino'],

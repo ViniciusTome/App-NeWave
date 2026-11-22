@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs'
 import { MATERIAIS, PARTS, canAlternateMedley, canSwimInStroke, individualMedleyPools } from './index.js'
 
 const NIVEIS = ['iniciante', 'intermediario', 'avancado']
+const ESTILOS = ['borboleta', 'costas', 'peito'] // "estilo" = qualquer um que não seja o crawl
 // Fases da periodização ATR: Acumulação, Transição, Realização
 export const FASES = ['acumulacao', 'transicao', 'realizacao']
 
@@ -84,6 +85,20 @@ export function validateRules(rules) {
         }
     }
 
+    for (const [nado, limites] of Object.entries(rules.limitesPorNivel ?? {})) {
+        const where = `limitesPorNivel.${nado}`
+        if (!ESTILOS.includes(nado)) {
+            problems.push(`${where}: "${nado}" precisa ser um de: ${ESTILOS.join(', ')}.`)
+            continue
+        }
+        for (const [nivel, metros] of Object.entries(limites ?? {})) {
+            if (!NIVEIS.includes(nivel)) problems.push(`${where}: "${nivel}" precisa ser um de: ${NIVEIS.join(', ')}.`)
+            if (!(Number.isInteger(metros) && metros >= 25 && metros % 25 === 0)) {
+                problems.push(`${where}.${nivel}: use metros em múltiplo de 25, ex.: 100.`)
+            }
+        }
+    }
+
     if (rules.materialObrigatorio !== undefined) {
         if (!Array.isArray(rules.materialObrigatorio)) {
             problems.push('materialObrigatorio precisa ser uma lista, ex.: [{ "distanciaAcimaDe": 400, "material": ["pe_de_pato", "palmar"] }].')
@@ -120,6 +135,9 @@ export function validateRules(rules) {
                     problems.push(`${where}.opcoes, opção ${i + 1}: use uma lista com: ${MATERIAIS.join(', ')}.`)
                 }
             })
+        }
+        if (regra?.piramides !== undefined && regra.piramides !== 'material_diferente_por_distancia') {
+            problems.push(`${where}.piramides: por enquanto só existe "material_diferente_por_distancia".`)
         }
         for (const [vezes, modelos] of Object.entries(regra?.porSerie ?? {})) {
             const n = Number(vezes)
@@ -234,58 +252,98 @@ const cycle = (list, n) => Array.from({ length: n }, (_, i) => list[i % list.len
 //   (`series` tem o material de cada série);
 // - "fixo": a série tem material escrito no próprio JSON, e o gerador não mexe;
 // - "obrigatorio": repetição longa, que sempre usa o material das regras;
-// - "obrigatorio_por_bloco": só alguns blocos usam (ex.: os 400 de uma pirâmide).
+// - "obrigatorio_por_bloco": só alguns blocos usam (ex.: os 400 de uma pirâmide);
+// - "piramide_alternada": cada distância da pirâmide com um material diferente.
 function materialOptions(rules, parte, serie, athleteEquipment) {
     if (serie.exige.material.length > 0) {
         return [{ padrao: 'fixo', material: serie.exige.material }]
     }
 
-    // Repetições longas sempre com o mesmo material, bloco por bloco: acima de
-    // 400 m, e nas pirâmides (séries com vários blocos) a partir de 400 m.
-    // Ex.: na pirâmide 1 x 400, 2 x 200, ... só os 400 usam pé de pato + palmar.
-    // Quem não tem esse material não recebe a série.
     const has = new Set(athleteEquipment)
-    const piramide = serie.blocos.length > 1
-    for (const regra of rules.materialObrigatorio ?? []) {
+    const hasAll = (material) => material.every((m) => has.has(m))
+    const regra = rules.material[parte]
+    const opcoes = (regra?.opcoes ?? []).filter(hasAll)
+    // Pirâmide: vários blocos, sem repetir o grupo (o "(2x) 1 x 200, 4 x 50" não é pirâmide)
+    const piramide = serie.blocos.length > 1 && !(serie.vezes > 1)
+
+    // Repetições longas sempre com o mesmo material, bloco por bloco: acima de
+    // 400 m, e nas pirâmides a partir de 400 m.
+    // Ex.: na pirâmide 1 x 400, 2 x 200, ... os 400 usam pé de pato + palmar.
+    // Quem não tem esse material não recebe a série.
+    let fixos = serie.blocos.map(() => null) // material obrigatório de cada bloco
+    let obrigatorio = null
+    for (const regraObrig of rules.materialObrigatorio ?? []) {
         const precisa = serie.blocos.map((bloco) =>
-            bloco.distancia > regra.distanciaAcimaDe ||
-            (piramide && regra.emPiramidesAPartirDe !== undefined && bloco.distancia >= regra.emPiramidesAPartirDe))
+            bloco.distancia > regraObrig.distanciaAcimaDe ||
+            (piramide && regraObrig.emPiramidesAPartirDe !== undefined && bloco.distancia >= regraObrig.emPiramidesAPartirDe))
         if (!precisa.some(Boolean)) continue
-        if (!regra.material.every((m) => has.has(m))) return []
-        if (precisa.every(Boolean)) return [{ padrao: 'obrigatorio', material: regra.material }]
-        return [{
-            padrao: 'obrigatorio_por_bloco',
-            material: regra.material,
-            porBloco: precisa.map((p) => (p ? regra.material : [])),
-            distancias: [...new Set(serie.blocos.filter((_, i) => precisa[i]).map((b) => b.distancia))],
-        }]
+        if (!hasAll(regraObrig.material)) return []
+        if (precisa.every(Boolean)) return [{ padrao: 'obrigatorio', material: regraObrig.material }]
+        fixos = precisa.map((p) => (p ? regraObrig.material : null))
+        obrigatorio = regraObrig.material
+        break
     }
 
-    const options = [{ padrao: 'sem_material', material: [] }]
-    const regra = rules.material[parte]
-    if (!regra || serie.porSensacao) return options
+    const options = []
+    if (obrigatorio) {
+        // O resto da pirâmide nadando
+        options.push({
+            padrao: 'obrigatorio_por_bloco',
+            material: obrigatorio,
+            porBloco: fixos.map((m) => m ?? []),
+            distancias: [...new Set(serie.blocos.filter((_, i) => fixos[i]).map((b) => b.distancia))],
+        })
+    } else {
+        options.push({ padrao: 'sem_material', material: [] })
+        if (!regra || serie.porSensacao) return options
+        for (const opcao of opcoes) options.push({ padrao: 'serie_inteira', material: opcao })
 
-    const hasAll = (material) => material.every((m) => has.has(m))
-    const opcoes = regra.opcoes.filter(hasAll)
+        for (const modelo of regra.porSerie?.[String(setsOf(serie))] ?? []) {
+            // Modelo com "material": um para cada opção. Modelo com listas fixas: um só.
+            const usesOption = modelo.includes('material')
+            for (const opcao of usesOption ? opcoes : [null]) {
+                const series = modelo.map((m) => (m === 'material' ? opcao : m === 'nadando' ? [] : m))
+                if (!series.every(hasAll)) continue
+                const material = MATERIAIS.filter((m) => series.some((s) => s.includes(m)))
+                options.push({ padrao: 'por_serie', material, series })
+            }
+        }
+    }
 
-    for (const opcao of opcoes) options.push({ padrao: 'serie_inteira', material: opcao })
-
-    for (const modelo of regra.porSerie?.[String(setsOf(serie))] ?? []) {
-        // Modelo com "material": um para cada opção. Modelo com listas fixas: um só.
-        const usesOption = modelo.includes('material')
-        for (const opcao of usesOption ? opcoes : [null]) {
-            const series = modelo.map((m) => (m === 'material' ? opcao : m === 'nadando' ? [] : m))
-            if (!series.every(hasAll)) continue
-            const material = MATERIAIS.filter((m) => series.some((s) => s.includes(m)))
-            options.push({ padrao: 'por_serie', material, series })
+    // Pirâmide alternando: cada distância com um material diferente (ou nadando),
+    // sem repetir o material obrigatório. Ex.: os 400 com pé de pato + palmar,
+    // os 200 com palmar, os 100 com pé de pato, os 50 nadando.
+    if (piramide && regra?.piramides === 'material_diferente_por_distancia') {
+        const livres = [...new Set(serie.blocos.filter((_, i) => !fixos[i]).map((b) => b.distancia))]
+        const key = (m) => m.join('+')
+        const escolhas = [...opcoes.filter((o) => !obrigatorio || key(o) !== key(obrigatorio)), []]
+        for (const combinacao of arrangements(escolhas, livres.length)) {
+            if (combinacao.every((m) => m.length === 0)) continue // tudo nadando já existe
+            const porDistancia = new Map(livres.map((d, i) => [d, combinacao[i]]))
+            const porBloco = serie.blocos.map((b, i) => fixos[i] ?? porDistancia.get(b.distancia))
+            const material = MATERIAIS.filter((m) => porBloco.some((b) => b.includes(m)))
+            options.push({ padrao: 'piramide_alternada', material, porBloco })
         }
     }
     return options
 }
 
+// Todas as formas de escolher n itens diferentes da lista, em ordem
+function arrangements(list, n) {
+    if (n === 0) return [[]]
+    return list.flatMap((item, i) =>
+        arrangements([...list.slice(0, i), ...list.slice(i + 1)], n - 1).map((rest) => [item, ...rest]))
+}
+
+// "os 400 com pé de pato + palmar, os 200 com palmar, os 50 nadando"
+function perBlockText(serie, porBloco) {
+    const seen = new Map()
+    serie.blocos.forEach((b, i) => { if (!seen.has(b.distancia)) seen.set(b.distancia, porBloco[i]) })
+    return [...seen].map(([d, m]) => `os ${d} ${m.length > 0 ? `com ${materialText(m)}` : 'nadando'}`).join(', ')
+}
+
 // ---------- Variações de nado ----------
 
-const ESTILOS = ['borboleta', 'costas', 'peito'] // "estilo" = qualquer um que não seja o crawl
 const ORDEM_MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
 
 // Nados possíveis para a série, só com os estilos que o atleta marcou na anamnese:
@@ -296,16 +354,24 @@ const ORDEM_MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
 // - "estilo": a série toda num estilo (borboleta, costas ou peito) que ele nada; e,
 //   com várias séries e mais de um estilo, "estilos_por_serie": os estilos se alternam.
 // `nados` (quando existe) tem o nado de cada série.
-function strokeOptions(serie, athleteStrokes) {
-    const has = new Set(athleteStrokes)
+// Maior repetição que o atleta pode nadar num estilo, pelo nível
+// (ex.: borboleta até 100 m, a não ser o avançado). Sem limite: Infinity.
+const limitFor = (rules, nado, nivel) => rules.limitesPorNivel?.[nado]?.[nivel] ?? Infinity
+
+function strokeOptions(rules, serie, athlete) {
+    const has = new Set(athlete.strokes)
     const sets = setsOf(serie)
+    const maior = serie.maiorDistancia
+    // Estilos que cabem na série para esse atleta (ex.: borboleta de 200 só para avançado)
+    const podeNadar = (estilo) => has.has(estilo) && maior <= limitFor(rules, estilo, athlete.level)
     const options = [{ nado: 'livre' }]
     for (const outro of serie.outrosNados) {
+        // No medley alternado e por série, cada repetição é nadada inteira num estilo
         if (outro === 'medley' && ORDEM_MEDLEY.every((s) => has.has(s))) {
             // Provas de piscina: alternado (um estilo por repetição) só até 200 m;
             // medley individual (cada repetição um medley) em 200/400 m (100 m na de 25 m)
             const curta = serie.blocos.every((b) => b.distancia <= 50)
-            if (canAlternateMedley(serie.blocos)) {
+            if (canAlternateMedley(serie.blocos) && ESTILOS.every(podeNadar)) {
                 options.push({ nado: 'medley', texto: curta ? 'medley' : 'medley alternado (um estilo por repetição)' })
                 if (sets % 4 === 0) options.push({ nado: 'medley_por_serie', nados: cycle(ORDEM_MEDLEY, sets) })
             }
@@ -313,7 +379,7 @@ function strokeOptions(serie, athleteStrokes) {
             if (pools.length > 0) options.push({ nado: 'medley_individual', texto: 'medley', piscinas: pools })
         }
         if (outro === 'estilo' && canSwimInStroke(serie.blocos)) {
-            const estilos = ESTILOS.filter((s) => has.has(s))
+            const estilos = ESTILOS.filter(podeNadar)
             for (const estilo of estilos) options.push({ nado: estilo })
             if (sets > 1 && estilos.length > 1) {
                 options.push({ nado: 'estilos_por_serie', nados: cycle(estilos, sets) })
@@ -335,6 +401,7 @@ function variationText(serie, stroke, option) {
     if (option.padrao === 'obrigatorio_por_bloco') {
         parts.push(`os ${option.distancias.join(' e os ')} com ${materialText(option.material)}`)
     }
+    if (option.padrao === 'piramide_alternada') parts.push(perBlockText(serie, option.porBloco))
 
     if (stroke.nados || option.series) {
         const sets = (stroke.nados ?? option.series).length
@@ -352,10 +419,17 @@ function variationText(serie, stroke, option) {
 
 // Todas as formas de nadar a série para esse atleta: cada nado possível
 // combinado com cada forma de usar o material, com o texto pronto.
-// `serie` vem de describe() (index.js); `athlete` é { equipment, strokes } da anamnese.
+// `serie` vem de describe() (index.js); `athlete` é { equipment, strokes, level }
+// (anamnese e nível calculado).
 export function seriesVariations(rules, parte, serie, athlete) {
+    // Bloco escrito num estilo acima do limite do nível (ex.: 200 borboleta para
+    // quem não é avançado): o atleta não recebe a série
+    const acimaDoLimite = serie.blocos.some((b) =>
+        !Array.isArray(b.nado) && b.distancia > limitFor(rules, b.nado, athlete.level))
+    if (acimaDoLimite) return []
+
     const variations = []
-    for (const stroke of strokeOptions(serie, athlete.strokes)) {
+    for (const stroke of strokeOptions(rules, serie, athlete)) {
         for (const option of materialOptions(rules, parte, serie, athlete.equipment)) {
             const { texto: _nadoTexto, ...strokeInfo } = stroke
             variations.push({ ...strokeInfo, ...option, texto: variationText(serie, stroke, option) })
