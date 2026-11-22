@@ -589,6 +589,7 @@ test('descanso: a tabela do treinador para intermediário e avançado', () => {
     assert.deepEqual(restFor(rules, nivel, 100), { min: 20, max: 30 })
     assert.deepEqual(restFor(rules, nivel, 200), { min: 40, max: 40 })
     assert.deepEqual(restFor(rules, nivel, 400), { min: 60, max: 60 })
+    assert.deepEqual(restFor(rules, nivel, 800), { min: 120, max: 120 })
   }
 })
 
@@ -597,6 +598,7 @@ test('descanso: iniciante descansa mais', () => {
   assert.deepEqual(restFor(rules, 'iniciante', 100), { min: 30, max: 40 })
   assert.deepEqual(restFor(rules, 'iniciante', 200), { min: 40, max: 60 })
   assert.deepEqual(restFor(rules, 'iniciante', 400), { min: 60, max: 60 })
+  assert.deepEqual(restFor(rules, 'iniciante', 800), { min: 120, max: 120 })
 })
 
 test('descanso: distâncias fora da tabela ficam entre as vizinhas, de 5 em 5 segundos', () => {
@@ -606,7 +608,7 @@ test('descanso: distâncias fora da tabela ficam entre as vizinhas, de 5 em 5 se
   assert.deepEqual(restFor(rules, 'iniciante', 150), { min: 35, max: 50 })
   // Fora das pontas: vale a ponta
   assert.deepEqual(restFor(rules, 'avancado', 25), { min: 15, max: 30 })
-  assert.deepEqual(restFor(rules, 'avancado', 800), { min: 60, max: 60 })
+  assert.deepEqual(restFor(rules, 'avancado', 1500), { min: 120, max: 120 })
 })
 
 // ---------- Validação do arquivo de regras ----------
