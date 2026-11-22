@@ -906,9 +906,11 @@ const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.pa
 // Devolve [{ etapa, dias }] na ordem do treino.
 // `treinosPorSemana`: a recuperação entre a última Transição e a Realização só entra
 // para quem treina mais de 3 vezes por semana (a Realização já é leve no volume).
-export function planStages(rules, total, level = null, treinosPorSemana = null) {
+// `semProva` (condicionamento ou saúde): a periodização padrão, A-T-R.
+export function planStages(rules, total, level = null, treinosPorSemana = null, semProva = false) {
     const cfg = rules.periodizacao
     const etapas = cfg?.etapas
+    if (semProva && etapas && cfg.modeloSemProva) return standardStages(rules, total, cfg.modeloSemProva)
     const ciclo = cfg?.ciclo?.[level] ?? cfg?.ciclo?.intermediario
     if (!etapas || !ciclo) return [{ etapa: null, dias: total }]
     const minimo = (fase) => etapas[fase === 'acumulacao' ? 'acumulacao1' : fase === 'transicao' ? 'transicao1' : fase].dias[0]
@@ -1009,11 +1011,33 @@ export function planStages(rules, total, level = null, treinosPorSemana = null) 
     return plano
 }
 
+// Periodização padrão (sem prova): as etapas do modelo, cada uma com os dias ideais e
+// o que sobra primeiro para a Acumulação (sem passar do máximo).
+function standardStages(rules, total, modelo) {
+    const etapas = rules.periodizacao.etapas
+    const ideais = rules.periodizacao.diasIdeais ?? {}
+    const plano = modelo.map((etapa) => ({ etapa, dias: etapas[etapa].dias[0] }))
+    let resta = total - plano.reduce((s, p) => s + p.dias, 0)
+    if (resta < 0) return [{ etapa: modelo.at(-1), dias: total }]
+    // Até os dias ideais, depois até o máximo (Acumulação primeiro)
+    for (const limite of [(p) => Math.max(etapas[p.etapa].dias[0], ideais[etapas[p.etapa].fase] ?? 0), (p) => etapas[p.etapa].dias[1]]) {
+        for (const fase of ['acumulacao', 'transicao', 'realizacao']) {
+            for (const p of plano.filter((x) => etapas[x.etapa].fase === fase)) {
+                const vai = Math.min(resta, Math.max(0, limite(p) - p.dias))
+                p.dias += vai
+                resta -= vai
+            }
+        }
+    }
+    plano[0].dias += resta // passou do máximo de tudo: a Acumulação fica maior
+    return plano
+}
+
 // Etapa de cada dia da periodização, do início ao fim (a prova alvo).
 // Devolve (data) -> { etapa, nome, fase, semanaDaFase } (semana dentro da etapa).
-export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana = null) {
+export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana = null, semProva = false) {
     const total = Math.max(1, daysBetween(inicio, fim) + 1)
-    const plano = planStages(rules, total, level, treinosPorSemana)
+    const plano = planStages(rules, total, level, treinosPorSemana, semProva)
     let comeca = 0
     const limites = plano.map(({ etapa, dias }) => {
         const l = { etapa, comeca, termina: comeca + dias }
@@ -1038,7 +1062,7 @@ export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana 
 // `historico` = treinos feitos, com o feedback e o plano interno (para ajustar os próximos).
 // `fatorDoProximo` = tempo da principal do próximo treino já montado (para o feedback
 // não ajustar duas vezes pelos mesmos treinos).
-// `periodizacao` = { inicio, fim, testeNaTransicao, numeroInicial, provas }: gera todos os
+// `periodizacao` = { inicio, fim, testeNaTransicao, numeroInicial, provas, semProva }: gera todos os
 // treinos até o fim, cada um com a sua fase. `provas` = datas das provas importantes no
 // meio da preparação (o volume cai na semana delas). Sem ela, gera `dias` dias, sem fase.
 export function generateTrainings({
@@ -1067,7 +1091,8 @@ export function generateTrainings({
     const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false
     // Periodização: todos os treinos até o fim, com a fase de cada um
-    const faseDe = periodizacao ? periodPhases(rules, periodizacao.inicio, periodizacao.fim, athlete.level, athlete.trainingDays?.length ?? null) : null
+    const faseDe = periodizacao ? periodPhases(rules, periodizacao.inicio, periodizacao.fim, athlete.level, athlete.trainingDays?.length ?? null, Boolean(periodizacao.semProva))
+        : null
     const totalDeDias = periodizacao
         ? Math.min(rules.periodizacao?.maximoDeDias ?? 366, Math.max(1, daysBetween(today, periodizacao.fim) + 1))
         : dias

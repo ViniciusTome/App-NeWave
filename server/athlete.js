@@ -182,7 +182,8 @@ function validateCompetition(body) {
     date: body.date,
     modality: oneOf(OPTIONS.modality, body.modality, 'Escolha a modalidade da competição.'),
     event,
-    priority: oneOf(OPTIONS.priority, body.priority ?? 'A', 'Escolha a prioridade A, B ou C.'),
+    // Sem escolher: C (não muda o treino). A e B: na semana da prova o volume diminui
+    priority: oneOf(OPTIONS.priority, body.priority ?? 'C', 'Escolha a prioridade A, B ou C.'),
   }
 }
 
@@ -379,6 +380,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       inicioDosTreinos: [firstTrainingDate.get(userId)?.date ?? today, today].sort()[0],
       periodizacao: {
         inicio, fim, testeNaTransicao, numeroInicial: countSince.get(userId, inicio, today).total + 1,
+        // Sem prova (condicionamento ou saúde): periodização padrão A-T-R
+        semProva: !(ativa?.goal === 'competir' && ativa.competition),
         // As importantes (prioridade A ou B), menos a prova alvo
         provas: competitionsBetween.all(userId, today, fim)
           .filter((c) => c.id !== ativa?.competition?.id && (rules.periodizacao?.provaIntermediaria?.prioridades ?? []).includes(c.priority))
@@ -470,6 +473,18 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
         user.id, c.name, c.date, c.modality, c.event, c.priority, new Date().toISOString(),
       ).lastInsertRowid
       sendJson(res, 201, { competition: { id: Number(id), ...c } })
+    },
+
+    // PATCH /api/competitions/:id { priority: 'A' | 'B' | 'C' }
+    async updateCompetitionPriority(req, res, { id }) {
+      const user = requireUser(req)
+      const { priority } = await readJson(req)
+      oneOf(OPTIONS.priority, priority, 'Escolha a prioridade A, B ou C.')
+      const competitionId = Number(id)
+      if (!Number.isSafeInteger(competitionId) || setPriority.run(priority, competitionId, user.id).changes === 0) {
+        throw new HttpError(404, 'Competição não encontrada.')
+      }
+      sendJson(res, 200, { competition: publicCompetition(findCompetition.get(competitionId, user.id)) })
     },
 
     // POST /api/trainings/generate?today=AAAA-MM-DD -> gera os treinos dos próximos

@@ -318,3 +318,20 @@
     display: grid;
     gap: 4px;
 }
+
+/* Outras provas do calendário (prioridade A, B ou C) */
+.intermediate {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.notice {
+    font-size: 14px;
+    line-height: 1.4;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: #fff4d6;
+    color: #5a4300;
+}

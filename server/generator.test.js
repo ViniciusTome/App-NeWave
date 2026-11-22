@@ -1097,3 +1097,11 @@ test('prova importante no meio da preparação: o volume cai aos poucos na seman
   assert.equal(fator(com, '2026-12-21'), fator(sem, '2026-12-21'))
   assert.deepEqual(com.map((t) => t.plano.etapa), sem.map((t) => t.plano.etapa))
 })
+
+test('sem prova: periodização padrão A-T-R (8 semanas = A 28, T 21, R 7)', () => {
+  for (const level of ['iniciante', 'avancado']) {
+    assert.deepEqual(planStages(rules, 56, level, 5, true), [
+      { etapa: 'acumulacao1', dias: 28 }, { etapa: 'transicao1', dias: 21 }, { etapa: 'realizacao', dias: 7 },
+    ])
+  }
+})

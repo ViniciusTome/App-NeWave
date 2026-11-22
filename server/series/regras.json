@@ -151,6 +151,8 @@
       "intermediario": ["acumulacao", "acumulacao", "transicao"],
       "avancado": ["acumulacao", "transicao"]
     },
+    "_comentarioSemProva": "Sem prova (condicionamento ou saúde/emagrecimento): a periodização é a padrão, A-T-R.",
+    "modeloSemProva": ["acumulacao1", "transicao1", "realizacao"],
     "recuperacaoDepoisDaTransicao": 7,
     "_comentarioRecuperacao": "Entre a última Transição e a Realização a semana de recuperação só entra para quem treina mais que 'recuperacaoAntesDaRealizacaoAcimaDe' vezes por semana: a Realização já tem volume baixo e descansos longos.",
     "recuperacaoAntesDaRealizacaoAcimaDe": 3,

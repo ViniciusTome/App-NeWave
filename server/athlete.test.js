@@ -221,7 +221,8 @@ test('cadastra competição e lista só as próximas, da mais próxima', async (
   const cookie = await userFor('competicoes')
   const created = await api('/api/competitions', { method: 'POST', cookie, body: sampleCompetition })
   assert.equal(created.status, 201)
-  assert.equal(created.body.competition.priority, 'A')
+  // Sem escolher, a prova entra como C (não muda o treino)
+  assert.equal(created.body.competition.priority, 'C')
 
   await api('/api/competitions', {
     method: 'POST',
@@ -419,4 +420,34 @@ test('periodização: com prova alvo, vai até a prova; o teste na Transição d
   // Prova de 400 m em piscina: o teste é a própria prova
   await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...competition, name: 'Copa 3', event: '400 m livre' } } })
   assert.equal(temTeste(await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })), false)
+})
+
+test('muda a prioridade de uma prova do calendário', async () => {
+  // (o servidor limita os cadastros por hora: usa usuários dos outros testes)
+  const cookie = await userFor('feedback')
+  const outro = await userFor('periodizacao')
+  const { body } = await api('/api/competitions', { method: 'POST', cookie, body: { ...sampleCompetition, name: 'Torneio' } })
+  const id = body.competition.id
+  const res = await api(`/api/competitions/${id}`, { method: 'PATCH', cookie, body: { priority: 'B' } })
+  assert.equal(res.status, 200)
+  assert.equal(res.body.competition.priority, 'B')
+  assert.equal((await api(`/api/competitions/${id}`, { method: 'PATCH', cookie, body: { priority: 'D' } })).status, 400)
+  // A prova de outra pessoa não muda
+  assert.equal((await api(`/api/competitions/${id}`, { method: 'PATCH', cookie: outro, body: { priority: 'A' } })).status, 404)
+})
+
+test('sem prova (condicionamento ou saúde): periodização padrão A-T-R', async () => {
+  const cookie = await userFor('periodizacao')
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  const etapas = db.prepare(`
+    SELECT t.plan FROM trainings t JOIN preparations p ON p.user_id = t.user_id
+    WHERE p.goal = 'saude' AND t.plan IS NOT NULL AND t.completed_at IS NULL ORDER BY t.date
+  `).all().map((r) => JSON.parse(r.plan).etapa)
+  db.close()
+  assert.deepEqual([...new Set(etapas)], ['acumulacao1', 'transicao1', 'realizacao'])
 })
