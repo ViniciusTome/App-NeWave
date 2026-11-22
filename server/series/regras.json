@@ -152,6 +152,8 @@
       "avancado": ["acumulacao", "transicao"]
     },
     "recuperacaoDepoisDaTransicao": 7,
+    "_comentarioRecuperacao": "Entre a última Transição e a Realização a semana de recuperação só entra para quem treina mais que 'recuperacaoAntesDaRealizacaoAcimaDe' vezes por semana: a Realização já tem volume baixo e descansos longos.",
+    "recuperacaoAntesDaRealizacaoAcimaDe": 3,
     "diasIdeais": { "acumulacao": 21, "transicao": 21, "realizacao": 7 },
     "etapas": {
       "acumulacao1": {

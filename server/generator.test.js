@@ -920,7 +920,11 @@ test('periodização: montada de trás para frente, com o ciclo do nível e a re
   const soma = (plano) => plano.reduce((s, p) => s + p.dias, 0)
   const nomes = (plano) => plano.map((p) => p.etapa).join(' ')
   // Iniciante: duas Acumulações para cada Transição; depois da Transição, 1 semana de recuperação
-  assert.equal(nomes(planStages(rules, 84, 'iniciante')), 'acumulacao1 acumulacao2 transicao1 recuperacao realizacao')
+  assert.equal(nomes(planStages(rules, 84, 'iniciante', 5)), 'acumulacao1 acumulacao2 transicao1 recuperacao realizacao')
+  // Antes da Realização, a recuperação só para quem treina mais de 3 vezes por semana
+  assert.match(nomes(planStages(rules, 84, 'iniciante', 3)), /^acumulacao1 (acumulacao2 )+transicao1 realizacao$/)
+  assert.equal(nomes(planStages(rules, 150, 'iniciante', 3)),
+    'acumulacao1 acumulacao2 transicao1 recuperacao acumulacao1 acumulacao2 transicao2 realizacao')
   // Avançado: uma de cada (suporta mais pancada)
   assert.match(nomes(planStages(rules, 150, 'avancado')), /transicao1 recuperacao acumulacao2 transicao2 recuperacao acumulacao2 transicao2 recuperacao realizacao$/)
   // Iniciante com a prova mais longe: A1-A2-T-(rec)-A1-A2-T-(rec)-R
@@ -960,14 +964,16 @@ test('periodização: montada de trás para frente, com o ciclo do nível e a re
 
 test('periodização: cada etapa muda o treino', () => {
   const periodizacao = { inicio: '2026-11-23', fim: '2027-02-20', testeNaTransicao: false }
+  // 5 treinos por semana: tem a semana de recuperação antes da Realização
   const treinos = [1, 2, 3].flatMap((seed) => generateTrainings({
-    rules, library, athlete: avancado, today: '2026-11-23', random: seeded(seed), periodizacao,
+    rules, library, athlete: { ...avancado, trainingDays: [1, 2, 3, 4, 5] }, today: '2026-11-23', random: seeded(seed), periodizacao,
   }))
   const daEtapa = (e) => treinos.filter((t) => t.plano.etapa === e)
   const principais = (e) => daEtapa(e).flatMap((t) => t.partes.filter((p) => p.parte === 'principal'))
-  // Acumulação: só A1/A2 (nada de A3, AC, NEG, POS, final forte)
+  // Acumulação: só A1/A2 (nada de A3, AC, NEG, POS, final forte). O 400 com 30 AC
+  // (30" acima do melhor, com pé de pato e palmar) é aeróbio: pode
   for (const p of [...principais('acumulacao1'), ...principais('acumulacao2')]) {
-    assert.ok(!/A3|AC\)|NEG|POS|NAD x 25 fo/.test(p.texto), p.texto)
+    assert.ok(!/A3|(?<!30 )AC\)|NEG|POS|NAD x 25 fo/.test(p.texto), p.texto)
   }
   // Acumulação 1: intervalo maior entre as séries
   const intervalos = (e) => principais(e).map((p) => p.intervalo).filter(Boolean)
@@ -998,7 +1004,8 @@ test('periodização: gera todos os treinos até a prova, com o plano de cada um
   assert.equal(treinos.at(-1).date <= '2027-01-31', true)
   assert.deepEqual(treinos.map((t) => t.plano.numero), treinos.map((_, i) => i + 1))
   const fases = treinos.map((t) => t.plano.fase)
-  assert.deepEqual([...new Set(fases)], ['acumulacao', 'transicao', 'recuperacao', 'realizacao'])
+  // 3 treinos por semana: sem a recuperação antes da Realização
+  assert.deepEqual([...new Set(fases)], ['acumulacao', 'transicao', 'realizacao'])
   for (const t of treinos) {
     for (const campo of ['semanaDaFase', 'intensidade', 'esforcoEsperado', 'metrosPrincipal', 'tipoPrincipal', 'diaDeTeste', 'recuperacao', 'material']) {
       assert.ok(t.plano[campo] !== undefined, campo)

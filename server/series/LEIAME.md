@@ -481,9 +481,11 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
     - **Iniciante** (e intermediário, PROVISÓRIO): **duas Acumulações para cada Transição** (A1-A2-T).
     - **Avançado:** **uma de cada** (A-T), porque suporta mais pancada.
   - **Semana de recuperação** depois de cada Transição (`recuperacaoDepoisDaTransicao`, 7 dias): só ritmo leve, volume 60%, sem velocidade.
+  - **Antes da Realização** a recuperação só entra para quem treina **mais de 3 vezes por semana** (`recuperacaoAntesDaRealizacaoAcimaDe`): a Realização já é de volume baixo e descansos longos.
+  - Na Acumulação, o 400 com 30 AC (com pé de pato e palmar) continua valendo: é aeróbio.
   - Cada etapa começa com os dias ideais (`diasIdeais`: Acumulação 21, Transição 21, Realização 7) e os dias que sobram vão primeiro para a Acumulação, sem passar do máximo. A periodização **sempre começa pela Acumulação** (a base).
   - Se o primeiro ciclo fica incompleto (ex.: iniciante com uma Acumulação só antes da Transição), o começo vira Acumulação: mais base.
-  - Exemplos: iniciante com 12 semanas = A1 (25 dias) → A2 (24) → T1 (21) → recuperação (7) → R (7). Iniciante com 5 meses = A1 → A2 → T1 → recuperação → A1 → A2 → T2 → recuperação → R. Avançado com 5 meses = A1 → T1 → recuperação → A2 → T2 → recuperação → A2 → T2 → recuperação → R.
+  - Exemplos: iniciante, 3 treinos por semana, 12 semanas = A1 → A2 → A2 → T1 → R; com 5 treinos por semana = A1 → A2 → T1 → recuperação → R. Iniciante com 5 meses = A1 → A2 → T1 → recuperação → A1 → A2 → T2 → recuperação → R. Avançado com 5 meses = A1 → T1 → recuperação → A2 → T2 → recuperação → A2 → T2 → recuperação → R.
   - **Condicionamento** (não nada 400 m sem parar): fica na Acumulação o tempo todo.
   - As fases também ligam as regras que já existiam: saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação.
 - **Teste de 400 m** no 1º treino da Transição (veja "Teste de 400 m na periodização").

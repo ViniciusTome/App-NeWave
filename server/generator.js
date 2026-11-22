@@ -904,7 +904,9 @@ const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.pa
 // ciclo do nível até encaixar tudo (iniciante: duas Acumulações para cada Transição;
 // avançado: uma de cada). Depois de cada Transição vem 1 semana de recuperação.
 // Devolve [{ etapa, dias }] na ordem do treino.
-export function planStages(rules, total, level = null) {
+// `treinosPorSemana`: a recuperação entre a última Transição e a Realização só entra
+// para quem treina mais de 3 vezes por semana (a Realização já é leve no volume).
+export function planStages(rules, total, level = null, treinosPorSemana = null) {
     const cfg = rules.periodizacao
     const etapas = cfg?.etapas
     const ciclo = cfg?.ciclo?.[level] ?? cfg?.ciclo?.intermediario
@@ -912,6 +914,7 @@ export function planStages(rules, total, level = null) {
     const minimo = (fase) => etapas[fase === 'acumulacao' ? 'acumulacao1' : fase === 'transicao' ? 'transicao1' : fase].dias[0]
     const ideal = (fase) => cfg.diasIdeais?.[fase] ?? minimo(fase)
     const recuperacao = cfg.recuperacaoDepoisDaTransicao ?? 0
+    const antesDaRealizacao = treinosPorSemana === null || treinosPorSemana > (cfg.recuperacaoAntesDaRealizacaoAcimaDe ?? 0)
 
     // De trás para frente: [{ fase, dias }], a última etapa (Realização) primeiro.
     // `tamanho` = dias de cada etapa ao encaixar (o ideal; se não sobrar espaço para
@@ -923,7 +926,9 @@ export function planStages(rules, total, level = null) {
         for (;;) {
             const fase = ciclo[k]
             // A Transição vem seguida da semana de recuperação (se não couber, sem ela)
-            let extra = fase === 'transicao' && recuperacao > 0 ? recuperacao : 0
+            // (a que vem logo antes da Realização só para quem treina mais de 3 vezes por semana)
+            const logoAntesDaRealizacao = blocos.length === 1
+            let extra = fase === 'transicao' && recuperacao > 0 && (!logoAntesDaRealizacao || antesDaRealizacao) ? recuperacao : 0
             if (livre < minimo(fase) + extra) extra = 0
             if (livre < minimo(fase)) break
             if (extra) blocos.push({ fase: 'recuperacao', dias: extra })
@@ -1006,9 +1011,9 @@ export function planStages(rules, total, level = null) {
 
 // Etapa de cada dia da periodização, do início ao fim (a prova alvo).
 // Devolve (data) -> { etapa, nome, fase, semanaDaFase } (semana dentro da etapa).
-export function periodPhases(rules, inicio, fim, level = null) {
+export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana = null) {
     const total = Math.max(1, daysBetween(inicio, fim) + 1)
-    const plano = planStages(rules, total, level)
+    const plano = planStages(rules, total, level, treinosPorSemana)
     let comeca = 0
     const limites = plano.map(({ etapa, dias }) => {
         const l = { etapa, comeca, termina: comeca + dias }
@@ -1061,7 +1066,7 @@ export function generateTrainings({
     const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false
     // Periodização: todos os treinos até o fim, com a fase de cada um
-    const faseDe = periodizacao ? periodPhases(rules, periodizacao.inicio, periodizacao.fim, athlete.level) : null
+    const faseDe = periodizacao ? periodPhases(rules, periodizacao.inicio, periodizacao.fim, athlete.level, athlete.trainingDays?.length ?? null) : null
     const totalDeDias = periodizacao
         ? Math.min(rules.periodizacao?.maximoDeDias ?? 366, Math.max(1, daysBetween(today, periodizacao.fim) + 1))
         : dias
