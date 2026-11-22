@@ -11,7 +11,8 @@
 // - o valor usado dentro das faixas de descanso (o meio da faixa).
 import { fitsSession } from './series/index.js'
 import {
-    allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, partsForLevel, pauseOf, restFor, seriesVariations,
+    allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, intervalRangeFor, partsForLevel, pauseOf, restFor,
+    seriesVariations,
 } from './series/regras.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
@@ -51,7 +52,11 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
 
     const comPe = variation.material.includes('pe_de_pato') || variation.material.includes('pe_de_pato_peito')
     const fator = (parte === 'perna' ? RITMO_PERNA : 1) * (comPe ? RITMO_PE_DE_PATO : 1)
+    // Intervalo entre as séries: troca o descanso da última repetição de cada série
+    const intervalo = (saidaSegundos) =>
+        intervalBetweenSets(rules, parte, serie, { fase: null, level: athlete.level, saidaSegundos })
     let total = 0
+    let ultimo = { saida: 0, descanso: 0 }
     for (const bloco of serie.blocos) {
         const ritmo = bloco.trechos
             ? bloco.trechos.reduce((s, t) => s + t.metros * (RITMO[t.intensidade] ?? RITMO_SEM_INTENSIDADE), 0) / bloco.distancia
@@ -59,12 +64,38 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
         const nado = (bloco.distancia / 100) * pace * ritmo * fator
         const { min, max } = restFor(rules, athlete.level, bloco.distancia)
         const descanso = bloco.descanso ?? (min + max) / 2 // PROVISÓRIO: meio da faixa
-        total += (bloco.vezes ?? 1) * bloco.repeticoes * (nado + descanso)
-        // Intervalo entre as séries de um "(2x)", "(4x)" (a saída de uma repetição)
-        const intervalo = intervalBetweenSets(rules, parte, serie, { fase: null, saidaSegundos: nado + descanso })
-        if (intervalo !== null) total += ((bloco.vezes ?? 1) - 1) * Math.max(0, intervalo - descanso)
+        const vezes = bloco.vezes ?? 1
+        total += vezes * bloco.repeticoes * (nado + descanso)
+        // "(4x) 3 x 200": intervalo entre as séries do bloco
+        if (vezes > 1) total += (vezes - 1) * Math.max(0, intervalo(nado + descanso) - descanso)
+        ultimo = { saida: nado + descanso, descanso }
     }
-    return total * (serie.vezes ?? 1)
+    // "(3x) 1 x 100, 2 x 75, ...": o grupo se repete, com intervalo entre as séries
+    const vezesDaSerie = serie.vezes ?? 1
+    if (vezesDaSerie > 1) {
+        total = total * vezesDaSerie + (vezesDaSerie - 1) * Math.max(0, intervalo(ultimo.saida) - ultimo.descanso)
+    }
+    return total
+}
+
+// ---------- Texto do card ----------
+
+// Coloca o "m" de metros depois das distâncias do texto da série:
+// "300 livre" -> "300 m livre"; "(2x) 10 x 100" -> "(2x) 10 x 100 m";
+// "os 400 com pé de pato" -> "os 400 m com pé de pato". O que já tem "m" fica igual.
+export function withMeters(texto) {
+    return texto
+        .replace(/\b(\d+) x (\d+)\b(?! ?m\b)/g, '$1 x $2 m')
+        .replace(/^(\d+) (?![xm]\b)(?=\p{L})/u, '$1 m ')
+        .replace(/\bos (\d+)\b(?! ?m\b)/g, 'os $1 m')
+}
+
+// "2' de intervalo entre as séries" / "2' a 3' de intervalo entre as séries"
+const minutos = (s) => (s % 60 === 0 ? `${s / 60}'` : `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`)
+function intervalText(faixa) {
+    if (!faixa) return null
+    const valor = faixa.min === faixa.max ? minutos(faixa.min) : `${minutos(faixa.min)} a ${minutos(faixa.max)}`
+    return `${valor} de intervalo entre as séries`
 }
 
 // ---------- Escolha das séries ----------
@@ -194,11 +225,13 @@ function buildTraining({ rules, library, athlete, pace, random, recentes }) {
         const escolha = escolhas.get(i)
         if (!escolha) return // nenhuma série da biblioteca serve para esse atleta
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
+        const intervalo = intervalText(intervalRangeFor(rules, parte, escolha.serie, athlete.level))
         partes.push({
             parte,
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
             serieId: escolha.serie.id,
-            texto: escolha.variation.texto,
+            texto: withMeters(escolha.variation.texto),
+            ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,
             material: escolha.variation.material,
             ...(escolha.serie.observacao && { observacao: escolha.serie.observacao }),

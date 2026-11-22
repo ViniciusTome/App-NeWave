@@ -220,6 +220,16 @@ export function validateRules(rules) {
             problems.push(`${where}: "${parte}" não é uma parte do treino (${PARTS.join(', ')}).`)
             continue
         }
+        // Intervalo fixo por nível, em segundos [mínimo, máximo] (ex.: série principal)
+        if (regra?.porNivel !== undefined) {
+            for (const nivel of NIVEIS) {
+                const faixa = regra.porNivel?.[nivel]
+                const valid = Array.isArray(faixa) && faixa.length === 2 &&
+                    faixa.every((x) => Number.isInteger(x) && x >= 0 && x <= 600) && faixa[0] <= faixa[1]
+                if (!valid) problems.push(`${where}.porNivel.${nivel}: use [mínimo, máximo] em segundos, ex.: [120, 180].`)
+            }
+            continue
+        }
         if (regra?.padrao !== 'saida') {
             problems.push(`${where}.padrao: por enquanto só existe "saida" (o intervalo é uma saída da repetição).`)
         }
@@ -571,6 +581,9 @@ export function seriesVariations(rules, parte, serie, athlete) {
 export function intervalBetweenSets(rules, parte, serie, contexto) {
     if (setsOf(serie) < 2) return null
     const regra = rules.intervalos?.[parte]
+    // Intervalo fixo por nível (série principal): o meio da faixa (PROVISÓRIO)
+    const faixa = intervalRangeFor(rules, parte, serie, contexto.level)
+    if (faixa) return (faixa.min + faixa.max) / 2
     let segundos = contexto.saidaSegundos
     for (const excecao of regra?.excecoes ?? []) {
         const vale = excecao.fase !== undefined
@@ -579,6 +592,15 @@ export function intervalBetweenSets(rules, parte, serie, contexto) {
         if (vale) segundos = Math.max(segundos, excecao.segundos)
     }
     return segundos
+}
+
+// Intervalo entre as séries que é fixo por nível (ex.: série principal: 2' para
+// intermediário e avançado, 2' a 3' para iniciante), em segundos { min, max }.
+// null se a série não tem várias séries ou a parte não usa intervalo por nível.
+export function intervalRangeFor(rules, parte, serie, nivel) {
+    if (setsOf(serie) < 2) return null
+    const faixa = rules.intervalos?.[parte]?.porNivel?.[nivel]
+    return faixa ? { min: faixa[0], max: faixa[1] } : null
 }
 
 // ---------- 2ª série principal ----------

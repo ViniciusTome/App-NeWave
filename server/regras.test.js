@@ -651,6 +651,8 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.intervalos.velocidade.excecoes.push({ fase: 'realizacao', repeticoesPorSerie: 8, segundos: 60 }) }, 'use uma condição'],
     [(r) => { r.intervalos.velocidade.excecoes.push({ repeticoesPorSerie: 8, segundos: '1min' }) }, '"segundos"'],
     [(r) => { r.intervalos.velocidade.padrao = 'fixo' }, 'padrao'],
+    [(r) => { r.intervalos.principal.porNivel.iniciante = [180, 120] }, 'intervalos.principal.porNivel.iniciante'],
+    [(r) => { delete r.intervalos.principal.porNivel.avancado }, 'intervalos.principal.porNivel.avancado'],
   ]
   for (const [change, expected] of cases) {
     const broken = structuredClone(rules)

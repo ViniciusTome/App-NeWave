@@ -326,6 +326,16 @@ Descanso padrão de cada repetição, em segundos, `[mínimo, máximo]`, por ní
 
 ### Intervalo entre as séries
 
+**Série principal:** toda série com `(2x)`, `(3x)`, `(4x)`... (inclusive os grupos repetidos) tem um intervalo maior entre as séries, para recuperar: **2'** para intermediário e avançado e **2' a 3'** para iniciante. Ele aparece no card ("2' de intervalo entre as séries").
+
+```json
+"principal": {
+  "porNivel": { "iniciante": [120, 180], "intermediario": [120, 120], "avancado": [120, 120] }
+}
+```
+
+**Velocidade:**
+
 ```json
 "intervalos": {
   "velocidade": {

@@ -4,9 +4,9 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
-import { generateTrainings, trainingDates } from './generator.js'
+import { estimateSeconds, generateTrainings, trainingDates, withMeters } from './generator.js'
 import { loadLibrary } from './series/index.js'
-import { loadRules, partsForLevel, strokeCategory } from './series/regras.js'
+import { intervalBetweenSets, intervalRangeFor, loadRules, partsForLevel, strokeCategory } from './series/regras.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -111,6 +111,79 @@ test('o treino mostra a hidratação nos treinos acima de 1h15', () => {
   const hidratacao = treino.partes.find((p) => p.parte === 'hidratacao')
   assert.equal(hidratacao.minutos, 5)
   assert.equal(treino.partes.filter((p) => p.parte === 'principal').at(-1).titulo, '2ª série principal')
+})
+
+// ---------- Metragem no card ----------
+
+test('o card mostra o "m" de metros depois das distâncias', () => {
+  assert.equal(withMeters('300 livre'), '300 m livre')
+  assert.equal(withMeters('100 indo crawl, voltando estilo'), '100 m indo crawl, voltando estilo')
+  assert.equal(withMeters('(2x) 10 x 100 · com palmar'), '(2x) 10 x 100 m · com palmar')
+  assert.equal(withMeters('8 x 25 forte · medley'), '8 x 25 m forte · medley')
+  assert.equal(withMeters('8 x 25 (15 m forte, 10 m solto)'), '8 x 25 m (15 m forte, 10 m solto)')
+  assert.equal(withMeters('4 x 15 m'), '4 x 15 m') // já tinha
+  assert.equal(withMeters('1 x 400, 2 x 200 · os 400 com pé de pato + palmar, os 200 nadando'),
+    '1 x 400 m, 2 x 200 m · os 400 m com pé de pato + palmar, os 200 m nadando')
+  assert.equal(withMeters('400 perna com pé de pato'), '400 m perna com pé de pato')
+  assert.equal(withMeters('Aqueça até sentir que o corpo está bem aquecido'), 'Aqueça até sentir que o corpo está bem aquecido')
+})
+
+test('nos treinos gerados, toda distância tem o "m"', () => {
+  for (const [, athlete] of casos) {
+    for (const treino of gerar(athlete)) {
+      for (const parte of treino.partes.filter((p) => p.serieId)) {
+        assert.doesNotMatch(parte.texto, /\b\d+ x \d+\b(?! m\b)/, parte.texto)
+        assert.doesNotMatch(parte.texto, /^\d+ (?!m\b|x\b)/, parte.texto)
+      }
+      // A hidratação não ganha "m" ("5 min de hidratação")
+      const hidratacao = treino.partes.find((p) => p.parte === 'hidratacao')
+      if (hidratacao) assert.match(hidratacao.texto, /^5 min/)
+    }
+  }
+})
+
+// ---------- Intervalo entre as séries da série principal ----------
+
+const principalDe = (id) => library.principal.find((s) => s.id === id)
+
+test('série principal com séries: 2 minutos de intervalo (iniciante, 2 a 3 minutos)', () => {
+  for (const id of ['pri-2x10x100', 'pri-4x3x200', 'pri-3x-100-75-50-25', 'pri-2x-200-50']) {
+    assert.deepEqual(intervalRangeFor(rules, 'principal', principalDe(id), 'avancado'), { min: 120, max: 120 }, id)
+    assert.deepEqual(intervalRangeFor(rules, 'principal', principalDe(id), 'intermediario'), { min: 120, max: 120 }, id)
+    assert.deepEqual(intervalRangeFor(rules, 'principal', principalDe(id), 'iniciante'), { min: 120, max: 180 }, id)
+  }
+  // Sem séries, não tem intervalo
+  assert.equal(intervalRangeFor(rules, 'principal', principalDe('pri-10x200'), 'avancado'), null)
+  // A velocidade continua com a saída (não muda)
+  const vel = library.velocidade.find((s) => s.id === 'vel-2x4x25-forte')
+  assert.equal(intervalRangeFor(rules, 'velocidade', vel, 'avancado'), null)
+  assert.equal(intervalBetweenSets(rules, 'velocidade', vel, { fase: null, level: 'avancado', saidaSegundos: 30 }), 30)
+})
+
+test('o intervalo entra no tempo estimado e aparece no card', () => {
+  const pace = 90
+  const variation = { material: [] }
+  const athleteAv = { level: 'avancado' }
+  // (2x) 10 x 100 = 10 x 100 + 2' + 10 x 100: o intervalo soma ~2' no lugar de um descanso de 25"
+  const comIntervalo = estimateSeconds(rules, 'principal', principalDe('pri-2x10x100'), variation, athleteAv, pace)
+  const semIntervalo = estimateSeconds(rules, 'principal', principalDe('pri-16x100'), variation, athleteAv, pace) / 16 * 20
+  assert.ok(Math.abs(comIntervalo - semIntervalo - (120 - 25)) < 1, `${comIntervalo} x ${semIntervalo}`)
+
+  for (const [nome, athlete] of casos) {
+    for (const treino of gerar(athlete, 2)) {
+      for (const parte of treino.partes.filter((p) => p.parte === 'principal')) {
+        const temSeries = /^\(\d+x\)/.test(parte.texto)
+        if (!temSeries) {
+          assert.equal(parte.intervalo, undefined, parte.texto)
+          continue
+        }
+        const esperado = athlete.level === 'iniciante'
+          ? "2' a 3' de intervalo entre as séries"
+          : "2' de intervalo entre as séries"
+        assert.equal(parte.intervalo, esperado, `${nome}: ${parte.texto}`)
+      }
+    }
+  }
 })
 
 // ---------- Rota POST /api/trainings/generate ----------
