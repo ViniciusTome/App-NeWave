@@ -1,4 +1,5 @@
 import { Aside } from '../../components/Aside'
+import { AthleteSummary } from '../../components/AthleteSummary'
 import { Payments } from '../../components/Payments'
 import { PersonalData } from '../../components/PersonalData'
 import { Profile } from '../../components/Profile'
@@ -13,22 +14,27 @@ export const ProfilePage = () => {
             <div className={styles.profile}>
                 
                 <div className={styles.container}>
-                    <h2 style={{color: 'black', margin: '10px'}}>Perfil</h2>
+                    <h2>Perfil</h2>
                     <Profile/>
                 </div>
                 
                 <div className={styles.container}>
-                    <h2 style={{color: 'black', margin: '10px'}}>Dados pessoais</h2>
+                    <h2>Meu treino</h2>
+                    <AthleteSummary/>
+                </div>
+
+                <div className={styles.container}>
+                    <h2>Dados pessoais</h2>
                     <PersonalData/>
                 </div>
                 
                 <div className={styles.container}>
-                    <h2 style={{color: 'black', margin: '10px'}}>Pagamentos</h2>
+                    <h2>Pagamentos</h2>
                     <Payments/>
                 </div>
                 
                 <div className={styles.container}>
-                    <h2 style={{color: 'black', margin: '10px'}}>Suporte</h2>
+                    <h2>Suporte</h2>
                     <Support/>
                 </div>
             </div>

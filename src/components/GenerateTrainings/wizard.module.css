@@ -1,0 +1,308 @@
+/* Estilos do "Gerar treinos" e da anamnese (dentro da janela branca) */
+
+.intro {
+    background-color: #eaf5fd;
+    border-left: 4px solid #1d6fb8;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    color: #0b2f57;
+}
+
+.progress {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.progress span {
+    flex: 1;
+    height: 5px;
+    border-radius: 999px;
+    background-color: #dbe9f5;
+}
+
+.progress .progressDone {
+    background-color: #1d6fb8;
+}
+
+.stepLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4a6a8a;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.question {
+    font-weight: 700;
+    font-size: 17px;
+    color: #0b2f57;
+    margin-bottom: 6px;
+}
+
+.hint {
+    font-size: 13px;
+    color: #4a6a8a;
+    margin-bottom: 14px;
+    line-height: 1.45;
+}
+
+.error {
+    background-color: #fdecee;
+    color: #9b1c2c;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    margin: 4px 0 12px;
+}
+
+/* Campos de texto */
+.textField {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0b2f57;
+}
+
+.textField input,
+.textField textarea,
+.timeField input {
+    font: inherit;
+    font-weight: 400;
+    font-size: 15px;
+    padding: 9px 12px;
+    border: 1px solid #b9d6ee;
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #0b2f57;
+}
+
+.textField textarea {
+    resize: vertical;
+}
+
+.textField input:focus-visible,
+.textField textarea:focus-visible,
+.timeField input:focus-visible {
+    outline: 2px solid #1d6fb8;
+    outline-offset: 1px;
+}
+
+.timeRow {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.timeField {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #4a6a8a;
+}
+
+.timeField input {
+    width: 80px;
+}
+
+.timeField input:disabled {
+    background-color: #f0f3f6;
+    color: #9aaabb;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #0b2f57;
+    cursor: pointer;
+}
+
+/* Botões */
+.actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.primary,
+.secondary {
+    font: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 10px 22px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.primary {
+    border: none;
+    background-color: #1d6fb8;
+    color: #ffffff;
+    margin-left: auto;
+}
+
+.primary:hover:not(:disabled) {
+    background-color: #145891;
+}
+
+.primary:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.secondary {
+    border: 1px solid #b9d6ee;
+    background-color: #ffffff;
+    color: #1d6fb8;
+}
+
+.secondary:hover {
+    border-color: #1d6fb8;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.link:focus-visible {
+    outline: 2px solid #1d6fb8;
+    outline-offset: 2px;
+}
+
+.link {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    background: none;
+    border: none;
+    padding: 0;
+    color: #1d6fb8;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* Opções de prova alvo */
+.targetList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.target {
+    border: 1px solid #cfe2f2;
+    border-radius: 12px;
+    background-color: #f7fbfe;
+    transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.targetChecked {
+    border-color: #1d6fb8;
+    background-color: #eef6fd;
+}
+
+.targetHead {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    cursor: pointer;
+}
+
+.targetHead input {
+    margin-top: 3px;
+    accent-color: #1d6fb8;
+}
+
+.targetTitle {
+    display: block;
+    font-weight: 700;
+    color: #0b2f57;
+}
+
+.targetDetail {
+    display: block;
+    font-size: 13px;
+    color: #4a6a8a;
+    margin-top: 2px;
+}
+
+.subOptions {
+    padding: 0 14px 12px 38px;
+}
+
+.radioLine {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    padding: 6px 0;
+    cursor: pointer;
+    color: #0b2f57;
+}
+
+.radioLine input {
+    accent-color: #1d6fb8;
+}
+
+/* Resumo */
+.summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    margin: 12px 0 14px;
+}
+
+.summary div {
+    min-width: 0;
+}
+
+.summary dt {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4a6a8a;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.summary dd {
+    margin: 2px 0 0;
+    font-size: 15px;
+    color: #0b2f57;
+    overflow-wrap: anywhere;
+}
+
+.summary .summaryHighlight {
+    grid-column: 1 / -1;
+    background-color: #eef6fd;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.summary .summaryHighlight dd {
+    font-weight: 700;
+}
+
+/* Tela final */
+.done p {
+    margin-bottom: 10px;
+    color: #0b2f57;
+}
+
+.done .doneTitle {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+@media (max-width: 480px) {
+    .summary {
+        grid-template-columns: 1fr;
+    }
+}

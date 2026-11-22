@@ -38,3 +38,7 @@ export async function api(path, { method = 'GET', body } = {}) {
 // para as telas que mostram treinos (carrossel, histórico) recarregarem.
 export const TRAININGS_CHANGED = 'newave:trainings-changed'
 export const notifyTrainingsChanged = () => window.dispatchEvent(new Event(TRAININGS_CHANGED))
+
+// Disparado quando a anamnese ou a preparação mudam, para o Perfil recarregar.
+export const ATHLETE_CHANGED = 'newave:athlete-changed'
+export const notifyAthleteChanged = () => window.dispatchEvent(new Event(ATHLETE_CHANGED))

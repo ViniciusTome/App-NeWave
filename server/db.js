@@ -71,6 +71,51 @@ export function openDatabase(path) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_trainings_user ON trainings(user_id, date);
+
+    -- Anamnese do atleta: respondida uma vez e editável depois.
+    -- Listas (estilos, dias, material) ficam em JSON.
+    CREATE TABLE IF NOT EXISTS athlete_profiles (
+      user_id             INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      swimming_since      TEXT    NOT NULL,
+      recent_break        TEXT    NOT NULL,
+      continuous_distance TEXT    NOT NULL,
+      strokes             TEXT    NOT NULL,
+      training_days       TEXT    NOT NULL,
+      session_minutes     INTEGER NOT NULL,
+      pool_length         INTEGER NOT NULL,
+      equipment           TEXT    NOT NULL,
+      injuries            TEXT    NOT NULL DEFAULT '',
+      reported_400_hundredths INTEGER,
+      created_at          TEXT    NOT NULL,
+      updated_at          TEXT    NOT NULL
+    );
+
+    -- Calendário de competições. Prioridade: A = prova alvo, B = importante,
+    -- C = teste ou "bate-pronto".
+    CREATE TABLE IF NOT EXISTS competitions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name       TEXT    NOT NULL,
+      date       TEXT    NOT NULL,
+      modality   TEXT    NOT NULL,
+      event      TEXT    NOT NULL DEFAULT '',
+      priority   TEXT    NOT NULL,
+      created_at TEXT    NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_competitions_user ON competitions(user_id, date);
+
+    -- Cada vez que o atleta gera treinos, ele escolhe o objetivo e a prova alvo
+    -- (ou nenhuma prova). A mais recente é a preparação atual.
+    CREATE TABLE IF NOT EXISTS preparations (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      goal           TEXT    NOT NULL,
+      competition_id INTEGER REFERENCES competitions(id) ON DELETE SET NULL,
+      created_at     TEXT    NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_preparations_user ON preparations(user_id, id);
   `)
 
   // Bancos criados antes da agenda de treinos não têm a coluna completed_at.
@@ -82,6 +127,13 @@ export function openDatabase(path) {
       UPDATE trainings SET completed_at = created_at;
     `)
   }
+
+  // Faixas antigas de "quanto nada sem parar" -> nomes atuais
+  // ('ate_100' era "50 a 100 m"; '100_400' virou duas faixas e fica na de 200 a 400 m)
+  db.exec(`
+    UPDATE athlete_profiles SET continuous_distance = '50_100' WHERE continuous_distance = 'ate_100';
+    UPDATE athlete_profiles SET continuous_distance = '200_400' WHERE continuous_distance = '100_400';
+  `)
 
   return db
 }
