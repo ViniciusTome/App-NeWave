@@ -345,6 +345,8 @@
   },
   {
     "id": "pri-cond-4x150-pe-palmar",
+    "familia": "150-pe-palmar",
+    "peso": 0.5,
     "texto": "4 x 150 com pé de pato e palmar",
     "paraQuemNadaAte": 200,
     "blocos": [
@@ -353,6 +355,8 @@
   },
   {
     "id": "pri-cond-5x150-pe-palmar",
+    "familia": "150-pe-palmar",
+    "peso": 0.5,
     "texto": "5 x 150 com pé de pato e palmar",
     "paraQuemNadaAte": 200,
     "blocos": [
@@ -361,6 +365,8 @@
   },
   {
     "id": "pri-cond-6x150-pe-palmar",
+    "familia": "150-pe-palmar",
+    "peso": 0.5,
     "texto": "6 x 150 com pé de pato e palmar",
     "paraQuemNadaAte": 200,
     "blocos": [

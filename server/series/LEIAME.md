@@ -36,6 +36,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"`, `"estilo"` (borboleta, costas ou peito) e/ou `"melhorEstiloEMedley"` (repetições alternando melhor estilo e medley), respeitando as provas de piscina (veja abaixo). |
 | `aulaAcimaDeMinutos` | Opcional. A série só entra em aulas mais longas que isso. Ex.: `90` = só acima de 1h30. |
 | `materialPorSerie` | Opcional, nas séries com `vezes`. O material de cada série. Ex.: `[[], ["pe_de_pato"]]` = 1ª série nadando, 2ª com pé de pato. |
+| `familia` | Opcional. Séries parecidas com o mesmo nome (ex.: `"150-pe-palmar"` nas 4, 5 e 6 x 150 com pé de pato e palmar) contam como a mesma: nunca saem em treinos seguidos. |
 | `paraQuemNadaAte` | Opcional. A série só entra para quem nada até essa distância sem parar. Ex.: `100` = séries curtas (4 x 50, 8 x 25) para quem nada pouco. |
 | `peso` | Opcional. Frequência no sorteio: `1` é o normal (padrão), `0.25` sai bem menos (de vez em quando), `3` sai mais vezes. |
 | `porSensacao` + `duracaoMinutos` | Para séries sem metragem, como "aqueça até sentir o corpo aquecido". Aí `blocos` fica `[]`. |
@@ -166,6 +167,15 @@ O número escrito é uma sugestão: o gerador escolhe **quantas séries** o atle
 - **Intermediário e avançado:** podem fazer de (2x) até **1 série a mais** que o escrito (no máximo (6x)).
 - A metragem, as intensidades (A1/A2/A3...), o material e a mistura de estilos acompanham o número de séries.
 - Para a série ficar sempre como está escrita, tire a parte da lista `partes` ou mude `aumentarAte` e `minimo`.
+
+### Material diferente em cada série (2x), (3x), (4x)...
+
+Nas séries com várias séries (ex.: (3x) 4 x 50, (4x) 4 x 100), **cada série usa um material diferente da anterior e da seguinte**. Pode repetir o material, só não em seguida. Exemplos: nadando, c/PÉ, c/PÉ + PALM, c/PALM + BOIA; ou nadando, c/PÉ, nadando, c/PÉ + PALM. Fica em `materialEntreAsSeries` no `regras.json`.
+
+- **Iniciante e intermediário** começam **nadando** quase sempre (85%) e vão colocando ou trocando material, porque têm menos condicionamento. O avançado começa nadando em 30% das vezes.
+- Série com **A3** continua com pé de pato.
+- Feedback "faltou força": a escolha puxa para palmar e palmar + pull buoy.
+- Séries com o material escrito no JSON (ex.: (2x) 4 x 75 com pé de pato e palmar) e as repetições longas com material obrigatório ficam como estão.
 
 ### Não repetir a série no treino seguinte
 

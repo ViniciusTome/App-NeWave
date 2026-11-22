@@ -24,7 +24,7 @@ export const PISCINAS = [25, 50]
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
 const SERIE_KEYS = [
     'id', 'texto', 'observacao', 'vezes', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos',
-    'aulaAcimaDeMinutos', 'peso', 'paraQuemNadaAte', 'materialPorSerie',
+    'aulaAcimaDeMinutos', 'peso', 'paraQuemNadaAte', 'materialPorSerie', 'familia',
 ]
 // Além do nado escrito nos blocos, a série também pode ser feita em:
 // "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
@@ -173,6 +173,11 @@ export function validate(series) {
             const ok = Array.isArray(serie.materialPorSerie) && serie.materialPorSerie.length === (serie.vezes ?? 0) &&
                 serie.materialPorSerie.every((m) => Array.isArray(m) && m.every((x) => MATERIAIS.includes(x)))
             if (!ok) report('"materialPorSerie" precisa ter o material de cada série do "vezes", ex.: [[], ["pe_de_pato"]].')
+        }
+        // Séries parecidas (ex.: 4, 5 e 6 x 150 com pé de pato e palmar) contam como a mesma
+        // para não repetir em treinos seguidos
+        if (serie.familia !== undefined && (typeof serie.familia !== 'string' || serie.familia.trim() === '')) {
+            report('"familia" precisa ser um nome (ex.: "150-pe-palmar").')
         }
         // Só para quem nada até essa distância sem parar (ex.: 100 = séries curtas para quem nada pouco)
         if (serie.paraQuemNadaAte !== undefined && !isInt(serie.paraQuemNadaAte, 25, 2000)) {

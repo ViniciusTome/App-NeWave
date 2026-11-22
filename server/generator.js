@@ -208,6 +208,53 @@ function ajustarAoA1(rules, valores, saidas, saidaA1, fase, distancia) {
     })
 }
 
+// Séries com (2x), (3x), (4x)...: cada série com um material diferente da anterior e
+// da seguinte (pode repetir, mas não em seguida). Iniciante e intermediário começam
+// nadando quase sempre e vão colocando material. A3 vai com pé de pato.
+// Ex.: nadando, c/PÉ, c/PÉ + PALM, c/PALM + BOIA.
+export function rotateSetMaterials(rules, parte, serie, variation, intensidades, athlete, random = Math.random) {
+    const cfg = rules.materialEntreAsSeries
+    const sets = serie.vezes ?? (serie.blocos.length === 1 ? serie.blocos[0].vezes ?? 1 : 1)
+    if (!cfg?.partes.includes(parte) || sets < 2) return variation
+    // Material escrito na série (JSON) ou obrigatório (repetições longas): fica como está
+    if (serie.exige.material.length > 0 || serie.materialPorSerie) return variation
+    if (['fixo', 'obrigatorio', 'obrigatorio_por_bloco'].includes(variation.padrao)) return variation
+    const tem = (m) => m.every((x) => (athlete.equipment ?? []).includes(x))
+    const opcoes = [[], ...(rules.material?.[parte]?.opcoes ?? []).filter(tem)]
+    if (opcoes.length < 2) return variation
+    const chave = (m) => m.join('+')
+    const valorDa = (i) => (intensidades?.unidade === 'serie' ? intensidades.valores[i]
+        : intensidades?.unidade === 'serie_toda' ? intensidades.valores[0] : null)
+    const comPe = opcoes.filter((m) => m.includes('pe_de_pato'))
+    const permitidas = (i) => (valorDa(i) === 'A3' && comPe.length > 0 ? comPe : opcoes)
+    const sorteia = (lista) => lista[Math.floor(random() * lista.length)]
+    const series = []
+    for (let i = 0; i < sets; i++) {
+        let candidatas = permitidas(i).filter((m) => i === 0 || chave(m) !== chave(series[i - 1]))
+        // A próxima só tem uma opção (ex.: A3 só com pé de pato): esta não pode ser ela
+        const proxima = i + 1 < sets ? permitidas(i + 1) : null
+        if (proxima?.length === 1) {
+            const semElas = candidatas.filter((m) => chave(m) !== chave(proxima[0]))
+            if (semElas.length > 0) candidatas = semElas
+        }
+        if (candidatas.length === 0) candidatas = permitidas(i)
+        const nadando = candidatas.find((m) => m.length === 0)
+        if (i === 0 && nadando && random() * 100 < (cfg.comecarNadando?.[athlete.level] ?? 0)) {
+            series.push(nadando)
+            continue
+        }
+        // Depois do 1º, vai colocando material (nadando de novo é menos provável).
+        // Faltou força (feedback): de preferência palmar ou palmar + pull buoy, sem pé de pato
+        let comMaterial = candidatas.filter((m) => m.length > 0)
+        const soBracos = comMaterial.filter((m) => m.includes('palmar') && !m.includes('pe_de_pato'))
+        if (parte === 'principal' && athlete.foco === 'forca' && soBracos.length > 0 && random() < 0.8) comMaterial = soBracos
+        series.push(comMaterial.length > 0 && random() < 0.8 ? sorteia(comMaterial) : sorteia(candidatas))
+    }
+    const material = ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'pull_buoy', 'prancha', 'snorkel', 'paraquedas']
+        .filter((m) => series.some((s) => s.includes(m)))
+    return { ...variation, padrao: 'por_serie', series, material }
+}
+
 // Iniciante com pé de pato ou palmar nada bem mais rápido que o tempo proposto:
 // a saída continua a mesma, com o aviso para descansar o intervalo de descanso.
 function avisoComEquipamento(rules, athlete, escolha, saidas) {
@@ -540,7 +587,7 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     for (const daBiblioteca of library[parte] ?? []) {
         const original = adaptToDistance(rules, daBiblioteca, athlete)
         if (!original || !seriesFits(original, athlete)) continue
-        if (evitar?.has(original.id)) continue
+        if (evitar?.has(original.id) || (original.familia && evitar?.has(`familia:${original.familia}`))) continue
         if (primeiraPrincipal && original.id === primeiraPrincipal.serie.id) continue
         // (2x), (3x), (4x)...: o número de séries que melhor cabe no tempo da parte.
         // Fora as que ficariam iguais à do treino anterior (ex.: (4x) 4 x 50 e (6x) 4 x 50 viram (3x) 4 x 50)
@@ -576,7 +623,8 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     const bonus = (c) => (foco === 'respiracao' && c.serie.maiorDistancia <= 50 ? 90 : 0) +
         (foco === 'forca' && c.variations.some(comPalmar) ? 90 : 0)
     const distancia = (c) => foraDoTempo(c.segundos) - bonus(c) +
-        60 * (recentes.vezes(c.serie.id) + recentes.vezes(`texto:${c.serie.texto}`))
+        60 * (recentes.vezes(c.serie.id) + recentes.vezes(`texto:${c.serie.texto}`) +
+            (c.serie.familia ? recentes.vezes(`familia:${c.serie.familia}`) : 0))
     // Sorteia só entre as que ficam perto da melhor (até 1 min ou 15% do tempo da parte a mais)
     const ordenadas = candidatas.sort((a, b) => distancia(a) - distancia(b))
     const limite = distancia(ordenadas[0]) + Math.max(60, budget * 0.15)
@@ -622,6 +670,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             escolhas.set(i, escolha)
             recentes.add(escolha.serie.id)
             recentes.add(`texto:${escolha.serie.texto}`)
+            if (escolha.serie.familia) recentes.add(`familia:${escolha.serie.familia}`)
         }
         return escolha
     }
@@ -669,6 +718,8 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const escolha = escolhas.get(i)
         if (!escolha) return // nenhuma série da biblioteca serve para esse atleta
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
+        // (2x), (3x), (4x)...: um material diferente em cada série, sem repetir em seguida
+        escolha.variation = rotateSetMaterials(rules, parte, escolha.serie, escolha.variation, escolha.intensidades, athlete, random)
         const intervalo = intervalText(intervalRangeFor(rules, parte, escolha.serie, athlete.level))
         let saidas = parte === 'velocidade'
             ? (escolha.serie.blocos.length === 1 ? [saidaVelocidade(rules, athlete, escolha.serie.blocos[0])] : null)
@@ -685,6 +736,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
             serieId: escolha.serie.id,
             serieTexto: escolha.serie.texto,
+            ...(escolha.serie.familia && { serieFamilia: escolha.serie.familia }),
             texto: cardText(escolha.serie, escolha.variation, intervalRangeFor(rules, parte, escolha.serie, athlete.level),
                 comoMostrar(rules, athlete, escolha.intensidades), saidas),
             ...(aviso && { aviso }),
@@ -773,7 +825,7 @@ function recentWindow(n) {
 // Séries de um treino, para não repetir no seguinte: o id e a série como saiu
 // (com o número de séries escolhido), ex.: "texto:(3x) 4 x 50"
 export const seriesUsadas = (partes) => new Set(partes.flatMap((p) =>
-    [p.serieId, p.serieTexto && `texto:${p.serieTexto}`].filter(Boolean)))
+    [p.serieId, p.serieTexto && `texto:${p.serieTexto}`, p.serieFamilia && `familia:${p.serieFamilia}`].filter(Boolean)))
 
 // Quem não nada 400 m sem parar está no condicionamento: sem teste, e a metragem
 // da principal vai aumentando devagar

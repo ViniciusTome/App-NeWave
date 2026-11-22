@@ -640,6 +640,8 @@ test('a mesma série nunca se repete de um treino para o seguinte', () => {
           assert.ok(!antes.some((a) => a.serieId === p.serieId), `${p.serieId} repetiu em ${treinos[i].date} e ${t.date}`)
           // Nem a mesma série escrita igual (ex.: (4x) 4 x 50 e (6x) 4 x 50 reduzidas para (3x) 4 x 50)
           assert.ok(!antes.some((a) => a.serieTexto === p.serieTexto), `${p.serieTexto} repetiu em ${treinos[i].date} e ${t.date}`)
+          // Nem da mesma família (4, 5 e 6 x 150 com pé de pato e palmar)
+          if (p.serieFamilia) assert.ok(!antes.some((a) => a.serieFamilia === p.serieFamilia), `${p.serieFamilia} repetiu`)
         }
       })
     }
@@ -903,7 +905,8 @@ test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () =
     historico: [9, 9, 9].map((difficulty) => ({ difficulty, reason, plan: plano })),
   })).map((t) => t.partes.find((p) => p.parte === 'principal'))
   const curtas = (ps) => ps.filter((p) => Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) <= 50).length
-  const palmar = (ps) => ps.filter((p) => p.material.includes('palmar') && !p.material.includes('pe_de_pato')).length
+  // Séries (ou a série toda) com palmar ou palmar + pull buoy, sem pé de pato
+  const palmar = (ps) => ps.reduce((s, p) => s + (p.texto.match(/c\/PALM/g) ?? []).length, 0)
   const ar = comFoco('respiracao')
   const forca = comFoco('forca')
   assert.ok(curtas(ar) > curtas(forca), `curtas ${curtas(ar)} x ${curtas(forca)}`)
@@ -950,4 +953,39 @@ test('periodização: gera todos os treinos até a prova, com o plano de cada um
     rules, library, athlete: { ...condicionando, time400: { hundredths: 54000 } }, today: '2026-11-23', random: seeded(1), periodizacao,
   })
   assert.ok(cond.every((t) => !t.plano.diaDeTeste))
+})
+
+// ---------- Material entre as séries ----------
+
+test('(2x), (3x), (4x)...: cada série com um material diferente da anterior', () => {
+  const athletes = [
+    avancado,
+    { ...avancado, level: 'intermediario' },
+    { ...condicionando, continuousDistance: '200_400' },
+    { ...condicionando, continuousDistance: '50_100' },
+  ]
+  let vistas = 0
+  let comecaNadando = 0
+  let iniciantes = 0
+  for (const athlete of athletes) {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      for (const p of gerar(athlete, seed).flatMap((t) => t.partes)) {
+        if (!['principal', 'velocidade'].includes(p.parte)) continue
+        const linhas = p.texto.split('\n').filter((l) => /^\d+ª série:/.test(l))
+        if (linhas.length < 2) continue
+        const serie = serieById(p.serieId)
+        if (serie?.exige.material.length > 0 || serie?.materialPorSerie) continue
+        vistas++
+        const materiais = linhas.map((l) => (l.match(/(NAD|c\/[A-ZÉ+ ]+?)(?= ·|$)/) ?? [''])[0].trim())
+        materiais.slice(1).forEach((m, i) => assert.notEqual(m, materiais[i], p.texto))
+        if (athlete.level !== 'avancado') {
+          iniciantes++
+          if (materiais[0] === 'NAD') comecaNadando++
+        }
+      }
+    }
+  }
+  assert.ok(vistas > 10, `poucas séries: ${vistas}`)
+  // Iniciante e intermediário: quase sempre começam nadando
+  assert.ok(comecaNadando / iniciantes > 0.6, `${comecaNadando} de ${iniciantes}`)
 })
