@@ -35,6 +35,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
 | `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"`, `"estilo"` (borboleta, costas ou peito) e/ou `"melhorEstiloEMedley"` (repetições alternando melhor estilo e medley), respeitando as provas de piscina (veja abaixo). |
 | `aulaAcimaDeMinutos` | Opcional. A série só entra em aulas mais longas que isso. Ex.: `90` = só acima de 1h30. |
+| `paraQuemNadaAte` | Opcional. A série só entra para quem nada até essa distância sem parar. Ex.: `100` = séries curtas (4 x 50, 8 x 25) para quem nada pouco. |
 | `peso` | Opcional. Frequência no sorteio: `1` é o normal (padrão), `0.25` sai bem menos (de vez em quando), `3` sai mais vezes. |
 | `porSensacao` + `duracaoMinutos` | Para séries sem metragem, como "aqueça até sentir o corpo aquecido". Aí `blocos` fica `[]`. |
 
@@ -167,7 +168,7 @@ O número escrito é uma sugestão: o gerador escolhe **quantas séries** o atle
 
 ### Não repetir a série no treino seguinte
 
-A mesma série **nunca aparece em dois treinos seguidos** no aquecimento, na velocidade, na série principal e na perna, mesmo com outra intensidade (ex.: 5 x 400 m A1/A2/A3 num dia e 5 x 400 m 30 AC no outro). O primeiro treino gerado também não repete as séries do último treino do atleta. Só repete quando não existe outra série que sirva para o atleta. As partes ficam em `naoRepetirNoTreinoSeguinte` no `regras.json`. O solto e a soltura podem repetir.
+A mesma série **nunca aparece em dois treinos seguidos** no aquecimento, na velocidade, na série principal e na perna, mesmo com outra intensidade ou outro material (ex.: 5 x 400 m A1/A2/A3 num dia e 5 x 400 m 30 AC no outro). Vale também para a série **como ela sai** depois de ajustar o número de séries: (2x) 10 x 50 e (3x) 10 x 50 reduzida para (2x) contam como a mesma. O primeiro treino gerado também não repete as séries do último treino do atleta. Só repete quando não existe outra série que sirva para o atleta. As partes ficam em `naoRepetirNoTreinoSeguinte` no `regras.json`. O solto e a soltura podem repetir.
 
 ### Tempo máximo do iniciante
 
@@ -415,6 +416,10 @@ Descanso padrão de cada repetição, em segundos, `[mínimo, máximo]`, por ní
 - Uma série com `descanso` escrito no bloco usa o que está escrito.
 - A velocidade usa a **saída** (veja o intervalo entre as séries), não esta tabela.
 
+### Descanso mínimo para quem nada pouco
+
+Quem nada **até 400 m sem parar** descansa pelo menos **20 a 30 segundos** entre as repetições (20" no ritmo leve/A1, 25" no moderado/A2, 30" no forte/A3), mesmo que a tabela dê menos. Fica em `descansoMinimo` no `regras.json`. Não vale para o solto. A saída (cd) acompanha esse descanso.
+
 ### Intervalo entre as séries
 
 **Série principal:** toda série com `(2x)`, `(3x)`, `(4x)`... (inclusive os grupos repetidos) tem um intervalo maior entre as séries, para recuperar: **2'** para intermediário e avançado e **2' a 3'** para iniciante. Ele aparece no card ("2' de intervalo entre as séries").
@@ -464,9 +469,10 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 Quando o atleta não tem o teste de 400 m (nem o tempo informado na anamnese), não dá para montar a saída:
 
 - No lugar do `cd`, o card mostra o **descanso entre as repetições** (`c/20" de descanso`), pela tabela de descanso.
+- No lugar de A1, A2 e A3 vai o ritmo por extenso: **ritmo leve**, **ritmo moderado** e **ritmo forte** (`semTempos` no `regras.json`).
 - Na velocidade, o intermediário fica com **1/1**. O avançado nos 25 m continua com cd 30".
 - Não usa **AC**, porque o atleta ainda não sabe o melhor tempo.
-- O **primeiro treino é o teste**: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir, séries **para recuperar** e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
+- **O teste vem depois de 1 mês de treino** (nunca no começo): é o primeiro treino a partir de 30 dias depois do primeiro treino do atleta (`diaDoTeste.semTemposAposDias`). O treino do teste tem: aquecimento do teste (até aquecer), **400 m crawl** o mais rápido que conseguir, séries **para recuperar** e a soltura. Quem não nada 400 m sem parar pode parar na borda (o cronômetro não para). Depois de registrar o tempo, é só gerar os treinos de novo para ter as saídas.
 - **Para recuperar:** 10 x 100 m e/ou 10 x 50 m em **A1 com pé de pato** (sem pé de pato, nadando), as que couberem no resto da aula, da maior para a menor. Ficam em `diaDoTeste` no `regras.json`. A **técnica** também vai entrar aqui quando tiver as séries de técnica.
 - Quem só **informou** o tempo na anamnese não ganha o teste agora: ele entra na periodização (veja abaixo).
 

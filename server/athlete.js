@@ -2,7 +2,7 @@
 // É a base do botão "Gerar treinos": as respostas ficam guardadas para o atleta
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
-import { generateTrainings, legacyFields } from './generator.js'
+import { generateTrainings, legacyFields, seriesUsadas } from './generator.js'
 import { timeTable } from './series/regras.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -265,6 +265,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   const completedDates = db.prepare(
     'SELECT DISTINCT date FROM trainings WHERE user_id = ? AND completed_at IS NOT NULL AND date >= ?',
   )
+  // Data do primeiro treino do atleta (o teste de quem não tem tempo vem depois de 1 mês)
+  const firstTrainingDate = db.prepare('SELECT MIN(date) AS date FROM trainings WHERE user_id = ?')
   // Último treino antes de hoje (para não repetir as séries dele no primeiro treino novo)
   const lastPartsBefore = db.prepare(
     'SELECT parts FROM trainings WHERE user_id = ? AND date < ? AND parts IS NOT NULL ORDER BY date DESC, id DESC LIMIT 1',
@@ -380,12 +382,13 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       let seriesAnteriores = []
       try {
         const ultimo = lastPartsBefore.get(user.id, today)
-        seriesAnteriores = ultimo ? JSON.parse(ultimo.parts).map((p) => p.serieId).filter(Boolean) : []
+        seriesAnteriores = ultimo ? [...seriesUsadas(JSON.parse(ultimo.parts))] : []
       } catch {
         seriesAnteriores = []
       }
       const trainings = generateTrainings({
         rules, library, today, seriesAnteriores,
+        inicioDosTreinos: [firstTrainingDate.get(user.id)?.date ?? today, today].sort()[0],
         athlete: {
           ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
         },

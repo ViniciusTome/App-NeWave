@@ -618,13 +618,19 @@ test('iniciante com equipamento: aviso para descansar o intervalo', () => {
 
 test('a mesma série nunca se repete de um treino para o seguinte', () => {
   const partes = rules.naoRepetirNoTreinoSeguinte.partes
-  for (const athlete of [avancado, { ...avancado, sessionMinutes: 90 }, { ...avancado, sessionMinutes: 45 }]) {
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '50_100',
+    strokes: ['crawl'], equipment: ['pe_de_pato'], time400: null,
+  }
+  for (const athlete of [avancado, { ...avancado, sessionMinutes: 90 }, { ...avancado, sessionMinutes: 45 }, iniciante]) {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const treinos = gerar(athlete, seed)
       treinos.slice(1).forEach((t, i) => {
-        const antes = new Set(treinos[i].partes.filter((p) => partes.includes(p.parte)).map((p) => p.serieId))
+        const antes = treinos[i].partes.filter((p) => partes.includes(p.parte))
         for (const p of t.partes.filter((x) => partes.includes(x.parte))) {
-          assert.ok(!antes.has(p.serieId), `${p.serieId} repetiu em ${treinos[i].date} e ${t.date}`)
+          assert.ok(!antes.some((a) => a.serieId === p.serieId), `${p.serieId} repetiu em ${treinos[i].date} e ${t.date}`)
+          // Nem a mesma série escrita igual (ex.: (4x) 4 x 50 e (6x) 4 x 50 reduzidas para (3x) 4 x 50)
+          assert.ok(!antes.some((a) => a.serieTexto === p.serieTexto), `${p.serieTexto} repetiu em ${treinos[i].date} e ${t.date}`)
         }
       })
     }
@@ -694,34 +700,75 @@ const semTempo = {
   ...avancado, level: 'intermediario', sessionMinutes: 60, continuousDistance: '400_1000', time400: null,
 }
 
-test('sem tempos de referência: o primeiro treino é o teste de 400 m', () => {
-  const [primeiro, segundo] = gerar(semTempo)
+test('sem tempos de referência: o teste de 400 m só depois de 1 mês de treino', () => {
+  // Começando agora: nenhum teste nas duas primeiras semanas
+  assert.ok(!gerar(semTempo).some((t) => t.partes.some((p) => p.parte === 'teste')))
+  // Treinando desde 01/11: o teste é o primeiro treino a partir de 01/12
+  const treinos = generateTrainings({
+    rules, library, athlete: semTempo, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-11-01',
+  })
+  const comTeste = treinos.filter((t) => t.partes.some((p) => p.parte === 'teste'))
+  assert.equal(comTeste.length, 1)
+  assert.equal(comTeste[0].date, '2026-12-02')
+  const primeiro = comTeste[0]
   const ordem = primeiro.partes.map((p) => p.parte)
   assert.deepEqual([ordem[0], ordem[1], ordem.at(-1)], ['aquecimento', 'teste', 'soltura'])
-  // O resto da aula: séries em A1 com pé de pato para recuperar
-  const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
-  assert.ok(recuperar.length > 0)
-  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · A1/)
-  assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
   const teste = primeiro.partes.find((p) => p.parte === 'teste')
   assert.equal(teste.titulo, 'Teste de 400 m')
   assert.match(teste.observacao, /registre o tempo/)
-  assert.ok(!segundo.partes.some((p) => p.parte === 'teste'))
+  // O resto da aula: séries com pé de pato em ritmo leve para recuperar
+  const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
+  assert.ok(recuperar.length > 0)
+  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · ritmo leve/)
+  assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
   // Quem não nada 400 sem parar pode parar na borda
   const iniciante = { ...semTempo, level: 'iniciante', continuousDistance: '100_200', strokes: ['crawl'] }
-  assert.match(gerar(iniciante)[0].partes.find((p) => p.parte === 'teste').texto, /pode parar na borda/)
+  const doIniciante = generateTrainings({
+    rules, library, athlete: iniciante, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-10-01',
+  })[0]
+  assert.match(doIniciante.partes.find((p) => p.parte === 'teste').texto, /pode parar na borda/)
   // Com o tempo, não há teste
-  assert.ok(!gerar(avancado).some((t) => t.partes.some((p) => p.parte === 'teste')))
+  const comTempo = generateTrainings({
+    rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), inicioDosTreinos: '2026-01-01',
+  })
+  assert.ok(!comTempo.some((t) => t.partes.some((p) => p.parte === 'teste')))
 })
 
 test('sem tempos de referência: o descanso entre as repetições no lugar da saída', () => {
   const textos = [1, 2, 3, 4, 5].flatMap((seed) => semTeste(gerar(semTempo, seed)))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'principal' && p.intensidades).map((p) => p.texto))
   assert.ok(textos.length > 0)
-  for (const t of textos) assert.ok(!/cd \d/.test(t) && !/AC\)/.test(t), t)
+  for (const t of textos) assert.ok(!/cd \d/.test(t) && !/AC\)/.test(t) && !/\bA[123]\b/.test(t), t)
+  assert.ok(textos.some((t) => /ritmo (leve|moderado|forte)/.test(t)), textos.join('\n'))
   assert.ok(textos.some((t) => /c\/\d+"? de descanso|c\/\d+' de descanso/.test(t)), textos.join('\n'))
   // Velocidade do intermediário: 1/1
   const velocidade = [1, 2, 3].flatMap((seed) => semTeste(gerar(semTempo, seed)))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
   assert.ok(velocidade.every((t) => /1\/1/.test(t)), velocidade.join('\n'))
+})
+
+test('quem nada até 400 m sem parar descansa pelo menos 20 a 30 segundos', () => {
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '200_400',
+    strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar'], time400: null,
+  }
+  const descansos = [1, 2, 3, 4].flatMap((seed) => gerar(iniciante, seed)).flatMap((t) => t.partes)
+    .flatMap((p) => [...p.texto.matchAll(/c\/(\d+)" de descanso/g)].map((m) => Number(m[1])))
+  assert.ok(descansos.length > 0)
+  for (const d of descansos) assert.ok(d >= 20, `${d}"`)
+})
+
+test('quem nada só 50 ou 100 m sem parar também tem aquecimento e soltura', () => {
+  for (const continuousDistance of ['ate_50', '50_100']) {
+    for (const poolLength of [25, 50]) {
+      const athlete = {
+        level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength, continuousDistance,
+        strokes: ['crawl'], equipment: [], time400: null,
+      }
+      for (const t of gerar(athlete)) {
+        const partes = t.partes.map((p) => p.parte)
+        assert.ok(partes.includes('aquecimento') && partes.includes('solto'), `${continuousDistance} ${poolLength}: ${partes}`)
+      }
+    }
+  }
 })

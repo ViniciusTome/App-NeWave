@@ -24,7 +24,7 @@ export const PISCINAS = [25, 50]
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
 const SERIE_KEYS = [
     'id', 'texto', 'observacao', 'vezes', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos',
-    'aulaAcimaDeMinutos', 'peso',
+    'aulaAcimaDeMinutos', 'peso', 'paraQuemNadaAte',
 ]
 // Além do nado escrito nos blocos, a série também pode ser feita em:
 // "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
@@ -167,6 +167,10 @@ export function validate(series) {
         // Só em aulas mais longas que isso (ex.: 90 = acima de 1h30)
         if (serie.aulaAcimaDeMinutos !== undefined && !isInt(serie.aulaAcimaDeMinutos, 1, 240)) {
             report('"aulaAcimaDeMinutos" precisa ser um número de minutos (ex.: 90 para acima de 1h30).')
+        }
+        // Só para quem nada até essa distância sem parar (ex.: 100 = séries curtas para quem nada pouco)
+        if (serie.paraQuemNadaAte !== undefined && !isInt(serie.paraQuemNadaAte, 25, 2000)) {
+            report('"paraQuemNadaAte" precisa ser uma distância em metros (ex.: 100).')
         }
         // Frequência no sorteio: 1 é o normal; 0.25 sai bem menos (de vez em quando)
         if (serie.peso !== undefined && !(typeof serie.peso === 'number' && serie.peso > 0 && serie.peso <= 10)) {

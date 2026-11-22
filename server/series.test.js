@@ -66,9 +66,9 @@ test('velocidade: tiros de 25 m só fecham na piscina de 25 m; tiros de 15 m em 
   assert.equal(byId(velocidade, 'vel-4x15').maiorDistancia, 15)
 })
 
-test('solto: 100 e 200 solto, com a observação do pull buoy', () => {
+test('solto: 100 e 200 solto (e as curtas para quem nada pouco), com a observação do pull buoy', () => {
   const solto = loadPart('solto')
-  assert.deepEqual(solto.map((s) => s.texto), ['100 solto', '200 solto'])
+  assert.deepEqual(solto.map((s) => s.texto), ['100 solto', '200 solto', '4 x 25 solto', '2 x 50 solto'])
   for (const serie of solto) {
     assert.equal(serie.observacao, 'Pode ser feito com pull buoy.')
     // A observação é só um aviso: o pull buoy não vira exigência
@@ -118,7 +118,7 @@ test('principal: séries com 75 m só fecham na piscina de 25 m', () => {
 
 test('soltura: as mesmas do solto, mais o 400 só acima de 1h30 e de vez em quando', () => {
   const soltura = loadPart('soltura')
-  assert.deepEqual(soltura.map((s) => s.texto), ['100 solto', '200 solto', '400 solto'])
+  assert.deepEqual(soltura.map((s) => s.texto), ['100 solto', '200 solto', '400 solto', '4 x 25 solto', '2 x 50 solto'])
   for (const serie of soltura) assert.equal(serie.observacao, 'Pode ser feito com pull buoy.')
 
   const s400 = byId(soltura, 'soltura-400')
