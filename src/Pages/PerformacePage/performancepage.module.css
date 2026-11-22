@@ -38,6 +38,13 @@
 }
 
 .boxCardComplete {
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
     margin: 5px;
     background-color: rgb(25, 68, 97);
     width: 170px;
@@ -65,6 +72,41 @@
 
 .boxCardComplete:hover {
     border: 1px solid black;
+}
+
+.boxCardComplete:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+
+.message {
+    color: #0b2f57;
+    font-size: 15px;
+    margin: 4px 10px;
+}
+
+/* Anotações cortadas em 3 linhas no cartão; o texto todo aparece na janela */
+.notes {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.status {
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #0b2f57;
+}
+
+.modalNotes {
+    margin-top: 16px;
+}
+
+.modalNotes h3 {
+    font-size: 15px;
+    color: #1d6fb8;
+    margin-bottom: 4px;
 }
 
 .boxCard a {

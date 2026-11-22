@@ -7,7 +7,9 @@ Aplicativo web para acompanhamento de treinos de natação. Reúne o planejament
 - Cadastro, login, logout e "esqueci a senha" com backend próprio (senha com hash, sessão por cookie)
 - Treinos organizados por etapa: aquecimento, série principal, velocidade e soltura
 - Periodização, volume e intensidade
-- Dashboard com gráfico da evolução dos tempos (a partir dos testes registrados) e histórico dos últimos treinos realizados, que abrem numa janela flutuante
+- Carrossel na Home só com os próximos treinos: o treino de hoje (ou o próximo) fica em destaque, com o botão "Concluir treino"
+- Dashboard com gráfico da evolução dos tempos (a partir dos testes registrados) e histórico de treinos (os concluídos e os que passaram da data), que abrem numa janela flutuante
+- Feedback com os mesmos treinos do histórico, com busca pelo título ou pela data
 - Perfil com dados pessoais, pagamentos e suporte
 
 ## Tecnologias
@@ -100,10 +102,12 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `GET /api/tests` | Testes de tempo do usuário logado |
 | `POST /api/tests` | Registra um teste (`distance`, `timeHundredths`, `date`) |
 | `DELETE /api/tests/:id` | Apaga um teste |
-| `GET /api/trainings?limit=10` | Últimos treinos realizados, do mais recente |
-| `POST /api/trainings` | Registra um treino realizado (`date`, `title`, `warmUp`, `speed`, `mainSeries`, `release`, `notes`) |
+| `GET /api/trainings?limit=10&today=AAAA-MM-DD` | Histórico: treinos concluídos e os que passaram da data (`completed: false`), do mais recente |
+| `GET /api/trainings/upcoming?today=AAAA-MM-DD` | Próximos treinos (de hoje em diante, não concluídos), do mais próximo |
+| `POST /api/trainings` | Registra um treino realizado (`date`, `title`, `warmUp`, `speed`, `mainSeries`, `release`, `notes`); com `planned: true`, agenda um treino (até um ano à frente) |
+| `POST /api/trainings/:id/complete` | Marca um treino agendado como concluído |
 
-As rotas de testes e treinos exigem login, e cada usuário só vê e altera os próprios dados. O tempo é guardado em centésimos de segundo (5'32"45 = `33245`).
+As rotas de testes e treinos exigem login, e cada usuário só vê e altera os próprios dados. O tempo é guardado em centésimos de segundo (5'32"45 = `33245`). O `today` é a data de hoje no aparelho do atleta, para o "hoje" não mudar por causa do fuso; sem ele, vale a data do servidor (UTC).
 
 Como a segurança funciona:
 
@@ -126,9 +130,9 @@ Variáveis de ambiente (todas opcionais): `PORT` (padrão 3001), `HOST` (padrão
 
 ### Vendo o Dashboard com dados
 
-Crie uma conta no app e rode `npm run seed -- seu@email.com` (com o email dessa conta). Isso coloca alguns testes e treinos de exemplo, para ver o gráfico e o histórico preenchidos. Testes também podem ser registrados pelo próprio app, no botão "+ Teste".
+Crie uma conta no app e rode `npm run seed -- seu@email.com` (com o email dessa conta). Isso coloca alguns testes, treinos realizados e treinos agendados de exemplo, para ver o carrossel, o gráfico e o histórico preenchidos. Testes também podem ser registrados pelo próprio app, no botão "+ Teste".
 
-Ainda não existe uma tela para marcar um treino como realizado: por enquanto, o histórico só recebe treinos pela rota `POST /api/trainings` ou pelo `seed`.
+Ainda não existe uma tela para criar treinos (o botão "Gerar treinos" ainda não faz nada): por enquanto, eles entram pela rota `POST /api/trainings` ou pelo `seed`. Concluir um treino já dá para fazer pelo carrossel da Home.
 
 ### Testando "esqueci a senha" na sua máquina
 

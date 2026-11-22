@@ -33,3 +33,8 @@ export async function api(path, { method = 'GET', body } = {}) {
 
   return data
 }
+
+// Evento disparado na janela quando um treino muda (ex.: foi concluído),
+// para as telas que mostram treinos (carrossel, histórico) recarregarem.
+export const TRAININGS_CHANGED = 'newave:trainings-changed'
+export const notifyTrainingsChanged = () => window.dispatchEvent(new Event(TRAININGS_CHANGED))

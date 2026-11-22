@@ -54,7 +54,8 @@ export function openDatabase(path) {
 
     CREATE INDEX IF NOT EXISTS idx_tests_user ON tests(user_id, distance, date);
 
-    -- Treinos que o atleta já realizou, com as quatro partes do treino.
+    -- Treinos do atleta, com as quatro partes do treino.
+    -- completed_at vazio (NULL) = treino agendado, ainda não realizado.
     CREATE TABLE IF NOT EXISTS trainings (
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -65,11 +66,22 @@ export function openDatabase(path) {
       main_series  TEXT    NOT NULL DEFAULT '',
       release      TEXT    NOT NULL DEFAULT '',
       notes        TEXT    NOT NULL DEFAULT '',
-      created_at   TEXT    NOT NULL
+      created_at   TEXT    NOT NULL,
+      completed_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_trainings_user ON trainings(user_id, date);
   `)
+
+  // Bancos criados antes da agenda de treinos não têm a coluna completed_at.
+  // Todos os treinos que existiam eram realizados, então marcamos como concluídos.
+  const trainingColumns = db.prepare('PRAGMA table_info(trainings)').all().map((col) => col.name)
+  if (!trainingColumns.includes('completed_at')) {
+    db.exec(`
+      ALTER TABLE trainings ADD COLUMN completed_at TEXT;
+      UPDATE trainings SET completed_at = created_at;
+    `)
+  }
 
   return db
 }
