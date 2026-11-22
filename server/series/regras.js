@@ -886,11 +886,13 @@ export function repSeconds(rules, tabela, distancia, intensidade) {
 // ---------- Intensidades na série principal ----------
 
 // Escada progressiva com n partes, sempre começando no A1 e terminando no teto
-// (ex.: 3 -> A1, A2, A3; 4 -> A1, A2, A2, A3; 6 -> A1, A1, A2, A2, A3, A3)
+// (ex.: 3 -> A1, A2, A3; 4 -> A1, A2, A1, A3, como o treinador prefere;
+// 6 -> A1, A1, A2, A2, A3, A3)
 export function ladder(n, teto = 'A3') {
     const niveis = teto === 'A3' ? ['A1', 'A2', 'A3'] : ['A1', 'A2']
     if (n === 1) return ['A2']
     if (n === 2) return ['A1', 'A2']
+    if (n === 4) return ['A1', 'A2', 'A1', teto]
     return Array.from({ length: n }, (_, i) => niveis[Math.round((i * (niveis.length - 1)) / (n - 1))])
 }
 
