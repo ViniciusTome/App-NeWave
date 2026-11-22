@@ -4,10 +4,13 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
-import { abbreviate, cardText, estimateSeconds, generateTrainings, trainingDates, withMeters } from './generator.js'
+import {
+  abbreviate, cardText, estimateSeconds, generateTrainings, saidaFor, saidaText, trainingDates, withMeters,
+} from './generator.js'
 import { loadLibrary } from './series/index.js'
 import {
   drawIntensities, intervalBetweenSets, intervalRangeFor, loadRules, partsForLevel, seriesVariations, strokeCategory,
+  timeTable,
 } from './series/regras.js'
 
 const rules = loadRules()
@@ -289,7 +292,7 @@ test('A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM)', () => {
     vistos++
     const linhas = p.texto.split('\n')
     // O material da série toda fica no cabeçalho ou, nas pirâmides e grupos, na linha depois dos blocos
-    const daSerieToda = linhas.filter((l) => !/ª série:/.test(l) && !/^\d+ x \d+ m/.test(l))
+    const daSerieToda = [linhas[0], ...linhas.filter((l) => !/ª série:/.test(l) && !/^\d+ x \d+ m/.test(l))]
     for (const linha of linhas.filter((l) => /\bA3\b/.test(l))) {
       assert.ok(linha.includes('c/PÉ') || daSerieToda.some((l) => l.includes('c/PÉ')), p.texto)
     }
@@ -488,4 +491,33 @@ test('rota: gera, salva no carrossel e substitui os agendados que não foram fei
   const depois = await api(`/api/trainings/upcoming?today=${today}`, { cookie })
   assert.equal(depois.body.trainings.length, 5)
   assert.ok(!depois.body.trainings.some((t) => t.date === today))
+})
+
+// ---------- Saídas ----------
+
+test('saída = tempo da intensidade + descanso, de 5 em 5 segundos', () => {
+  // Teste de 400 em 6'00": 100 m A1 = 1'30", A2 = 1'28", A3 = 1'26"
+  const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  // Avançado: descanso do 100 pela tabela de distância (20" a 30" -> 25")
+  assert.deepEqual(['A1', 'A2', 'A3'].map((v) => saidaFor(rules, avancado, { distancia: 100 }, v)), [115, 115, 110])
+  // 400 com 30 AC: melhor (6'00") + 30" + 1' de descanso = 7'30"
+  assert.equal(saidaFor(rules, avancado, { distancia: 400 }, '30 AC'), 450)
+  // Iniciante: descanso pela intensidade (A1 10", A2 15", A3 30")
+  const iniciante = { level: 'iniciante', tabela: timeTable(rules, 360), teste400: 360 }
+  assert.deepEqual(['A1', 'A2', 'A3'].map((v) => saidaFor(rules, iniciante, { distancia: 100 }, v)), [100, 105, 115])
+  // O que ainda não dá para calcular fica sem saída
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, 'NEG'), null)
+  assert.equal(saidaFor(rules, { level: 'avancado' }, { distancia: 100 }, 'A1'), null)
+})
+
+test('texto da saída', () => {
+  assert.equal(saidaText(45), '45"')
+  assert.equal(saidaText(60), "1'00\"")
+  assert.equal(saidaText(450), "7'30\"")
+})
+
+test('o card mostra a saída (cd) da série principal', () => {
+  const textos = [1, 2, 3].flatMap((seed) => gerar(avancado, seed))
+    .map((t) => t.partes.find((p) => p.parte === 'principal').texto)
+  assert.ok(textos.some((t) => /cd \d+'\d{2}"/.test(t)), 'nenhum treino com saída')
 })

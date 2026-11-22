@@ -65,6 +65,37 @@ function blockRest(rules, bloco, athlete) {
     return (min + max) / 2
 }
 
+// ---------- Saída ----------
+
+// Saída de uma repetição: o tempo que o atleta tem que fazer na intensidade
+// (tabela de tempos) + o descanso, arredondada de 5 em 5 segundos (para o mais perto).
+// "30 AC" nos 400: o melhor tempo (teste) + 30" + o descanso.
+// null quando ainda não dá para calcular (AC em outras distâncias, NEG, POS...).
+export function saidaFor(rules, athlete, bloco, valor) {
+    if (!athlete.tabela || !valor) return null
+    let nado = null
+    const ac = /^(\d+) AC$/.exec(valor)
+    if (/^A[123]$/.test(valor)) nado = repSeconds(rules, athlete.tabela, bloco.distancia, valor)
+    else if (ac && bloco.distancia === 400 && athlete.teste400) nado = athlete.teste400 + Number(ac[1])
+    if (nado === null) return null
+    const descanso = blockRest(rules, { ...bloco, intensidade: /^A[123]$/.test(valor) ? valor : 'A3' }, athlete)
+    return Math.round((nado + descanso) / 5) * 5
+}
+
+// 90 -> 1'30"; 45 -> 45"
+export const saidaText = (segundos) =>
+    segundos >= 60 ? `${Math.floor(segundos / 60)}'${String(segundos % 60).padStart(2, '0')}"` : `${segundos}"`
+
+// Saídas de cada parte que recebeu intensidade (série, bloco, repetição ou a série toda)
+function saidasDaSerie(rules, athlete, serie, intensidades) {
+    if (!intensidades) return null
+    const { unidade, valores } = intensidades
+    if (unidade === 'bloco') return serie.blocos.map((b, i) => saidaFor(rules, athlete, b, valores[i]))
+    // Grupos com vários blocos e intensidade por série: cada bloco teria uma saída diferente (por enquanto, sem)
+    if (serie.blocos.length > 1) return null
+    return valores.map((v) => saidaFor(rules, athlete, serie.blocos[0], v))
+}
+
 // Segundos que o atleta leva na série, com os descansos. `pace` = segundos por
 // 100 m no ritmo do teste de 400 m.
 export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
@@ -163,7 +194,7 @@ const intervalAbbrev = (faixa) =>
 //     2ª série: c/PÉ · ME / MD / ME
 // - Pirâmides e grupos: uma metragem por linha, com o material do bloco.
 // `intervalo` = { min, max } do intervalo entre as séries (ou null).
-export function cardText(serie, variation, intervalo = null, intensidades = null) {
+export function cardText(serie, variation, intervalo = null, intensidades = null, saidas = null) {
     const c = intervalAbbrev(intervalo)
     const nadoDaSerie = variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
         ? null : abbreviate(variation.texto.slice(serie.texto.length).split(' · ')[1] ?? '')
@@ -175,7 +206,11 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     // Como nadar: A1/A2/A3 como estão; AC, NEG, POS e final forte entre parênteses
     const I = intensidades
     const fmt = (v) => (/^A\d$/.test(v) ? v : `(${v})`)
-    const sequencia = I ? (I.valores.every((v) => v === I.valores[0]) ? fmt(I.valores[0]) : I.valores.map(fmt).join(' / ')) : null
+    // Intensidade com a saída (quando dá para calcular): "A1 · cd 1'30\""
+    const comSaida = (v, i) => [fmt(v), saidas?.[i] ? `cd ${saidaText(saidas[i])}` : null].filter(Boolean).join(' · ')
+    const sequencia = I ? (I.valores.every((v) => v === I.valores[0]) ? comSaida(I.valores[0], 0) : I.valores.map(fmt).join(' / ')) : null
+    // Série simples com um ritmo por repetição e saídas: uma linha por repetição
+    const porRepeticao = I?.unidade === 'repeticao' && saidas?.some(Boolean)
 
     // Pirâmides e grupos
     if (serie.blocos.length > 1) {
@@ -189,7 +224,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
             const material = variation.porBloco?.[i]
             if (material?.length > 0) linha += ` · ${materialAbbrev(material)}`
             else if (alternada) linha += ' · NAD'
-            if (I?.unidade === 'bloco') linha += ` · ${fmt(I.valores[i])}`
+            if (I?.unidade === 'bloco') linha += ` · ${comSaida(I.valores[i], i)}`
             linhas.push(linha)
         })
         const resto = [nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null].filter(Boolean).join(' · ')
@@ -208,6 +243,12 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     const porSerie = materialPorSerie || variation.nados || variation.porSerie || (I?.unidade === 'serie' ? I.valores : null)
     if (!porSerie) {
         if (!I) return [abbreviate(withMeters(variation.texto)), c].filter(Boolean).join(' · ')
+        if (porRepeticao) {
+            // 5 x 400 m · c/PÉ + PALM
+            // 1º: A1 · cd 6'50"
+            const cabecalho = [base, nadoDaSerie, materialDaSerie, c].filter(Boolean).join(' · ')
+            return [cabecalho, ...I.valores.map((v, i) => `${i + 1}º: ${comSaida(v, i)}`)].join('\n')
+        }
         // Série simples com intensidade: na série toda ou repetição por repetição
         return [base, nadoDaSerie, materialDaSerie, sequencia, c].filter(Boolean).join(' · ')
     }
@@ -217,7 +258,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
         .filter(Boolean).join(' · ')
     const linhas = porSerie.map((_, i) => {
         const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
-        const intensidade = I?.unidade === 'serie' ? fmt(I.valores[i]) : null
+        const intensidade = I?.unidade === 'serie' ? comSaida(I.valores[i], i) : null
         let nados = null
         if (variation.porSerie) {
             // O melhor estilo aparece como ME
@@ -387,7 +428,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             titulo: segunda ? '2ª série principal' : NOMES_DAS_PARTES[parte],
             serieId: escolha.serie.id,
             texto: cardText(escolha.serie, escolha.variation, intervalRangeFor(rules, parte, escolha.serie, athlete.level),
-                escolha.intensidades),
+                escolha.intensidades, saidasDaSerie(rules, athlete, escolha.serie, escolha.intensidades)),
             ...(escolha.intensidades && { intensidades: escolha.intensidades }),
             ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,
@@ -407,7 +448,7 @@ export function generateTrainings({ rules, library, athlete, today, random = Mat
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
     // Tabela de tempos do atleta (método do treinador)
-    athlete = { ...athlete, tabela: timeTable(rules, tempo400 / 100) }
+    athlete = { ...athlete, tabela: timeTable(rules, tempo400 / 100), teste400: tempo400 / 100 }
     const recentes = new Set()
 
     // Recuperação: depois de um treino com A3 na série principal, o próximo não tem

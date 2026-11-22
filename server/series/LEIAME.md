@@ -429,6 +429,16 @@ Entre as séries de um `(2x)`, `(4x)`... o intervalo é **uma saída da repetiç
 
 As fases são `acumulacao`, `transicao` e `realizacao`.
 
+### Saída (cd)
+
+A saída é **o tempo que o atleta tem que fazer na intensidade + o descanso**, arredondada de 5 em 5 segundos (para o mais perto). Aparece no card como `cd 1'50"`.
+
+- O tempo vem da **tabela de tempos** (teste de 400 m). O descanso segue a tabela de descanso: por distância para o avançado e o intermediário, por intensidade para o iniciante e o recém-intermediário.
+- Ex. (teste em 6'00", avançado): 100 m A1 = 1'30" + 25" = **cd 1'55"**; A3 = 1'26" + 25" = **cd 1'50"**.
+- **30 AC nos 400:** melhor tempo + 30" + 1' de descanso. Ex.: 6'00" + 30" + 1' = **cd 7'30"**.
+- No iniciante, a saída do A3 pode ficar **maior** que a do A1, porque o descanso do A3 é maior (até 1').
+- Ainda **sem saída**: AC em outras distâncias, NEG, POS, final forte, 75 NAD x 25 fo, velocidade e grupos com vários blocos e uma intensidade por série.
+
 ### Como a série aparece no card
 
 O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, MD, ME, NAD, c/PÉ, c/PALM, BOIA, SNK, PARA, PR), e o "m" entra depois das distâncias. Cada card tem um botão **Glossário** que mostra só os termos usados naquele treino; no **ME**, mostra o melhor estilo do atleta.
@@ -450,6 +460,8 @@ Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `de
 - **Iniciante em treinos mais longos:** por enquanto, a mesma estrutura em qualquer tempo de aula.
 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
+- **Saída com pé de pato/palmar:** hoje a saída não muda com o material.
+- **Saídas que ainda faltam:** AC em outras distâncias (precisa do melhor tempo em cada uma), NEG/POS/final forte, velocidade e grupos.
 - **Saída do 25 forte de cada atleta**: como calcular a partir do ritmo dele.
 - **Melhor estilo pelos testes**: comparar os tempos de cada estilo (hoje os testes não guardam o estilo).
 - **Mistura de nados com material**: por enquanto a mistura sai sem material (material + estilo depende da fase).
