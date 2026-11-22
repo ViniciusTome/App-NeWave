@@ -10,8 +10,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 export const OPTIONS = {
   swimmingSince: ['menos_6m', '6m_2a', '2a_5a', 'mais_5a'],
   recentBreak: ['nao', 'menos_1m', '1_6m', 'mais_6m'],
-  // 'ate_100' quer dizer "de 50 a 100 m" (a chave ficou do tempo em que era a menor opção)
-  continuousDistance: ['ate_50', 'ate_100', '100_400', '400_1000', '1000_2000', 'mais_2000'],
+  continuousDistance: ['ate_50', '50_100', '100_200', '200_400', '400_1000', '1000_2000', 'mais_2000'],
   strokes: ['crawl', 'costas', 'peito', 'borboleta'],
   sessionMinutes: [30, 45, 60, 75, 90, 120],
   poolLength: [25, 50],
@@ -31,10 +30,12 @@ const MAX_COMPETITION_DAYS = 2 * 366 // até dois anos à frente
 // Regra inicial, para ser ajustada pelo treinador: cada resposta vale pontos,
 // e a média define o nível. Algumas respostas limitam o nível máximo.
 const POINTS = {
-  continuousDistance: { ate_50: 0, ate_100: 1, '100_400': 2, '400_1000': 3, '1000_2000': 4, mais_2000: 5 },
+  continuousDistance: {
+    ate_50: 0, '50_100': 1, '100_200': 2, '200_400': 3, '400_1000': 4, '1000_2000': 5, mais_2000: 6,
+  },
   swimmingSince: { menos_6m: 0, '6m_2a': 1, '2a_5a': 2, mais_5a: 3 },
 }
-const MAX_POINTS = { continuousDistance: 5, swimmingSince: 3, time400: 4 }
+const MAX_POINTS = { continuousDistance: 6, swimmingSince: 3, time400: 4 }
 
 // Pontos pelo tempo nos 400 m (centésimos de segundo)
 function time400Points(hundredths) {
@@ -59,11 +60,11 @@ export function computeLevel(profile, time400) {
   const ratio = points / max
   let index = ratio < 0.35 ? 0 : ratio < 0.7 ? 1 : 2
 
-  // Quem nada até 100 m sem parar (inclusive só 50 m) é iniciante; até 400 m, no máximo intermediário.
+  // Quem nada até 100 m sem parar (inclusive só 50 m) é iniciante; de 100 a 400 m, no máximo intermediário.
   // Para quem nada só 50 m, até um 4 x 50 é pesado: o gerador de treinos vai precisar
   // de séries curtas (ex.: 25 m) com descanso longo.
-  if (profile.continuousDistance === 'ate_50' || profile.continuousDistance === 'ate_100') index = 0
-  if (profile.continuousDistance === '100_400') index = Math.min(index, 1)
+  if (['ate_50', '50_100'].includes(profile.continuousDistance)) index = 0
+  if (['100_200', '200_400'].includes(profile.continuousDistance)) index = Math.min(index, 1)
 
   // Parado há mais de 6 meses: começa um nível abaixo, em readaptação
   const returning = profile.recentBreak === 'mais_6m'

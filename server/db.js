@@ -128,5 +128,12 @@ export function openDatabase(path) {
     `)
   }
 
+  // Faixas antigas de "quanto nada sem parar" -> nomes atuais
+  // ('ate_100' era "50 a 100 m"; '100_400' virou duas faixas e fica na de 200 a 400 m)
+  db.exec(`
+    UPDATE athlete_profiles SET continuous_distance = '50_100' WHERE continuous_distance = 'ate_100';
+    UPDATE athlete_profiles SET continuous_distance = '200_400' WHERE continuous_distance = '100_400';
+  `)
+
   return db
 }

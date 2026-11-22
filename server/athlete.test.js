@@ -136,6 +136,7 @@ test('valida as respostas da anamnese', async () => {
     { recentBreak: undefined },
     { continuousDistance: '5000' },
     { continuousDistance: 'ate_25' },
+    { continuousDistance: '100_400' }, // faixa antiga
     { strokes: [] },
     { strokes: ['crawl', 'golfinho'] },
     { trainingDays: [] },
@@ -174,12 +175,13 @@ test('cálculo do nível', () => {
   const slow = { hundredths: 10 * 6000 }
 
   assert.equal(computeLevel(base, fast).level, 'avancado')
-  assert.equal(computeLevel({ ...base, swimmingSince: 'menos_6m', continuousDistance: '100_400' }, slow).level, 'iniciante')
+  assert.equal(computeLevel({ ...base, swimmingSince: 'menos_6m', continuousDistance: '200_400' }, slow).level, 'iniciante')
   // Quem nada até 100 m sem parar (ou só 50 m) é sempre iniciante
-  assert.equal(computeLevel({ ...base, continuousDistance: 'ate_100' }, fast).level, 'iniciante')
+  assert.equal(computeLevel({ ...base, continuousDistance: '50_100' }, fast).level, 'iniciante')
   assert.equal(computeLevel({ ...base, continuousDistance: 'ate_50' }, fast).level, 'iniciante')
-  // Até 400 m sem parar: no máximo intermediário
-  assert.equal(computeLevel({ ...base, continuousDistance: '100_400' }, fast).level, 'intermediario')
+  // De 100 a 400 m sem parar: no máximo intermediário
+  assert.equal(computeLevel({ ...base, continuousDistance: '100_200' }, fast).level, 'intermediario')
+  assert.equal(computeLevel({ ...base, continuousDistance: '200_400' }, fast).level, 'intermediario')
   // Parado há mais de 6 meses: um nível abaixo, em readaptação
   assert.deepEqual(computeLevel({ ...base, recentBreak: 'mais_6m' }, fast), {
     level: 'intermediario',
