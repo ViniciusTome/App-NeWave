@@ -612,3 +612,27 @@ test('iniciante com equipamento: aviso para descansar o intervalo', () => {
   // Avançado não recebe o aviso
   assert.ok([1, 2, 3].flatMap((seed) => gerar(avancado, seed)).flatMap((t) => t.partes).every((p) => !p.aviso))
 })
+
+test('a mesma série nunca se repete de um treino para o seguinte', () => {
+  const partes = rules.naoRepetirNoTreinoSeguinte.partes
+  for (const athlete of [avancado, { ...avancado, sessionMinutes: 90 }, { ...avancado, sessionMinutes: 45 }]) {
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const treinos = gerar(athlete, seed)
+      treinos.slice(1).forEach((t, i) => {
+        const antes = new Set(treinos[i].partes.filter((p) => partes.includes(p.parte)).map((p) => p.serieId))
+        for (const p of t.partes.filter((x) => partes.includes(x.parte))) {
+          assert.ok(!antes.has(p.serieId), `${p.serieId} repetiu em ${treinos[i].date} e ${t.date}`)
+        }
+      })
+    }
+  }
+})
+
+test('o primeiro treino novo não repete as séries do último treino feito', () => {
+  const primeiro = gerar(avancado, 1)[0]
+  const principal = primeiro.partes.find((p) => p.parte === 'principal').serieId
+  const outro = generateTrainings({
+    rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), seriesAnteriores: [principal],
+  })[0]
+  assert.notEqual(outro.partes.find((p) => p.parte === 'principal').serieId, principal)
+})

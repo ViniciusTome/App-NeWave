@@ -400,10 +400,18 @@ function weightedPick(options, random) {
 // Escolhe a série e a variação de uma parte, perto do tempo da parte.
 // Evita as séries usadas nos últimos treinos e, na 2ª principal, segue a regra
 // de alternar crawl e estilo.
-function pickForPart({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal }) {
+function pickForPart(args) {
+    const { rules, parte, bloqueadas } = args
+    // A série do treino anterior não se repete (só se não houver outra que sirva)
+    const semRepetir = (rules.naoRepetirNoTreinoSeguinte?.partes ?? []).includes(parte) && bloqueadas?.size > 0
+    return (semRepetir && pickAmong(args, bloqueadas)) || pickAmong(args, null)
+}
+
+function pickAmong({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal }, evitar) {
     const candidatas = []
     for (const serie of library[parte] ?? []) {
         if (!seriesFits(serie, athlete)) continue
+        if (evitar?.has(serie.id)) continue
         if (primeiraPrincipal && serie.id === primeiraPrincipal.serie.id) continue
         let variations = seriesVariations(rules, parte, serie, athlete).filter((v) => variationFits(v, athlete))
         const mistura = drawMixedStrokes(rules, parte, serie, athlete, random)
@@ -453,7 +461,7 @@ export function trainingDates(today, trainingDays, dias = DIAS_PADRAO) {
 // ---------- Montagem ----------
 
 // Monta um treino: uma série para cada parte da estrutura do nível e do tempo de aula.
-function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [] }) {
+function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas }) {
     const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes)
     const pausas = estrutura.map((p) => pauseOf(rules, p)).filter(Boolean)
     const segundosLivres = (athlete.sessionMinutes - pausas.reduce((s, p) => s + p.minutos, 0)) * 60
@@ -463,7 +471,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
     const escolhas = new Map() // posição na estrutura -> escolha
     const escolher = (i, budget, primeiraPrincipal = null) => {
         const parte = estrutura[i]
-        const escolha = pickForPart({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal })
+        const escolha = pickForPart({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal, bloqueadas })
         if (escolha) {
             escolhas.set(i, escolha)
             recentes.add(escolha.serie.id)
@@ -533,12 +541,17 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
 // Gera os treinos dos próximos dias para o atleta.
 // `athlete` = respostas da anamnese + { level } (nível calculado) + { time400 }.
 // `random` permite repetir o sorteio nos testes.
-export function generateTrainings({ rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO }) {
+// `seriesAnteriores` = séries do último treino antes de hoje (não se repetem no primeiro).
+export function generateTrainings({
+    rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
+}) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
     // Tabela de tempos do atleta (método do treinador)
     athlete = { ...athlete, tabela: timeTable(rules, tempo400 / 100), teste400: tempo400 / 100 }
     const recentes = new Set()
+    // Séries do treino anterior: não se repetem no treino seguinte
+    let bloqueadas = new Set(seriesAnteriores)
 
     // Recuperação: depois de um treino com A3 na série principal, o próximo não tem
     // A3 enquanto não passarem as horas de recuperação do A3 (até 48 h)
@@ -553,7 +566,8 @@ export function generateTrainings({ rules, library, athlete, today, random = Mat
             const recuperacao = rules.intensidades?.A3?.recuperacaoHoras?.[1] ?? 48
             if (horasEntre(anterior.date, date) < recuperacao) proibidas.push('A3')
         }
-        const partes = buildTraining({ rules, library, athlete, pace, random, recentes, proibidas })
+        const partes = buildTraining({ rules, library, athlete, pace, random, recentes, proibidas, bloqueadas })
+        bloqueadas = new Set(partes.map((p) => p.serieId).filter(Boolean))
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
         anterior = { date, intensidade: intensidades.includes('A3') ? 'A3' : intensidades.includes('A2') ? 'A2' : 'A1' }
         return {

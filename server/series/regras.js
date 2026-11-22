@@ -101,6 +101,10 @@ export function validateRules(rules) {
         }
     }
 
+    const naoRepetir = rules.naoRepetirNoTreinoSeguinte
+    if (naoRepetir !== undefined && (!Array.isArray(naoRepetir.partes) || naoRepetir.partes.some((x) => typeof x !== 'string'))) {
+        problems.push('naoRepetirNoTreinoSeguinte.partes precisa ser uma lista de partes, ex.: ["principal", "perna"].')
+    }
     if (rules.saidas !== undefined) {
         const { igualarAoA1Ate, maximoAcimaDoA1, fasesComSaidaPorIntensidade = [] } = rules.saidas
         for (const [k, v] of Object.entries({ igualarAoA1Ate, maximoAcimaDoA1 })) {

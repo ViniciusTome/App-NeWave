@@ -122,6 +122,10 @@
       "400": { "valor": "30 AC", "material": [["pe_de_pato", "palmar"], ["pe_de_pato"]], "chance": 70 }
     }
   },
+  "naoRepetirNoTreinoSeguinte": {
+    "_comentario": "A mesma série nunca aparece em dois treinos seguidos nessas partes (mesmo com outra intensidade). Só repete se não houver outra série que sirva.",
+    "partes": ["aquecimento", "velocidade", "principal", "perna"]
+  },
   "saidas": {
     "_comentario": "Saída = tempo da intensidade + descanso. Em A2/A3 com saída até 'igualarAoA1Ate' segundos menor que a do A1, usa a do A1 (exceto nas fases de 'fasesComSaidaPorIntensidade'). Saída maior que a do A1 (iniciante, descanso maior no A3) fica no máximo 'maximoAcimaDoA1' segundos acima. Nas repetições de 300 m ou mais, 'igualarAoA1AteNasLongas'. PROVISÓRIO.",
     "igualarAoA1Ate": 10,

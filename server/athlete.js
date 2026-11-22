@@ -265,6 +265,10 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   const completedDates = db.prepare(
     'SELECT DISTINCT date FROM trainings WHERE user_id = ? AND completed_at IS NOT NULL AND date >= ?',
   )
+  // Último treino antes de hoje (para não repetir as séries dele no primeiro treino novo)
+  const lastPartsBefore = db.prepare(
+    'SELECT parts FROM trainings WHERE user_id = ? AND date < ? AND parts IS NOT NULL ORDER BY date DESC, id DESC LIMIT 1',
+  )
   const insertGenerated = db.prepare(`
     INSERT INTO trainings
       (user_id, date, title, warm_up, speed, main_series, release, notes, created_at, completed_at, parts)
@@ -373,8 +377,15 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       // Modalidade da prova alvo (ex.: triatlo), para a regra da recuperação
       const preparacao = preparationResponse(user.id, today)
       const modalidade = preparacao?.active ? preparacao.competition?.modality ?? null : null
+      let seriesAnteriores = []
+      try {
+        const ultimo = lastPartsBefore.get(user.id, today)
+        seriesAnteriores = ultimo ? JSON.parse(ultimo.parts).map((p) => p.serieId).filter(Boolean) : []
+      } catch {
+        seriesAnteriores = []
+      }
       const trainings = generateTrainings({
-        rules, library, today,
+        rules, library, today, seriesAnteriores,
         athlete: {
           ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
         },

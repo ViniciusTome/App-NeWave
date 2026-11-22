@@ -156,6 +156,10 @@ Nos treinos com duas séries principais, **se a 1ª for de estilo, a 2ª é obri
 - Medley conta como estilo (não é só crawl).
 - Quem não nada nenhum estilo (borboleta, costas ou peito) faz as duas em crawl.
 
+### Não repetir a série no treino seguinte
+
+A mesma série **nunca aparece em dois treinos seguidos** no aquecimento, na velocidade, na série principal e na perna, mesmo com outra intensidade (ex.: 5 x 400 m A1/A2/A3 num dia e 5 x 400 m 30 AC no outro). O primeiro treino gerado também não repete as séries do último treino do atleta. Só repete quando não existe outra série que sirva para o atleta. As partes ficam em `naoRepetirNoTreinoSeguinte` no `regras.json`. O solto e a soltura podem repetir.
+
 ### Pausas
 
 ```json
