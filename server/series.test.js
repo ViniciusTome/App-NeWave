@@ -83,8 +83,8 @@ test('principal: 25 séries, com a metragem calculada', () => {
   assert.equal(volume('pri-2x10x100'), 2000)
   assert.equal(volume('pri-3x800'), 2400)
   assert.equal(volume('pri-4x3x200'), 2400)
-  // Grupos que se repetem: (3x) 1 x 100, 2 x 75, 3 x 100, 4 x 25 = 3 x 650
-  assert.equal(volume('pri-3x-100-75-100-25'), 1950)
+  // Grupos que se repetem: (3x) 1 x 100, 2 x 75, 3 x 50, 4 x 25 = 3 x 500
+  assert.equal(volume('pri-3x-100-75-50-25'), 1500)
   assert.equal(volume('pri-4x-100-75-100-25'), 2600)
   assert.equal(volume('pri-2x-200-50'), 800)
   assert.equal(volume('pri-2x-200-100-50'), 1200)
@@ -97,7 +97,7 @@ test('principal: 25 séries, com a metragem calculada', () => {
 test('principal: séries com 75 m só fecham na piscina de 25 m', () => {
   const principal = loadPart('principal')
   assert.deepEqual(byId(principal, 'pri-4x4x75').piscinas, [25])
-  assert.deepEqual(byId(principal, 'pri-3x-100-75-100-25').piscinas, [25])
+  assert.deepEqual(byId(principal, 'pri-3x-100-75-50-25').piscinas, [25])
   // 250 m = 5 piscinas de 50 m: funciona nas duas
   assert.deepEqual(byId(principal, 'pri-6x250').piscinas, [25, 50])
   assert.deepEqual(byId(principal, 'pri-6x150').piscinas, [25, 50])

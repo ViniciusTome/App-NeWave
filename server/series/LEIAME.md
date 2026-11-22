@@ -29,7 +29,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | --- | --- |
 | `id` | Nome único da série, em minúsculas, sem acento, com hífens. Ex.: `aq-livre-200`. |
 | `texto` | Como a série aparece no treino do atleta, escrita do seu jeito. |
-| `vezes` | Opcional. Repete **vários blocos juntos**: `"vezes": 3` com os blocos 1 x 100, 2 x 75, 3 x 100 e 4 x 25 é o `(3x) 1 x 100, 2 x 75, 3 x 100, 4 x 25`. Com um bloco só, o `vezes` vai dentro do bloco. |
+| `vezes` | Opcional. Repete **vários blocos juntos**: `"vezes": 3` com os blocos 1 x 100, 2 x 75, 3 x 50 e 4 x 25 é o `(3x) 1 x 100, 2 x 75, 3 x 50, 4 x 25`. Com um bloco só, o `vezes` vai dentro do bloco. |
 | `observacao` | Opcional. Um aviso que aparece junto da série, ex.: `"Pode ser feito com pull buoy."`. É só texto: não muda o material exigido. |
 | `blocos` | As partes da série. A maioria tem um bloco só; uma série que muda no meio (ex.: 4 x 25 com pé de pato + 4 x 25 sem) tem dois. |
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
