@@ -503,6 +503,26 @@ test('perna: 400 indo crawl e voltando no melhor estilo', () => {
   assert.deepEqual(voltaPeito.material, ['pe_de_pato_peito'])
 })
 
+test('perna: com pé de pato na maioria; sem pé de pato só para quem nada peito', () => {
+  const serie = loadPart('perna').find((s) => s.id === 'perna-8x50')
+  const de = (athlete) => seriesVariations(rules, 'perna', serie, { level: 'avancado', ...athlete })
+
+  // Não nada peito: só com pé de pato
+  const crawl = de({ equipment: ['pe_de_pato'], strokes: ['crawl', 'costas'] })
+  assert.deepEqual(crawl.map((v) => v.texto), ['8 x 50 perna · com pé de pato'])
+  assert.equal(crawl[0].peso, 3)
+
+  // Nada peito: com pé de pato (mais vezes) e sem
+  const peito = de({ equipment: ['pe_de_pato'], strokes: ['crawl', 'peito'] })
+  assert.deepEqual(peito.map((v) => v.texto), ['8 x 50 perna', '8 x 50 perna · com pé de pato'])
+
+  // Sem pé de pato: faz sem, não tem outro jeito
+  assert.deepEqual(de({ equipment: [], strokes: ['crawl'] }).map((v) => v.texto), ['8 x 50 perna'])
+
+  // O 400 continua sempre com pé de pato
+  assert.ok(pernaDe({ equipment: ['pe_de_pato'], strokes: ['crawl', 'peito'] }).every((v) => v.material.length > 0))
+})
+
 test('perna: as outras séries entram como estão', () => {
   const perna = loadPart('perna')
   assert.deepEqual(perna.map((s) => s.texto), [
@@ -567,6 +587,8 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.materialObrigatorio[0].distanciaAcimaDe = '400m' }, '"distanciaAcimaDe"'],
     [(r) => { r.materialObrigatorio[0].emPiramidesAPartirDe = 0 }, '"emPiramidesAPartirDe"'],
     [(r) => { r.material.principal.piramides = 'aleatorio' }, 'material.principal.piramides'],
+    [(r) => { r.material.perna.semMaterial = 'nunca' }, 'material.perna.semMaterial'],
+    [(r) => { r.material.perna.pesoComMaterial = 0 }, 'material.perna.pesoComMaterial'],
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
     [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
     [(r) => { r.misturaDeNados.minimoDeSeries = 1 }, 'misturaDeNados.minimoDeSeries'],

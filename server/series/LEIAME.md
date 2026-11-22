@@ -270,6 +270,18 @@ O `400 perna com pé de pato` sempre usa pé de pato, e pode sair:
 - **ida crawl, voltando uma vez borboleta e outra costas** até fechar os 400 (`"idaCrawlVoltaBorboletaECostas"`);
 - **ida crawl, volta no melhor estilo** (`"idaCrawlVoltaMelhorEstilo"`). Se o melhor estilo for peito, a volta é de borboleta ou de costas, a não ser que o atleta tenha **pé de pato de peito**: aí a volta é de peito, com ele no lugar do pé de pato comum.
 
+As outras séries de perna saem **com pé de pato** na grande maioria das vezes. **Sem pé de pato** só para quem nada peito (para treinar também sem); quem não tem pé de pato faz sem.
+
+```json
+"perna": {
+  "opcoes": [["pe_de_pato"]],
+  "semMaterial": "soQuemNadaPeito",
+  "pesoComMaterial": 3
+}
+```
+
+`pesoComMaterial: 3` = o gerador escolhe "com pé de pato" três vezes mais que "sem".
+
 ### Medley e estilo
 
 As séries com `outrosNados` também podem sair em medley ou no estilo, **com ou sem material**, mas só com os estilos que o atleta marcou na anamnese:

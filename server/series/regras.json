@@ -39,6 +39,11 @@
     { "distanciaAcimaDe": 400, "emPiramidesAPartirDe": 400, "material": ["pe_de_pato", "palmar"] }
   ],
   "material": {
+    "perna": {
+      "opcoes": [["pe_de_pato"]],
+      "semMaterial": "soQuemNadaPeito",
+      "pesoComMaterial": 3
+    },
     "principal": {
       "opcoes": [
         ["pe_de_pato"],

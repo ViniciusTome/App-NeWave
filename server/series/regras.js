@@ -162,6 +162,12 @@ export function validateRules(rules) {
                 }
             })
         }
+        if (regra?.semMaterial !== undefined && regra.semMaterial !== 'soQuemNadaPeito') {
+            problems.push(`${where}.semMaterial: por enquanto só existe "soQuemNadaPeito".`)
+        }
+        if (regra?.pesoComMaterial !== undefined && !(Number.isInteger(regra.pesoComMaterial) && regra.pesoComMaterial >= 1)) {
+            problems.push(`${where}.pesoComMaterial precisa ser um número a partir de 1.`)
+        }
         if (regra?.piramides !== undefined && regra.piramides !== 'material_diferente_por_distancia') {
             problems.push(`${where}.piramides: por enquanto só existe "material_diferente_por_distancia".`)
         }
@@ -280,7 +286,7 @@ const cycle = (list, n) => Array.from({ length: n }, (_, i) => list[i % list.len
 // - "obrigatorio": repetição longa, que sempre usa o material das regras;
 // - "obrigatorio_por_bloco": só alguns blocos usam (ex.: os 400 de uma pirâmide);
 // - "piramide_alternada": cada distância da pirâmide com um material diferente.
-function materialOptions(rules, parte, serie, athleteEquipment) {
+function materialOptions(rules, parte, serie, athleteEquipment, athleteStrokes = []) {
     if (serie.exige.material.length > 0) {
         return [{ padrao: 'fixo', material: serie.exige.material }]
     }
@@ -320,9 +326,16 @@ function materialOptions(rules, parte, serie, athleteEquipment) {
             distancias: [...new Set(serie.blocos.filter((_, i) => fixos[i]).map((b) => b.distancia))],
         })
     } else {
-        options.push({ padrao: 'sem_material', material: [] })
-        if (!regra || serie.porSensacao) return options
-        for (const opcao of opcoes) options.push({ padrao: 'serie_inteira', material: opcao })
+        if (!regra || serie.porSensacao) return [{ padrao: 'sem_material', material: [] }]
+        // Sem material: sempre, a não ser que a regra diga só para quem nada peito
+        // (perna: quem nada peito também treina sem pé de pato). Quem não tem
+        // nenhuma das opções de material faz sem, porque não tem outro jeito.
+        const semMaterial = regra.semMaterial !== 'soQuemNadaPeito' || athleteStrokes.includes('peito') ||
+            opcoes.length === 0
+        if (semMaterial) options.push({ padrao: 'sem_material', material: [] })
+        // "pesoComMaterial": quantas vezes mais o gerador escolhe com material (ex.: 3)
+        const peso = regra.pesoComMaterial ?? 1
+        for (const opcao of opcoes) options.push({ padrao: 'serie_inteira', material: opcao, ...(peso > 1 && { peso }) })
 
         for (const modelo of regra.porSerie?.[String(setsOf(serie))] ?? []) {
             // Modelo com "material": um para cada opção. Modelo com listas fixas: um só.
@@ -520,7 +533,7 @@ export function seriesVariations(rules, parte, serie, athlete) {
             })
             continue
         }
-        for (const option of materialOptions(rules, parte, serie, athlete.equipment)) {
+        for (const option of materialOptions(rules, parte, serie, athlete.equipment, athlete.strokes)) {
             const { texto: _nadoTexto, ...strokeInfo } = stroke
             variations.push({ ...strokeInfo, ...option, texto: variationText(serie, stroke, option) })
         }
