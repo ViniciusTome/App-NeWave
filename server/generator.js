@@ -898,26 +898,29 @@ const addDays = (iso, n) => {
 }
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000)
 
-// Etapas da periodização (ATR) para um período de `total` dias: o modelo
-// (Acumulação 1, Acumulação 2, Transição 1, Transição 2, Realização) com cada etapa
-// entre os dias mínimo e máximo. Período curto: um modelo menor. Período longo: repete
-// as etapas antes da Realização. Devolve [{ etapa, dias }].
-export function planStages(rules, total) {
+// Etapas da periodização (ATR) para um período de `total` dias e o nível do atleta.
+// O modelo vem do nível e do tempo até a prova (ex.: iniciante A1-A2-T-R, ou
+// A1-A2-T-A-T-R com a prova mais longe). Quanto mais longa a
+// preparação, mais Acumulação: os dias que sobram vão o dobro para ela, e acima do
+// maior modelo entram mais etapas de Acumulação. Devolve [{ etapa, dias }].
+export function planStages(rules, total, level = null) {
     const cfg = rules.periodizacao
     const etapas = cfg?.etapas
-    if (!etapas || !cfg.modelo) return [{ etapa: null, dias: total }]
+    const modelos = cfg?.modelos?.[level] ?? cfg?.modelos?.padrao
+    if (!etapas || !modelos?.length) return [{ etapa: null, dias: total }]
     const soma = (modelo, k) => modelo.reduce((s, e) => s + etapas[e].dias[k], 0)
-    let modelo = [cfg.modelo, ...(cfg.modelosCurtos ?? [])].find((m) => soma(m, 0) <= total) ??
-        cfg.modelosCurtos?.at(-1) ?? cfg.modelo
-    // Período longo: repete as etapas antes da Realização (ex.: A1-A2-T1-T2-A1-A2-T1-T2-R)
-    if (modelo === cfg.modelo) {
-        const antes = cfg.modelo.slice(0, -1)
-        for (let vezes = 2; soma(modelo, 1) < total && vezes <= 6; vezes++) {
-            modelo = [...Array.from({ length: vezes }, () => antes).flat(), cfg.modelo.at(-1)]
+    const ehAcumulacao = (e) => etapas[e].fase === 'acumulacao'
+    const escolhido = modelos.find((m) => total >= m.aPartirDeDias) ?? modelos.at(-1)
+    let modelo = escolhido.etapas
+    // Mais longo que o maior modelo: mais Acumulação no começo (constrói a base)
+    if (escolhido === modelos[0]) {
+        while (soma(modelo, 1) < total && modelo.length < 12) {
+            const depois = modelo.findIndex((e) => !ehAcumulacao(e))
+            modelo = [...modelo.slice(0, depois), 'acumulacao2', ...modelo.slice(depois)]
         }
     }
-    // Cada etapa começa no mínimo; os dias que sobram vão um a um para as etapas
-    // que ainda cabem, em rodízio
+    // Cada etapa começa no mínimo; os dias que sobram vão em rodízio para as que ainda
+    // cabem, 2 por vez para a Acumulação e 1 para as outras
     const dias = modelo.map((e) => etapas[e].dias[0])
     let sobra = total - dias.reduce((s, d) => s + d, 0)
     if (sobra < 0) {
@@ -928,9 +931,10 @@ export function planStages(rules, total) {
     while (sobra > 0) {
         let deu = false
         for (let k = 0; k < modelo.length && sobra > 0; k++) {
-            if (dias[k] < etapas[modelo[k]].dias[1]) {
-                dias[k]++
-                sobra--
+            const vez = Math.min(ehAcumulacao(modelo[k]) ? 2 : 1, sobra, etapas[modelo[k]].dias[1] - dias[k])
+            if (vez > 0) {
+                dias[k] += vez
+                sobra -= vez
                 deu = true
             }
         }
@@ -941,9 +945,9 @@ export function planStages(rules, total) {
 
 // Etapa de cada dia da periodização, do início ao fim (a prova alvo).
 // Devolve (data) -> { etapa, nome, fase, semanaDaFase } (semana dentro da etapa).
-export function periodPhases(rules, inicio, fim) {
+export function periodPhases(rules, inicio, fim, level = null) {
     const total = Math.max(1, daysBetween(inicio, fim) + 1)
-    const plano = planStages(rules, total)
+    const plano = planStages(rules, total, level)
     let comeca = 0
     const limites = plano.map(({ etapa, dias }) => {
         const l = { etapa, comeca, termina: comeca + dias }
@@ -996,7 +1000,7 @@ export function generateTrainings({
     const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false
     // Periodização: todos os treinos até o fim, com a fase de cada um
-    const faseDe = periodizacao ? periodPhases(rules, periodizacao.inicio, periodizacao.fim) : null
+    const faseDe = periodizacao ? periodPhases(rules, periodizacao.inicio, periodizacao.fim, athlete.level) : null
     const totalDeDias = periodizacao
         ? Math.min(rules.periodizacao?.maximoDeDias ?? 366, Math.max(1, daysBetween(today, periodizacao.fim) + 1))
         : dias

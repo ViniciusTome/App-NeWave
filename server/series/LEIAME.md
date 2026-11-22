@@ -476,9 +476,18 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
   | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 90% |
   | Realização | 8 a 15 | Ritmo de prova e velocidade: mais AC e final forte, volume 70%, velocidade do avançado nos 25 m cd 25" |
 
-  - Cada etapa começa com o mínimo de dias e o que sobra é dividido entre elas, sem passar do máximo. Ex.: 12 semanas = Acumulação 1, 18 dias → Acumulação 2, 18 → Transição 1, 18 → Transição 2, 18 → Realização, 12.
-  - **Período curto** (`modelosCurtos`): 8 semanas = Acumulação 1 → Transição 1 → Realização; 4 semanas = Transição 1 → Realização; até ~3 semanas = só Realização.
-  - **Período longo:** repete as etapas antes da Realização. Ex.: 6 meses = A1-A2-T1-T2-A1-A2-T1-T2-R.
+  - **Modelo pelo nível e pelo tempo até a prova** (`periodizacao.modelos`, PROVISÓRIO):
+
+    | Tempo até a prova | Iniciante | Intermediário e avançado |
+    |---|---|---|
+    | 120 dias ou mais | A1-A2-T1-A2-T2-R | A1-A2-T1-A2-T2-R |
+    | 70 a 119 dias | A1-A2-T-R | A1-A2-T1-T2-R |
+    | 50 a 69 dias | A1-A2-T-R | A1-T1-R |
+    | 36 a 49 dias | A1-T-R | A1-T1-R |
+    | 22 a 35 dias | T-R | T-R |
+    | até 21 dias | R | R |
+
+  - **Quanto mais longa a preparação, mais Acumulação** (base), em todos os níveis: cada etapa começa com o mínimo de dias e o que sobra vai **o dobro para a Acumulação**. Acima do maior modelo, entram mais etapas de Acumulação. Ex.: iniciante com 12 semanas = A1 (26 dias) → A2 (26) → T (19) → R (13).
   - **Condicionamento** (não nada 400 m sem parar): fica na Acumulação o tempo todo.
   - As fases também ligam as regras que já existiam: saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação.
 - **Teste de 400 m** no 1º treino da Transição (veja "Teste de 400 m na periodização").

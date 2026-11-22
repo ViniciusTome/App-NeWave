@@ -915,30 +915,37 @@ test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () =
 
 // ---------- Periodização inteira ----------
 
-test('periodização: etapas do ATR com os dias de cada uma', () => {
+test('periodização: etapas do ATR com os dias de cada uma, conforme o nível', () => {
   const etapas = rules.periodizacao.etapas
   const dentro = (plano) => plano.every(({ etapa, dias }) => dias >= etapas[etapa].dias[0] && dias <= etapas[etapa].dias[1])
   const soma = (plano) => plano.reduce((s, p) => s + p.dias, 0)
-  // 90 dias: Acumulação 1, Acumulação 2, Transição 1, Transição 2, Realização
-  const noventa = planStages(rules, 90)
-  assert.deepEqual(noventa.map((p) => p.etapa), ['acumulacao1', 'acumulacao2', 'transicao1', 'transicao2', 'realizacao'])
-  assert.equal(soma(noventa), 90)
-  assert.ok(dentro(noventa), JSON.stringify(noventa))
-  // 8 semanas (sem prova): curto para as 5 etapas -> Acumulação 1, Transição 1, Realização
-  const oito = planStages(rules, 56)
-  assert.deepEqual(oito.map((p) => p.etapa), ['acumulacao1', 'transicao1', 'realizacao'])
-  assert.ok(dentro(oito) && soma(oito) === 56)
-  // 4 semanas: Transição e Realização; 10 dias: só Realização
-  assert.deepEqual(planStages(rules, 28).map((p) => p.etapa), ['transicao1', 'realizacao'])
-  assert.deepEqual(planStages(rules, 10).map((p) => p.etapa), ['realizacao'])
-  // 6 meses: repete as etapas antes da Realização
-  const seis = planStages(rules, 180)
-  assert.equal(soma(seis), 180)
-  assert.ok(dentro(seis), JSON.stringify(seis))
-  assert.equal(seis.filter((p) => p.etapa === 'acumulacao1').length, 2)
-  assert.equal(seis.at(-1).etapa, 'realizacao')
+  const nomes = (plano) => plano.map((p) => p.etapa).join(' ')
+  // Iniciante: prioriza a base, A1-A2-T-R; com a prova mais longe, A1-A2-T-A-T-R
+  assert.equal(nomes(planStages(rules, 84, 'iniciante')), 'acumulacao1 acumulacao2 transicao1 realizacao')
+  assert.equal(nomes(planStages(rules, 150, 'iniciante')), 'acumulacao1 acumulacao2 transicao1 acumulacao2 transicao2 realizacao')
+  // Os outros: A1-A2-T1-T2-R; mais longe, também com mais Acumulação
+  assert.equal(nomes(planStages(rules, 84, 'avancado')), 'acumulacao1 acumulacao2 transicao1 transicao2 realizacao')
+  assert.equal(nomes(planStages(rules, 150, 'intermediario')), 'acumulacao1 acumulacao2 transicao1 acumulacao2 transicao2 realizacao')
+  // Curtos: A1-T-R (8 semanas), T-R (4 semanas), só R
+  assert.equal(nomes(planStages(rules, 45, 'avancado')), 'acumulacao1 transicao1 realizacao')
+  assert.equal(nomes(planStages(rules, 28, 'iniciante')), 'transicao1 realizacao')
+  assert.equal(nomes(planStages(rules, 10, 'avancado')), 'realizacao')
+  for (const level of ['iniciante', 'intermediario', 'avancado']) {
+    for (const total of [30, 45, 60, 84, 120, 150, 180]) {
+      const plano = planStages(rules, total, level)
+      assert.equal(soma(plano), total)
+      assert.ok(dentro(plano), `${level} ${total}: ${JSON.stringify(plano)}`)
+      // A Acumulação tem pelo menos tanto quanto a Transição
+      const de = (fase) => plano.filter((p) => etapas[p.etapa].fase === fase).reduce((s, p) => s + p.dias, 0)
+      if (de('acumulacao') > 0) assert.ok(de('acumulacao') >= de('transicao'), `${level} ${total}`)
+    }
+  }
+  // Muito longo (8 meses): entram mais etapas de Acumulação
+  const longo = planStages(rules, 240, 'avancado')
+  assert.ok(longo.filter((p) => etapas[p.etapa].fase === 'acumulacao').length >= 4)
+  assert.equal(soma(longo), 240)
   // A semana dentro da etapa
-  const etapaDe = periodPhases(rules, '2026-01-01', '2026-03-31')
+  const etapaDe = periodPhases(rules, '2026-01-01', '2026-03-31', 'avancado')
   assert.deepEqual(etapaDe('2026-01-01'), { etapa: 'acumulacao1', nome: 'Acumulação 1', fase: 'acumulacao', semanaDaFase: 1 })
   assert.equal(etapaDe('2026-01-08').semanaDaFase, 2)
   assert.equal(etapaDe('2026-03-31').etapa, 'realizacao')
