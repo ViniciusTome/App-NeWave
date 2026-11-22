@@ -18,7 +18,7 @@ const textos = (...args) => variations(...args).map((v) => v.texto)
 
 test('iniciante não faz velocidade; intermediário e avançado fazem', () => {
   assert.deepEqual(partsForLevel(rules, 'iniciante'), ['aquecimento', 'principal', 'soltura'])
-  assert.ok(partsForLevel(rules, 'intermediario').includes('velocidade'))
+  assert.deepEqual(partsForLevel(rules, 'intermediario'), ['aquecimento', 'velocidade', 'solto', 'principal', 'soltura'])
   assert.ok(partsForLevel(rules, 'avancado').includes('velocidade'))
 })
 

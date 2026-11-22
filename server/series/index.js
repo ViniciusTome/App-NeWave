@@ -6,9 +6,10 @@
 // é calculado aqui. O guia de como cadastrar está em server/series/LEIAME.md.
 import { readFileSync, existsSync } from 'node:fs'
 
-// Partes do treino, na ordem em que são nadadas. Os arquivos que ainda não
-// existem são ignorados (por enquanto só o aquecimento está pronto).
-export const PARTS = ['aquecimento', 'velocidade', 'principal', 'soltura']
+// Partes do treino, na ordem em que são nadadas. "solto" é o nado de recuperação
+// entre a velocidade e a série principal. Os arquivos que ainda não existem
+// são ignorados.
+export const PARTS = ['aquecimento', 'velocidade', 'solto', 'principal', 'soltura']
 
 // "livre": o atleta escolhe (normalmente crawl).
 // "estilo": um estilo que não seja o crawl (o que o atleta nada melhor).
@@ -21,7 +22,7 @@ export const MATERIAIS = ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snork
 export const PISCINAS = [25, 50]
 
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
-const SERIE_KEYS = ['id', 'texto', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos']
+const SERIE_KEYS = ['id', 'texto', 'observacao', 'blocos', 'usos', 'outrosNados', 'porSensacao', 'duracaoMinutos']
 // Além do nado escrito nos blocos, a série também pode ser feita em:
 // "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
 // "estilo" (toda no estilo do atleta: borboleta, costas ou peito).
@@ -122,6 +123,11 @@ export function validate(series) {
 
         if (typeof serie.texto !== 'string' || serie.texto.trim() === '') {
             report('"texto" é obrigatório (é como a série aparece no treino).')
+        }
+
+        if (serie.observacao !== undefined &&
+            (typeof serie.observacao !== 'string' || serie.observacao.trim() === '' || serie.observacao.length > 200)) {
+            report('"observacao" precisa ser um texto de até 200 caracteres (ou tire o campo).')
         }
 
         if (serie.usos !== undefined) {

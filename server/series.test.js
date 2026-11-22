@@ -66,6 +66,16 @@ test('velocidade: tiros de 25 m só fecham na piscina de 25 m; tiros de 15 m em 
   assert.equal(byId(velocidade, 'vel-4x15').maiorDistancia, 15)
 })
 
+test('solto: 100 e 200 solto, com a observação do pull buoy', () => {
+  const solto = loadPart('solto')
+  assert.deepEqual(solto.map((s) => s.texto), ['100 solto', '200 solto'])
+  for (const serie of solto) {
+    assert.equal(serie.observacao, 'Pode ser feito com pull buoy.')
+    // A observação é só um aviso: o pull buoy não vira exigência
+    assert.deepEqual(serie.exige.material, [])
+  }
+})
+
 // ---------- Validação (o que acontece quando alguém digita errado) ----------
 
 const trechos = (forte, solto) => [{ metros: forte, intensidade: 'forte' }, { metros: solto, intensidade: 'solto' }]
@@ -81,6 +91,8 @@ test('a validação aponta cada erro, dizendo a série e o campo', () => {
     [{ ...ok, distancia: 100 }, 'campo "distancia" não existe'],
     [{ ...ok, id: 'Aquecimento 1' }, '"id" precisa ser'],
     [{ ...ok, texto: '' }, '"texto" é obrigatório'],
+    [{ ...ok, observacao: '' }, '"observacao"'],
+    [{ ...ok, observacao: 'x'.repeat(201) }, '"observacao"'],
     [{ ...ok, usos: ['competicao'] }, '"usos"'],
     [{ ...ok, blocos: [] }, 'pelo menos um bloco'],
     [{ ...ok, blocos: [{ ...ok.blocos[0], distancia: 60 }] }, 'múltiplo de 25'],

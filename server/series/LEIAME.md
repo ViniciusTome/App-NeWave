@@ -6,6 +6,7 @@ Cada parte do treino tem o seu arquivo:
 | --- | --- |
 | `aquecimento.json` | Aquecimento |
 | `velocidade.json` | Velocidade |
+| `solto.json` | Solto: nado de recuperação entre a velocidade e a série principal |
 | `principal.json` | Série principal (ainda não criado) |
 | `soltura.json` | Soltura (ainda não criado) |
 
@@ -27,6 +28,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | --- | --- |
 | `id` | Nome único da série, em minúsculas, sem acento, com hífens. Ex.: `aq-livre-200`. |
 | `texto` | Como a série aparece no treino do atleta, escrita do seu jeito. |
+| `observacao` | Opcional. Um aviso que aparece junto da série, ex.: `"Pode ser feito com pull buoy."`. É só texto: não muda o material exigido. |
 | `blocos` | As partes da série. A maioria tem um bloco só; uma série que muda no meio (ex.: 4 x 25 com pé de pato + 4 x 25 sem) tem dois. |
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
 | `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"` (cada repetição num estilo; repetições em múltiplo de 4) e/ou `"estilo"` (toda em borboleta, costas ou peito). |
@@ -95,12 +97,12 @@ As séries ficam "brutas", sem material. As regras dizem como montar o treino co
 ```json
 "niveis": {
   "iniciante": { "partes": ["aquecimento", "principal", "soltura"] },
-  "intermediario": { "partes": ["aquecimento", "velocidade", "principal", "soltura"] },
-  "avancado": { "partes": ["aquecimento", "velocidade", "principal", "soltura"] }
+  "intermediario": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
+  "avancado": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] }
 }
 ```
 
-O iniciante não faz velocidade.
+O iniciante não faz velocidade (nem o solto, que é a recuperação depois dela).
 
 ### Material
 
