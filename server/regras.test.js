@@ -521,6 +521,16 @@ test('perna: com pé de pato na maioria, e sem material também, para treinar a 
   assert.ok(pernaDe({ equipment: ['pe_de_pato'], strokes: ['crawl', 'peito'] }).every((v) => v.material.length > 0))
 })
 
+test('perna: a opção "sem material só para quem nada peito" continua disponível nas regras', () => {
+  const r = structuredClone(rules)
+  r.material.perna.semMaterial = 'soQuemNadaPeito'
+  assert.deepEqual(validateRules(r), [])
+  const serie = loadPart('perna').find((s) => s.id === 'perna-8x50')
+  const de = (strokes) => seriesVariations(r, 'perna', serie, { level: 'avancado', equipment: ['pe_de_pato'], strokes }).map((v) => v.texto)
+  assert.deepEqual(de(['crawl']), ['8 x 50 perna · com pé de pato'])
+  assert.deepEqual(de(['crawl', 'peito']), ['8 x 50 perna', '8 x 50 perna · com pé de pato'])
+})
+
 test('perna: as outras séries entram como estão', () => {
   const perna = loadPart('perna')
   assert.deepEqual(perna.map((s) => s.texto), [
@@ -586,8 +596,6 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.materialObrigatorio[0].emPiramidesAPartirDe = 0 }, '"emPiramidesAPartirDe"'],
     [(r) => { r.material.principal.piramides = 'aleatorio' }, 'material.principal.piramides'],
     [(r) => { r.material.perna.semMaterial = 'nunca' }, 'material.perna.semMaterial'],
-    // A opção "soQuemNadaPeito" continua existindo, caso volte a ser usada
-    [(r) => { r.material.perna.semMaterial = 'soQuemNadaPeito'; r.niveis.iniciante.estruturas[0].partes = ['nado'] }, 'niveis.iniciante'],
     [(r) => { r.material.perna.pesoComMaterial = 0 }, 'material.perna.pesoComMaterial'],
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
     [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
