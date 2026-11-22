@@ -1038,8 +1038,9 @@ export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana 
 // `historico` = treinos feitos, com o feedback e o plano interno (para ajustar os próximos).
 // `fatorDoProximo` = tempo da principal do próximo treino já montado (para o feedback
 // não ajustar duas vezes pelos mesmos treinos).
-// `periodizacao` = { inicio, fim, testeNaTransicao, numeroInicial }: gera todos os
-// treinos até o fim, cada um com a sua fase. Sem ela, gera `dias` dias, sem fase.
+// `periodizacao` = { inicio, fim, testeNaTransicao, numeroInicial, provas }: gera todos os
+// treinos até o fim, cada um com a sua fase. `provas` = datas das provas importantes no
+// meio da preparação (o volume cai na semana delas). Sem ela, gera `dias` dias, sem fase.
 export function generateTrainings({
     rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
     inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null,
@@ -1079,7 +1080,26 @@ export function generateTrainings({
     let anterior = null // { date, intensidade }
     const horasEntre = (a, b) => (Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 3_600_000
 
-    return trainingDates(today, athlete.trainingDays, totalDeDias).map((date, i) => {
+    const datas = trainingDates(today, athlete.trainingDays, totalDeDias)
+    // Volume da etapa: fixo (ex.: 85%) ou caindo treino a treino ([85%, 60%] na Realização)
+    const etapaDeCada = faseDe ? datas.map((d) => faseDe(d).etapa) : []
+    const volumeDaEtapa = (etapa, i) => {
+        const volume = rules.periodizacao?.etapas?.[etapa]?.volume ?? 1
+        if (!Array.isArray(volume)) return volume
+        const daEtapa = datas.filter((_, k) => etapaDeCada[k] === etapa && Math.abs(k - i) < 20)
+        const posicao = daEtapa.indexOf(datas[i])
+        return daEtapa.length < 2 ? volume[1] : volume[0] - ((volume[0] - volume[1]) * posicao) / (daEtapa.length - 1)
+    }
+    // Prova importante no meio da preparação: o volume cai aos poucos na semana dela
+    const regraProva = rules.periodizacao?.provaIntermediaria
+    const volumeDaProva = (date) => {
+        if (!regraProva) return 1
+        const faltam = (periodizacao?.provas ?? []).map((p) => daysBetween(date, p)).filter((d) => d >= 0 && d < regraProva.diasAntes)
+        if (faltam.length === 0) return 1
+        return 1 - regraProva.reducaoMaxima * (1 - Math.min(...faltam) / regraProva.diasAntes)
+    }
+
+    return datas.map((date, i) => {
         // Etapa do dia (Acumulação 1, ..., Realização). Condicionamento: fica na Acumulação.
         const daData = faseDe ? faseDe(date) : { etapa: null, nome: null, fase: null, semanaDaFase: null }
         const etapa = condicionamento && ['transicao', 'realizacao'].includes(daData.fase) ? 'acumulacao2' : daData.etapa
@@ -1110,10 +1130,12 @@ export function generateTrainings({
         }
         // Tempo da principal: o do feedback; no condicionamento, aumenta um pouco a cada treino
         const cond = rules.condicionamento
-        // A etapa também mexe no volume (ex.: Realização com 70%)
+        // A etapa também mexe no volume (Transição 85%; Realização de 85% a 60%) e a
+        // semana de uma prova importante no meio da preparação também
+        const volume = etapa && efeitos.volume !== undefined ? volumeDaEtapa(etapa, i) : 1
         const fatorPrincipal = Math.round((condicionamento
             ? Math.min(cond.fatorMaximo, ajuste.fatorPrincipal + i * cond.aumentoPorTreino)
-            : ajuste.fatorPrincipal) * (efeitos.volume ?? 1) * 100) / 100
+            : ajuste.fatorPrincipal) * volume * volumeDaProva(date) * 100) / 100
         // Teste de quem não tem tempo (depois de 1 mês) e o teste da periodização (no
         // começo da Transição). Quem não nada 400 m sem parar não faz teste (condicionamento).
         const testeSemTempo = semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe

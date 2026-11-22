@@ -320,6 +320,10 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     ORDER BY date, id LIMIT 1
   `)
   const countPreparations = db.prepare('SELECT COUNT(*) AS total FROM preparations WHERE user_id = ?')
+  // Provas no meio da preparação (a semana delas tem menos volume)
+  const competitionsBetween = db.prepare(`
+    SELECT id, date, priority FROM competitions WHERE user_id = ? AND date >= ? AND date <= ?
+  `)
   // Treinos da periodização que já passaram (para a numeração continuar)
   const countSince = db.prepare('SELECT COUNT(*) AS total FROM trainings WHERE user_id = ? AND date >= ? AND date < ?')
 
@@ -373,7 +377,13 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       historico: readHistory(userId),
       fatorDoProximo: nextFactor(userId, today),
       inicioDosTreinos: [firstTrainingDate.get(userId)?.date ?? today, today].sort()[0],
-      periodizacao: { inicio, fim, testeNaTransicao, numeroInicial: countSince.get(userId, inicio, today).total + 1 },
+      periodizacao: {
+        inicio, fim, testeNaTransicao, numeroInicial: countSince.get(userId, inicio, today).total + 1,
+        // As importantes (prioridade A ou B), menos a prova alvo
+        provas: competitionsBetween.all(userId, today, fim)
+          .filter((c) => c.id !== ativa?.competition?.id && (rules.periodizacao?.provaIntermediaria?.prioridades ?? []).includes(c.priority))
+          .map((c) => c.date),
+      },
       athlete: {
         ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
       },

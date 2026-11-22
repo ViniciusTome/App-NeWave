@@ -1061,3 +1061,39 @@ test('(2x), (3x), (4x)...: cada série com um material diferente da anterior', (
   // Iniciante e intermediário: quase sempre começam nadando
   assert.ok(comecaNadando / iniciantes > 0.6, `${comecaNadando} de ${iniciantes}`)
 })
+
+test('periodização: volume da Transição 85%; Realização caindo de 85% a 60%', () => {
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-02-20', testeNaTransicao: false }
+  const treinos = generateTrainings({
+    rules, library, athlete: { ...avancado, trainingDays: [0, 1, 2, 3, 4, 5, 6] }, today: '2026-11-23', random: seeded(1), periodizacao,
+  })
+  const fatores = (etapa) => treinos.filter((t) => t.plano.etapa === etapa).map((t) => t.plano.fatorPrincipal)
+  assert.ok([...fatores('transicao1'), ...fatores('transicao2')].every((f) => f === 0.85))
+  const r = fatores('realizacao')
+  assert.ok(r.length >= 6)
+  assert.equal(r[0], 0.85)
+  assert.equal(r.at(-1), 0.6)
+  for (let i = 1; i < r.length; i++) assert.ok(r[i] < r[i - 1], r.join(', '))
+  assert.ok(fatores('acumulacao1').every((f) => f === 1))
+})
+
+test('prova importante no meio da preparação: o volume cai aos poucos na semana dela, nada mais muda', () => {
+  const base = { inicio: '2026-11-23', fim: '2027-02-20', testeNaTransicao: false }
+  const athlete = { ...avancado, trainingDays: [0, 1, 2, 3, 4, 5, 6] }
+  const gerar2 = (provas) => generateTrainings({
+    rules, library, athlete, today: '2026-11-23', random: seeded(1), periodizacao: { ...base, provas },
+  })
+  const sem = gerar2([])
+  const com = gerar2(['2026-12-20'])
+  const fator = (ts, date) => ts.find((t) => t.date === date).plano.fatorPrincipal
+  // Antes da semana da prova: igual
+  assert.equal(fator(com, '2026-12-13'), fator(sem, '2026-12-13'))
+  // Na semana: vai caindo, até uns 12,5% a menos no dia da prova
+  const semana = ['2026-12-14', '2026-12-15', '2026-12-16', '2026-12-17', '2026-12-18', '2026-12-19', '2026-12-20']
+  const f = semana.map((d) => fator(com, d) / fator(sem, d))
+  for (let i = 1; i < f.length; i++) assert.ok(f[i] <= f[i - 1], f.join(', '))
+  assert.ok(f.at(-1) >= 0.85 && f.at(-1) <= 0.9, `${f.at(-1)}`)
+  // Depois da prova volta ao normal; a etapa e as intensidades não mudam
+  assert.equal(fator(com, '2026-12-21'), fator(sem, '2026-12-21'))
+  assert.deepEqual(com.map((t) => t.plano.etapa), sem.map((t) => t.plano.etapa))
+})

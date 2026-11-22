@@ -470,15 +470,15 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
 
   | Etapa | Dias | O que tem |
   |---|---|---|
-  | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), intervalos maiores: +1' entre as séries e +10" de descanso (PROVISÓRIO) |
+  | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), intervalos maiores: +1' entre as séries e +10" de descanso |
   | Acumulação 2 | 14 a 45 | Séries aeróbicas A1/A2, intervalos ajustados (os normais) |
-  | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 90% |
-  | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 90% |
+  | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 85% |
+  | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 85% |
   | Semana de recuperação | 7 | Depois de cada Transição: só ritmo leve, volume 60%, sem velocidade |
-  | Realização | 6 a 8 | Ritmo de prova e velocidade: mais AC e final forte, volume 70%, velocidade do avançado nos 25 m cd 25". **Só uma semana:** com duas, o atleta perde condicionamento e sofre mais na volta aos treinos |
+  | Realização | 6 a 8 | Ritmo de prova e velocidade: mais AC e final forte, volume caindo de 85% no 1º treino a 60% no último, velocidade do avançado nos 25 m cd 25". **Só uma semana:** com duas, o atleta perde condicionamento e sofre mais na volta aos treinos |
 
   - **Montada de trás para frente**, como o treinador faz: primeiro a **Realização** (antes da prova), depois a **semana de recuperação**, a **Transição** e a **Acumulação**, repetindo o ciclo do nível até encaixar tudo (`periodizacao.ciclo`):
-    - **Iniciante** (e intermediário, PROVISÓRIO): **duas Acumulações para cada Transição** (A1-A2-T).
+    - **Iniciante e intermediário:** **duas Acumulações para cada Transição** (A1-A2-T).
     - **Avançado:** **uma de cada** (A-T), porque suporta mais pancada.
   - **Semana de recuperação** depois de cada Transição (`recuperacaoDepoisDaTransicao`, 7 dias): só ritmo leve, volume 60%, sem velocidade.
   - **Antes da Realização** a recuperação só entra para quem treina **mais de 3 vezes por semana** (`recuperacaoAntesDaRealizacaoAcimaDe`): a Realização já é de volume baixo e descansos longos.
@@ -486,6 +486,7 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
   - Cada etapa começa com os dias ideais (`diasIdeais`: Acumulação 21, Transição 21, Realização 7) e os dias que sobram vão primeiro para a Acumulação, sem passar do máximo. A periodização **sempre começa pela Acumulação** (a base).
   - Se o primeiro ciclo fica incompleto (ex.: iniciante com uma Acumulação só antes da Transição), o começo vira Acumulação: mais base.
   - Exemplos: iniciante, 3 treinos por semana, 12 semanas = A1 → A2 → A2 → T1 → R; com 5 treinos por semana = A1 → A2 → T1 → recuperação → R. Iniciante com 5 meses = A1 → A2 → T1 → recuperação → A1 → A2 → T2 → recuperação → R. Avançado com 5 meses = A1 → T1 → recuperação → A2 → T2 → recuperação → A2 → T2 → recuperação → R.
+  - **Prova importante no meio da preparação** (prioridade A ou B, que não é a prova alvo): na semana da prova o volume cai aos poucos, até cerca de 12,5% a menos no dia da prova. Nada mais muda (`provaIntermediaria`). A prova C não muda o treino.
   - **Condicionamento** (não nada 400 m sem parar): fica na Acumulação o tempo todo.
   - As fases também ligam as regras que já existiam: saída por intensidade na Transição, intervalo de 1' na Realização, ritmo por repetição na Acumulação.
 - **Teste de 400 m** no 1º treino da Transição (veja "Teste de 400 m na periodização").

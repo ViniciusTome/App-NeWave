@@ -155,6 +155,13 @@
     "_comentarioRecuperacao": "Entre a última Transição e a Realização a semana de recuperação só entra para quem treina mais que 'recuperacaoAntesDaRealizacaoAcimaDe' vezes por semana: a Realização já tem volume baixo e descansos longos.",
     "recuperacaoAntesDaRealizacaoAcimaDe": 3,
     "diasIdeais": { "acumulacao": 21, "transicao": 21, "realizacao": 7 },
+    "_comentarioVolume": "'volume' de cada etapa: um número (ex.: 0.85 = 85% do tempo da principal) ou [início, fim], que vai caindo treino a treino (Realização: 85% no 1º treino até 60% no último).",
+    "provaIntermediaria": {
+      "_comentario": "Prova importante no meio da preparação (prioridade A ou B, que não é a prova alvo): na semana da prova o volume cai aos poucos, até 'reducaoMaxima' a menos no dia da prova. Nada mais muda.",
+      "prioridades": ["A", "B"],
+      "diasAntes": 7,
+      "reducaoMaxima": 0.125
+    },
     "etapas": {
       "acumulacao1": {
         "nome": "Acumulação 1", "fase": "acumulacao", "dias": [14, 45],
@@ -169,12 +176,12 @@
       "transicao1": {
         "nome": "Transição 1", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Especificidade: resistência mista, A3 e aeróbica intensa",
-        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.9
+        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85
       },
       "transicao2": {
         "nome": "Transição 2", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Força específica, resistência mista e aeróbica intensa",
-        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.9, "foco": "forca"
+        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "foco": "forca"
       },
       "recuperacao": {
         "nome": "Semana de recuperação", "fase": "recuperacao", "dias": [7, 7],
@@ -184,7 +191,7 @@
       "realizacao": {
         "nome": "Realização", "fase": "realizacao", "dias": [6, 8],
         "objetivo": "Ritmo de prova e velocidade: baixo volume e alta intensidade. Só uma semana (6 a 8 dias): com duas, o atleta perde condicionamento e sofre mais na volta aos treinos",
-        "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": 0.7, "velocidadeAvancado25": 25
+        "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": [0.85, 0.6], "velocidadeAvancado25": 25
       }
     }
   },
