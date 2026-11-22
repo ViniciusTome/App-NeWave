@@ -117,6 +117,32 @@ As séries ficam "brutas", sem material. As regras dizem como montar o treino co
 
 O iniciante faz aquecimento → principal → solto em qualquer tempo de aula.
 
+### Mistura de nados nas séries com (3x), (4x)
+
+```json
+"misturaDeNados": {
+  "partes": ["principal"],
+  "minimoDeSeries": 3,
+  "formatos": ["igual", "espelhado", "diferentes"],
+  "pesoMelhorEstilo": 2
+}
+```
+
+Nas séries principais com `(3x)` ou `(4x)`, cada série pode ter os nados misturados entre as repetições. O gerador sorteia, para cada série, um formato:
+
+- **igual**: costas, costas, costas;
+- **espelhado**: a primeira e a última iguais, o meio diferente (medley, peito, medley);
+- **diferentes**: todas diferentes (melhor estilo, peito, medley).
+
+Os nados usados são o **medley** (cada repetição um medley completo, quando a distância permite), o **melhor estilo** e os outros estilos que o atleta nada. O crawl fica de fora: a série em crawl continua existindo como a série normal. O melhor estilo aparece com mais frequência (`pesoMelhorEstilo`: 2 = o dobro).
+
+Exemplo para um avançado cujo melhor estilo é costas:
+`(4x) 3 x 200 · 1ª série costas, peito, costas; 2ª série peito, costas, medley; 3ª série borboleta, medley, costas; 4ª série medley`
+
+As regras de provas de piscina e de limite por nível continuam valendo: para quem não é avançado, não entra 200 de borboleta.
+
+O **melhor estilo** vem da anamnese ("Qual é o seu melhor estilo?", entre borboleta, costas e peito). Sem resposta, vale a ordem de velocidade: borboleta, costas, peito.
+
 ### 2ª série principal
 
 ```json
@@ -275,3 +301,5 @@ As fases são `acumulacao`, `transicao` e `realizacao`.
 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
 - **Saída do 25 forte de cada atleta**: como calcular a partir do ritmo dele.
+- **Melhor estilo pelos testes**: comparar os tempos de cada estilo (hoje os testes não guardam o estilo).
+- **Mistura de nados com material**: por enquanto a mistura sai sem material (material + estilo depende da fase).

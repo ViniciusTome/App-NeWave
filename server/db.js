@@ -86,6 +86,7 @@ export function openDatabase(path) {
       equipment           TEXT    NOT NULL,
       injuries            TEXT    NOT NULL DEFAULT '',
       reported_400_hundredths INTEGER,
+      best_stroke         TEXT,
       created_at          TEXT    NOT NULL,
       updated_at          TEXT    NOT NULL
     );
@@ -126,6 +127,12 @@ export function openDatabase(path) {
       ALTER TABLE trainings ADD COLUMN completed_at TEXT;
       UPDATE trainings SET completed_at = created_at;
     `)
+  }
+
+  // Pergunta "Qual é o seu melhor estilo?" chegou depois: bancos antigos não têm a coluna
+  const profileColumns = db.prepare('PRAGMA table_info(athlete_profiles)').all().map((col) => col.name)
+  if (!profileColumns.includes('best_stroke')) {
+    db.exec('ALTER TABLE athlete_profiles ADD COLUMN best_stroke TEXT')
   }
 
   // Faixas antigas de "quanto nada sem parar" -> nomes atuais

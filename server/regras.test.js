@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { describe, loadPart, validate } from './series/index.js'
 import {
-  allowedAsSecondMain, intervalBetweenSets, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
+  allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
 } from './series/regras.js'
 
 const rules = loadRules()
@@ -333,6 +333,98 @@ test('série escrita em 200 borboleta não vai para quem não é avançado', () 
   assert.ok(de('avancado').length > 0)
 })
 
+// ---------- Mistura de nados nas séries com (3x), (4x) ----------
+
+// Sorteio que se repete igual a cada execução do teste
+function seeded(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+const principalSerie = (id) => loadPart('principal').find((s) => s.id === id)
+const avancadoCompleto = { equipment: [], strokes: QUATRO_ESTILOS, level: 'avancado', bestStroke: 'costas' }
+const draws = (id, athlete, n = 2000) => {
+  const random = seeded(42)
+  return Array.from({ length: n }, () => drawMixedStrokes(rules, 'principal', principalSerie(id), athlete, random))
+}
+
+test('mistura de nados: (4x) 3 x 200 com medley, melhor estilo e estilos, sem crawl', () => {
+  const formatos = new Set()
+  for (const mistura of draws('pri-4x3x200', avancadoCompleto)) {
+    assert.equal(mistura.porSerie.length, 4)
+    for (const serie of mistura.porSerie) {
+      assert.equal(serie.length, 3)
+      assert.ok(serie.every((n) => ['borboleta', 'costas', 'peito', 'medley'].includes(n)), serie.join())
+      const [a, b, c] = serie
+      if (a === b && b === c) formatos.add('igual')
+      else if (a === c && a !== b) formatos.add('espelhado')
+      else if (new Set(serie).size === 3) formatos.add('diferentes')
+      else assert.fail(`formato inválido: ${serie.join(', ')}`)
+    }
+  }
+  assert.deepEqual([...formatos].sort(), ['diferentes', 'espelhado', 'igual'])
+})
+
+test('mistura de nados: o texto mostra cada série', () => {
+  const [mistura] = draws('pri-4x3x200', avancadoCompleto, 1)
+  assert.match(mistura.texto, /^\(4x\) 3 x 200 · 1ª série [a-z, ]+; 2ª série [a-z, ]+; 3ª série [a-z, ]+; 4ª série [a-z, ]+$/)
+})
+
+test('mistura de nados: o melhor estilo aparece mais', () => {
+  const contagem = {}
+  for (const mistura of draws('pri-4x3x200', avancadoCompleto)) {
+    for (const n of mistura.porSerie.flat()) contagem[n] = (contagem[n] ?? 0) + 1
+  }
+  for (const outro of ['borboleta', 'peito', 'medley']) {
+    assert.ok(contagem.costas > contagem[outro], JSON.stringify(contagem))
+  }
+})
+
+test('mistura de nados: borboleta de 200 não entra para intermediário', () => {
+  const intermediario = { ...avancadoCompleto, level: 'intermediario' }
+  for (const mistura of draws('pri-4x3x200', intermediario, 500)) {
+    assert.ok(!mistura.porSerie.flat().includes('borboleta'))
+  }
+})
+
+test('mistura de nados: 50 m sem medley individual; 100 m de medley só na piscina de 25 m', () => {
+  for (const mistura of draws('pri-3x6x50', avancadoCompleto, 300)) {
+    assert.ok(!mistura.porSerie.flat().includes('medley'))
+  }
+  const comMedley = draws('pri-4x4x100', avancadoCompleto, 300).filter((m) => m.porSerie.flat().includes('medley'))
+  assert.ok(comMedley.length > 0)
+  for (const mistura of comMedley) assert.deepEqual(mistura.piscinas, [25])
+})
+
+test('mistura de nados: só nas séries com (3x), (4x)', () => {
+  const um = (id) => drawMixedStrokes(rules, 'principal', principalSerie(id), avancadoCompleto, seeded(1))
+  assert.equal(um('pri-10x200'), null) // sem séries
+  assert.equal(um('pri-2x10x100'), null) // (2x)
+  assert.equal(um('pri-3x-100-75-50-25'), null) // grupo de vários blocos
+  assert.ok(um('pri-3x3x200'))
+  assert.ok(um('pri-4x4x75'))
+  // Só vale na série principal
+  assert.equal(drawMixedStrokes(rules, 'velocidade', principalSerie('pri-3x3x200'), avancadoCompleto, seeded(1)), null)
+})
+
+test('mistura de nados: precisa de pelo menos dois nados para misturar', () => {
+  const serie = principalSerie('pri-4x3x200')
+  assert.equal(drawMixedStrokes(rules, 'principal', serie, { ...avancadoCompleto, strokes: ['crawl'] }, seeded(1)), null)
+  assert.equal(drawMixedStrokes(rules, 'principal', serie, { ...avancadoCompleto, strokes: ['crawl', 'costas'] }, seeded(1)), null)
+  assert.ok(drawMixedStrokes(rules, 'principal', serie, { ...avancadoCompleto, strokes: ['crawl', 'costas', 'peito'] }, seeded(1)))
+})
+
+test('mistura de nados: sem melhor estilo na anamnese, vale a ordem de velocidade', () => {
+  const semResposta = { ...avancadoCompleto, bestStroke: null }
+  const [mistura] = draws('pri-4x3x200', semResposta, 1)
+  assert.equal(mistura.melhorEstilo, 'borboleta')
+  const [intermediario] = draws('pri-4x3x200', { ...semResposta, level: 'intermediario' }, 1)
+  assert.equal(intermediario.melhorEstilo, 'costas') // borboleta de 200 não vale para ele
+})
+
 // ---------- 2ª série principal ----------
 
 // Séries principais de exemplo (o principal.json ainda não existe)
@@ -390,6 +482,9 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.materialObrigatorio[0].emPiramidesAPartirDe = 0 }, '"emPiramidesAPartirDe"'],
     [(r) => { r.material.principal.piramides = 'aleatorio' }, 'material.principal.piramides'],
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
+    [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
+    [(r) => { r.misturaDeNados.minimoDeSeries = 1 }, 'misturaDeNados.minimoDeSeries'],
+    [(r) => { r.misturaDeNados.pesoMelhorEstilo = 0 }, 'misturaDeNados.pesoMelhorEstilo'],
     [(r) => { r.limitesPorNivel.borboleta.iniciante = 110 }, 'limitesPorNivel.borboleta.iniciante'],
     [(r) => { r.limitesPorNivel.borboleta.junior = 100 }, '"junior"'],
     [(r) => { r.materialObrigatorio[0].material = ['nadadeira'] }, 'materialObrigatorio, regra 1: "material"'],

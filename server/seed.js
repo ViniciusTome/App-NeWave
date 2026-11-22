@@ -74,9 +74,9 @@ const insertTraining = db.prepare(`
 const upsertProfile = db.prepare(`
   INSERT OR REPLACE INTO athlete_profiles (
     user_id, swimming_since, recent_break, continuous_distance, strokes, training_days,
-    session_minutes, pool_length, equipment, injuries, reported_400_hundredths, created_at, updated_at
+    session_minutes, pool_length, equipment, injuries, reported_400_hundredths, best_stroke, created_at, updated_at
   ) VALUES (?, '2a_5a', 'nao', '1000_2000', '["crawl","costas"]', '[1,3,5]', 60, 25,
-    '["pe_de_pato","palmar","pull_buoy"]', '', NULL, ?, ?)
+    '["pe_de_pato","palmar","pull_buoy"]', '', NULL, 'costas', ?, ?)
 `)
 const insertCompetition = db.prepare(`
   INSERT INTO competitions (user_id, name, date, modality, event, priority, created_at)

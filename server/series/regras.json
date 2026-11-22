@@ -20,6 +20,12 @@
       ]
     }
   },
+  "misturaDeNados": {
+    "partes": ["principal"],
+    "minimoDeSeries": 3,
+    "formatos": ["igual", "espelhado", "diferentes"],
+    "pesoMelhorEstilo": 2
+  },
   "segundaPrincipal": {
     "alternarCrawlEEstilo": true
   },

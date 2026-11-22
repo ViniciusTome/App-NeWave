@@ -10,6 +10,10 @@ import { MATERIAIS, PARTS, canAlternateMedley, canSwimInStroke, individualMedley
 
 const NIVEIS = ['iniciante', 'intermediario', 'avancado']
 const ESTILOS = ['borboleta', 'costas', 'peito'] // "estilo" = qualquer um que não seja o crawl
+// Formatos de cada série na mistura de nados: igual (costas, costas, costas),
+// espelhado (medley, peito, medley) e diferentes (melhor estilo, peito, medley)
+const FORMATOS = ['igual', 'espelhado', 'diferentes']
+
 // Fases da periodização ATR: Acumulação, Transição, Realização
 export const FASES = ['acumulacao', 'transicao', 'realizacao']
 
@@ -67,6 +71,23 @@ export function validateRules(rules) {
                 }
             }
         })
+    }
+
+    if (rules.misturaDeNados !== undefined) {
+        const m = rules.misturaDeNados
+        const where = 'misturaDeNados'
+        if (!Array.isArray(m?.partes) || m.partes.some((p) => !PARTS.includes(p))) {
+            problems.push(`${where}.partes precisa ser uma lista com: ${PARTS.join(', ')}.`)
+        }
+        if (!(Number.isInteger(m?.minimoDeSeries) && m.minimoDeSeries >= 2)) {
+            problems.push(`${where}.minimoDeSeries precisa ser um número a partir de 2 (ex.: 3 para "(3x)", "(4x)").`)
+        }
+        if (!Array.isArray(m?.formatos) || m.formatos.length === 0 || m.formatos.some((f) => !FORMATOS.includes(f))) {
+            problems.push(`${where}.formatos precisa ser uma lista com: ${FORMATOS.join(', ')}.`)
+        }
+        if (!(Number.isInteger(m?.pesoMelhorEstilo) && m.pesoMelhorEstilo >= 1)) {
+            problems.push(`${where}.pesoMelhorEstilo precisa ser um número a partir de 1 (1 = sem preferência).`)
+        }
     }
 
     if (rules.segundaPrincipal !== undefined &&
@@ -479,4 +500,84 @@ export function allowedAsSecondMain(rules, first, second, athleteStrokes) {
     if (primeira === 'estilo') return segunda === 'crawl'
     const nadaEstilo = ESTILOS.some((s) => athleteStrokes.includes(s))
     return nadaEstilo ? segunda === 'estilo' : true
+}
+
+// ---------- Mistura de nados nas séries com "(3x)", "(4x)" ----------
+
+// Melhor estilo do atleta; sem resposta na anamnese, o primeiro na ordem de
+// velocidade (borboleta, costas, peito) entre os que ele pode nadar
+function bestStrokeOf(athlete, possiveis) {
+    if (possiveis.includes(athlete.bestStroke)) return athlete.bestStroke
+    return ESTILOS.find((s) => possiveis.includes(s)) ?? null
+}
+
+// Sorteia uma mistura de nados para a série: cada série do "(3x)", "(4x)" ganha
+// um formato (igual, espelhado ou diferentes) com medley, o melhor estilo e os
+// estilos que o atleta nada. O crawl fica de fora (a série em crawl já existe
+// como a série normal). Respeita as provas de piscina e os limites por nível.
+// Ex.: "(4x) 3 x 200 · 1ª série medley, peito, medley; 2ª série costas, medley, costas; ..."
+// Devolve null se a série ou o atleta não comportam a mistura.
+// `random` permite repetir o sorteio nos testes.
+export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.random) {
+    const regra = rules.misturaDeNados
+    if (!regra || !regra.partes.includes(parte)) return null
+    const sets = setsOf(serie)
+    if (serie.blocos.length !== 1 || sets < regra.minimoDeSeries) return null
+
+    const bloco = serie.blocos[0]
+    const has = new Set(athlete.strokes)
+    const estilos = canSwimInStroke(serie.blocos)
+        ? ESTILOS.filter((s) => has.has(s) && bloco.distancia <= limitFor(rules, s, athlete.level))
+        : []
+    // Medley aqui é o medley individual: cada repetição um medley completo
+    const medleyPools = ORDEM_MEDLEY.every((s) => has.has(s)) ? individualMedleyPools(serie.blocos) : []
+    const nados = [...estilos, ...(medleyPools.length > 0 ? ['medley'] : [])]
+    if (nados.length < 2) return null
+
+    const melhor = bestStrokeOf(athlete, estilos)
+    const peso = (nado) => (nado === melhor ? regra.pesoMelhorEstilo : 1)
+    const pick = (opcoes) => {
+        const total = opcoes.reduce((sum, n) => sum + peso(n), 0)
+        let r = random() * total
+        for (const n of opcoes) {
+            r -= peso(n)
+            if (r < 0) return n
+        }
+        return opcoes.at(-1)
+    }
+    const reps = bloco.repeticoes
+    const formatos = regra.formatos.filter((f) =>
+        f === 'igual' || (f === 'espelhado' && reps >= 3) || (f === 'diferentes' && reps <= nados.length))
+
+    const porSerie = Array.from({ length: sets }, () => {
+        const formato = formatos[Math.floor(random() * formatos.length)]
+        if (formato === 'igual') return Array(reps).fill(pick(nados))
+        if (formato === 'espelhado') {
+            const ponta = pick(nados)
+            const meio = pick(nados.filter((n) => n !== ponta))
+            return Array.from({ length: reps }, (_, i) => (i === 0 || i === reps - 1 ? ponta : meio))
+        }
+        const usados = []
+        for (let i = 0; i < reps; i++) usados.push(pick(nados.filter((n) => !usados.includes(n))))
+        return usados
+    })
+
+    const usaMedley = porSerie.some((s) => s.includes('medley'))
+    const texto = `${serie.texto} · ` + porSerie
+        .map((nadosDaSerie, i) => {
+            const todosIguais = nadosDaSerie.every((n) => n === nadosDaSerie[0])
+            return `${ORDINAIS[i]} série ${todosIguais ? nadosDaSerie[0] : nadosDaSerie.join(', ')}`
+        })
+        .join('; ')
+
+    return {
+        nado: 'misto',
+        porSerie,
+        melhorEstilo: melhor,
+        padrao: 'sem_material',
+        material: [],
+        // 100 medley só existe na piscina de 25 m
+        ...(usaMedley && { piscinas: medleyPools }),
+        texto,
+    }
 }

@@ -138,7 +138,26 @@ function validateProfile(body) {
     equipment: listOf(OPTIONS.equipment, body.equipment ?? [], { message: 'Material inválido.' }),
     injuries,
     reported400Hundredths: reported400,
+    bestStroke: validateBestStroke(body),
   }
+}
+
+// Melhor estilo: um dos estilos (borboleta, costas, peito) que o atleta marcou.
+// Quem só nada crawl não tem melhor estilo (null).
+const BEST_STROKE_OPTIONS = ['borboleta', 'costas', 'peito']
+
+function validateBestStroke(body) {
+  const marcados = Array.isArray(body.strokes) ? BEST_STROKE_OPTIONS.filter((s) => body.strokes.includes(s)) : []
+  if (marcados.length === 0) {
+    if (body.bestStroke !== null && body.bestStroke !== undefined) {
+      throw new HttpError(400, 'Só escolha o melhor estilo se nadar borboleta, costas ou peito.')
+    }
+    return null
+  }
+  if (!marcados.includes(body.bestStroke)) {
+    throw new HttpError(400, 'Escolha o seu melhor estilo entre os que você nada (borboleta, costas ou peito).')
+  }
+  return body.bestStroke
 }
 
 function validateCompetition(body) {
@@ -174,6 +193,7 @@ const publicProfile = (row) => ({
   equipment: JSON.parse(row.equipment),
   injuries: row.injuries,
   reported400Hundredths: row.reported_400_hundredths,
+  bestStroke: row.best_stroke,
   updatedAt: row.updated_at,
 })
 
@@ -199,8 +219,9 @@ export function createAthleteRoutes({ db, requireUser }) {
   const upsertProfile = db.prepare(`
     INSERT INTO athlete_profiles (
       user_id, swimming_since, recent_break, continuous_distance, strokes, training_days,
-      session_minutes, pool_length, equipment, injuries, reported_400_hundredths, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      session_minutes, pool_length, equipment, injuries, reported_400_hundredths, best_stroke,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       swimming_since = excluded.swimming_since,
       recent_break = excluded.recent_break,
@@ -212,6 +233,7 @@ export function createAthleteRoutes({ db, requireUser }) {
       equipment = excluded.equipment,
       injuries = excluded.injuries,
       reported_400_hundredths = excluded.reported_400_hundredths,
+      best_stroke = excluded.best_stroke,
       updated_at = excluded.updated_at
   `)
   // Teste de 400 m mais recente registrado pelo atleta
@@ -293,6 +315,7 @@ export function createAthleteRoutes({ db, requireUser }) {
         JSON.stringify(profile.equipment),
         profile.injuries,
         profile.reported400Hundredths,
+        profile.bestStroke,
         now,
         now,
       )
