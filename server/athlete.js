@@ -2,7 +2,7 @@
 // É a base do botão "Gerar treinos": as respostas ficam guardadas para o atleta
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
-import { feedbackAdjustment, generateTrainings, legacyFields, seriesUsadas } from './generator.js'
+import { feedbackAdjustment, generateTrainings, legacyFields, refreshTimes, seriesUsadas } from './generator.js'
 import { timeTable } from './series/regras.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -280,6 +280,14 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       ORDER BY date DESC, id DESC LIMIT 10
     ) ORDER BY date, id
   `)
+  // Treinos ainda não feitos, com o plano (para reescrever com um tempo novo)
+  const upcomingWithPlan = db.prepare(`
+    SELECT id, parts, plan FROM trainings
+    WHERE user_id = ? AND completed_at IS NULL AND date >= ? AND parts IS NOT NULL AND plan IS NOT NULL
+  `)
+  const updateParts = db.prepare(`
+    UPDATE trainings SET parts = ?, warm_up = ?, speed = ?, main_series = ?, release = ? WHERE id = ? AND user_id = ?
+  `)
   // Data do primeiro treino do atleta (o teste de quem não tem tempo vem depois de 1 mês)
   const firstTrainingDate = db.prepare('SELECT MIN(date) AS date FROM trainings WHERE user_id = ?')
   // Último treino antes de hoje (para não repetir as séries dele no primeiro treino novo)
@@ -515,6 +523,32 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       // O plano interno fica só no banco: o atleta não recebe
       const semPlano = (t) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'plano'))
       sendJson(res, 201, { trainings: resultado.trainings.map(semPlano), replaced: resultado.replaced })
+    },
+
+    // Tempo novo (teste de 400 m): reescreve os treinos que ainda não foram feitos com
+    // os tempos atuais (cd, ritmo, velocidade). As séries e as intensidades não mudam.
+    // Devolve quantos treinos foram atualizados.
+    refreshTrainingTimes(userId, today = new Date().toISOString().slice(0, 10)) {
+      const { profile, time400, level } = profileResponse(userId)
+      if (!profile || !level) return 0
+      const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 }
+      let atualizados = 0
+      db.exec('BEGIN')
+      try {
+        for (const row of upcomingWithPlan.all(userId, today)) {
+          const plano = JSON.parse(row.plan)
+          if (!plano.montagem) continue
+          const partes = refreshTimes(rules, athlete, { partes: JSON.parse(row.parts), plano })
+          const f = legacyFields(partes)
+          updateParts.run(JSON.stringify(partes), f.warmUp, f.speed, f.mainSeries, f.release, row.id, userId)
+          atualizados++
+        }
+        db.exec('COMMIT')
+      } catch (err) {
+        db.exec('ROLLBACK')
+        throw err
+      }
+      return atualizados
     },
 
     // Depois de concluir um treino: se os últimos 3 seguidos saíram do esperado,

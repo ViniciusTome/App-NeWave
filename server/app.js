@@ -308,6 +308,8 @@ export function createApp({
   // Ao concluir um treino, o feedback pode refazer os próximos (3 seguidos fora do esperado)
   const swimming = createSwimmingRoutes({
     db, requireUser, onTrainingCompleted: (userId) => athlete.reformulateIfNeeded(userId),
+    // Tempo novo (teste de 400 m): os treinos não feitos ganham os tempos, sem mudar as séries
+    onTimesChanged: (userId) => athlete.refreshTrainingTimes(userId),
   })
   const athlete = createAthleteRoutes({ db, requireUser, library: loadLibrary(), rules: loadRules() })
 

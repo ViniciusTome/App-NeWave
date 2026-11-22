@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '../../Modal'
-import { api } from '../../../services/api'
+import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../../services/api'
 import { formatDate, formatSecondsDiff, formatSwimTime } from '../../../utils/format'
 import { AddTestForm } from './AddTestForm'
 import { TimesChart } from './TimesChart'
@@ -52,6 +52,9 @@ export const EvolutionOfTheTimes = () => {
         try {
             await api(`/tests/${test.id}`, { method: 'DELETE' })
             setTests((current) => current.filter((t) => t.id !== test.id))
+            // Sem esse teste, os tempos (e o cd dos treinos) podem mudar
+            notifyAthleteChanged()
+            notifyTrainingsChanged()
         } catch (err) {
             window.alert(err.message)
         }

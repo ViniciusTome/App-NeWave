@@ -582,11 +582,11 @@ test('NEG, POS e final forte: tempo do A2 + 20" a 30" nos 50 e 100 m', () => {
   assert.equal(saidaFor(rules, avancado, { distancia: 50 }, 'NEG'), 65)
 })
 
-test('velocidade: avançado nos 25 a cada 30"; intermediário 1/1', () => {
+test('velocidade: avançado nos 25 a cada 30"; intermediário: tempo forte + 20" a 30" (nunca 1/1)', () => {
   const tabela = timeTable(rules, 360)
   assert.equal(saidaVelocidade(rules, { level: 'avancado', tabela, teste400: 360 }, { distancia: 25 }), 30)
-  // Intermediário: 25 forte ~16" + 16" de descanso -> 35"
-  assert.equal(saidaVelocidade(rules, { level: 'intermediario', tabela, teste400: 360 }, { distancia: 25 }), 35)
+  // Intermediário: 25 forte ~16" + 25" de descanso -> 40"
+  assert.equal(saidaVelocidade(rules, { level: 'intermediario', tabela, teste400: 360 }, { distancia: 25 }), 40)
   // O card mostra a saída
   const textos = [1, 2, 3, 4].flatMap((seed) => gerar(avancado, seed))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
@@ -754,10 +754,10 @@ test('sem tempos de referência: o descanso entre as repetições no lugar da sa
   for (const t of textos) assert.ok(!/cd \d/.test(t) && !/AC\)/.test(t) && !/\bA[123]\b/.test(t), t)
   assert.ok(textos.some((t) => /ritmo (leve|moderado|forte)/.test(t)), textos.join('\n'))
   assert.ok(textos.some((t) => /c\/\d+"? de descanso|c\/\d+' de descanso/.test(t)), textos.join('\n'))
-  // Velocidade do intermediário: 1/1
+  // Velocidade do intermediário sem tempo: 20" a 30" de descanso (nunca 1/1)
   const velocidade = [1, 2, 3].flatMap((seed) => semTeste(gerar(semTempo, seed)))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
-  assert.ok(velocidade.every((t) => /1\/1/.test(t)), velocidade.join('\n'))
+  assert.ok(velocidade.every((t) => /c\/20" a 30" de descanso/.test(t) && !/1\/1/.test(t)), velocidade.join('\n'))
 })
 
 test('quem nada até 400 m sem parar descansa pelo menos 20 a 30 segundos', () => {
@@ -1110,4 +1110,15 @@ test('aula de 30 min: qualquer nível pode fazer uma série só, para caber no t
   const opcoes = (minutos) => setOptions(rules, 'principal', serieById('pri-2x10x100'), 'avancado', minutos).map((s) => s.texto)
   assert.ok(opcoes(30).includes('10 x 100'))
   assert.ok(!opcoes(60).includes('10 x 100'))
+})
+
+test('velocidade: o estilo vai escrito no card (CR, CO, PE, BO ou medley)', () => {
+  const textos = [1, 2, 3, 4, 5, 6].flatMap((seed) => gerar(avancado, seed))
+    .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
+  assert.ok(textos.length > 0)
+  for (const t of textos) assert.match(t, /\b(CR|CO|PE|BO|MD|ME)\b|estilo/, t)
+  // Só os estilos que o atleta nada
+  const soCrawl = [1, 2, 3].flatMap((seed) => gerar({ ...avancado, strokes: ['crawl'], bestStroke: null }, seed))
+    .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
+  assert.ok(soCrawl.every((t) => /\bCR\b/.test(t) && !/\b(CO|PE|BO)\b/.test(t)), soCrawl.join('\n'))
 })

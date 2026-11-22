@@ -504,3 +504,36 @@ test('trocar a prova alvo refaz a periodização para o tempo que falta', async 
   assert.equal(lista.find((c) => c.id === longe.id).priority, 'B')
   assert.equal(lista.find((c) => c.id === perto.id).priority, 'A')
 })
+
+test('registrar o teste de 400 m coloca os tempos (cd) nos treinos já montados, sem mudar as séries', async () => {
+  const cookie = await userFor('feedback')
+  // Sem tempo nenhum: o card mostra o descanso e o ritmo por extenso
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: null })
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  const { user } = (await api('/api/auth/me', { cookie })).body
+  db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const antes = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  // (o dia do teste não tem série principal)
+  const principal = (t) => t.partes.find((p) => p.parte === 'principal') ?? { texto: '' }
+  assert.ok(antes.every((t) => !/cd \d/.test(principal(t).texto)), 'sem tempo não tem cd')
+  assert.ok(antes.some((t) => /de descanso/.test(principal(t).texto)))
+
+  // Registra o teste de 400 m
+  const teste = await api('/api/tests', { method: 'POST', cookie, body: { distance: 400, timeHundredths: 36000, date: hoje } })
+  assert.equal(teste.status, 201)
+  assert.ok(teste.body.treinosAtualizados > 0)
+  const depois = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  // As mesmas séries, nos mesmos dias...
+  assert.deepEqual(depois.map((t) => [t.date, t.partes.map((p) => p.serieId)]), antes.map((t) => [t.date, t.partes.map((p) => p.serieId)]))
+  // ... agora com o cd e sem o ritmo por extenso
+  assert.ok(depois.some((t) => /cd \d/.test(principal(t).texto)))
+  assert.ok(depois.every((t) => !/ritmo (leve|moderado|forte)/.test(principal(t).texto)))
+  // Os campos antigos (histórico) também
+  const linha = db.prepare('SELECT main_series FROM trainings WHERE id = ?').get(depois[0].id)
+  assert.equal(linha.main_series.includes('ritmo leve'), false)
+  db.close()
+})

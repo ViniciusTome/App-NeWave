@@ -544,8 +544,13 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 - **Iniciante com equipamento:** a saída não diminui com pé de pato ou palmar. O card mostra um aviso: se fizer muito abaixo do tempo proposto, descanse o tempo de descanso antes da próxima.
 - **AC (acima do melhor):** nos 400, melhor tempo do teste + o AC. Nas outras distâncias, o melhor tempo é **estimado pela tabela de percentuais** a partir do A1: melhor = tempo do A1 ÷ (1 + (100 − esforço do A1) ÷ 100). Ex. (avançado, A1 a 75%): 100 m A1 1'30" → melhor 1'12"; 10 AC = 1'22" + 25" = **cd 1'45"**.
 - **NEG, POS e final forte:** tempo do A2 + **20" a 30"** (usa 25") nos 50 e 100 m. Nas outras distâncias, a tabela de descanso.
-- **Velocidade:** avançado nos 25 m **cd 30"**. Intermediário (e nas outras distâncias): **1/1**, descansa o mesmo tempo que nada; o tempo forte vem do melhor dos 50 estimado (proporcional à distância).
+- **Velocidade:** avançado nos 25 m **cd 30"** (25" na Realização). Nos outros casos: o tempo forte (melhor dos 50 estimado, proporcional à distância) **+ 20" a 30" de descanso**; sem tempo, `c/20" a 30" de descanso`. **Nunca 1/1.**
+- **Estilo da velocidade:** a série "livre" vai com o estilo escrito no card (CR, CO, PE, BO), sorteado entre os que o atleta nada (crawl com o dobro de chance). As que têm medley ou estilos continuam com eles.
 - **Grupos** (ex.: 3x(1x100; 2x75; 3x50; 4x25)): cada distância com a sua saída. Se a saída é a mesma em todas as séries, vai na linha da distância; se muda, vai na linha de cada série (`100 cd 1'45" / 75 cd 1'30" / ...`).
+
+### Tempo novo nos treinos já montados
+
+Quando o atleta registra um **teste de 400 m** (ou apaga um), os treinos que ele **ainda não fez** são reescritos com os tempos atuais: o **cd**, o ritmo (A1, A2, A3 no lugar de "ritmo leve...") e a saída da velocidade. **As séries, o material e as intensidades não mudam.** Para isso, cada treino guarda no plano interno como cada parte foi montada (`plano.montagem`).
 
 ### Sem tempos de referência (sem teste de 400 m)
 

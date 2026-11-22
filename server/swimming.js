@@ -85,7 +85,7 @@ function parseId(value) {
   return id
 }
 
-export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = () => 0 }) {
+export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = () => 0, onTimesChanged = () => 0 }) {
   const listTests = db.prepare(`
     SELECT id, distance, time_hundredths, date FROM tests
     WHERE user_id = ? ORDER BY date, id
@@ -149,7 +149,9 @@ export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = ()
 
       const id = insertTest.run(user.id, distance, timeHundredths, date, new Date().toISOString())
         .lastInsertRowid
-      sendJson(res, 201, { test: { id: Number(id), distance, timeHundredths, date } })
+      // Teste de 400 m: os treinos que ainda não foram feitos ganham os tempos novos (cd, ritmo)
+      const treinosAtualizados = distance === 400 ? onTimesChanged(user.id) : 0
+      sendJson(res, 201, { test: { id: Number(id), distance, timeHundredths, date }, treinosAtualizados })
     },
 
     // DELETE /api/tests/:id
@@ -159,6 +161,7 @@ export function createSwimmingRoutes({ db, requireUser, onTrainingCompleted = ()
       if (deleteTest.run(parseId(id), user.id).changes === 0) {
         throw new HttpError(404, 'Teste não encontrado.')
       }
+      onTimesChanged(user.id) // sem esse teste, os tempos podem mudar
       res.writeHead(204, { 'Cache-Control': 'no-store' })
       res.end()
     },
