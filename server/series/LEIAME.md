@@ -6,7 +6,7 @@ Cada parte do treino tem o seu arquivo:
 | --- | --- |
 | `aquecimento.json` | Aquecimento |
 | `velocidade.json` | Velocidade |
-| `solto.json` | Solto: nado de recuperação entre a velocidade e a série principal |
+| `solto.json` | Solto: nado de recuperação (entre a velocidade e a série principal; no iniciante, no final do treino) |
 | `principal.json` | Série principal (ainda não criado) |
 | `soltura.json` | Soltura (ainda não criado) |
 
@@ -96,13 +96,13 @@ As séries ficam "brutas", sem material. As regras dizem como montar o treino co
 
 ```json
 "niveis": {
-  "iniciante": { "partes": ["aquecimento", "principal", "soltura"] },
+  "iniciante": { "partes": ["aquecimento", "principal", "solto"] },
   "intermediario": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
   "avancado": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] }
 }
 ```
 
-O iniciante não faz velocidade (nem o solto, que é a recuperação depois dela).
+A ordem da lista é a ordem do treino. O iniciante não faz velocidade e faz o solto **no final do treino**; o intermediário e o avançado fazem o solto entre a velocidade e a série principal.
 
 ### Material
 

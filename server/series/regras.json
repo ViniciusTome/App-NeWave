@@ -1,6 +1,6 @@
 {
   "niveis": {
-    "iniciante": { "partes": ["aquecimento", "principal", "soltura"] },
+    "iniciante": { "partes": ["aquecimento", "principal", "solto"] },
     "intermediario": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
     "avancado": { "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] }
   },

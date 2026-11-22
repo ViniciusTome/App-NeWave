@@ -42,6 +42,8 @@ export function validateRules(rules) {
         const partes = rules.niveis?.[nivel]?.partes
         if (!Array.isArray(partes) || partes.length === 0 || partes.some((p) => !PARTS.includes(p))) {
             problems.push(`niveis.${nivel}.partes precisa ser uma lista com: ${PARTS.join(', ')}.`)
+        } else if (new Set(partes).size !== partes.length) {
+            problems.push(`niveis.${nivel}.partes tem uma parte repetida.`)
         }
     }
 
@@ -131,7 +133,8 @@ export function loadRules(file = new URL('./regras.json', import.meta.url)) {
 
 // ---------- Uso das regras ----------
 
-// Partes do treino que o nível faz (ex.: iniciante não faz velocidade)
+// Partes do treino que o nível faz, na ordem em que são nadadas
+// (ex.: o iniciante não faz velocidade e faz o solto no final)
 export const partsForLevel = (rules, nivel) => rules.niveis[nivel].partes
 
 // Agrupa as séries que ficam iguais: "1ª e 3ª séries com palmar, 2ª e 4ª séries nadando"
