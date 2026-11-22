@@ -46,13 +46,13 @@ export function validateRules(rules) {
             continue
         }
         let previous = 0
+        const validParts = [...PARTS, ...Object.keys(rules.pausas ?? {})]
         estruturas.forEach((estrutura, i) => {
             const label = `${where}, estrutura ${i + 1}`
             const partes = estrutura?.partes
-            if (!Array.isArray(partes) || partes.length === 0 || partes.some((p) => !PARTS.includes(p))) {
-                problems.push(`${label}: "partes" precisa ser uma lista com: ${PARTS.join(', ')}.`)
-            } else if (new Set(partes).size !== partes.length) {
-                problems.push(`${label}: "partes" tem uma parte repetida.`)
+            // Uma parte pode aparecer duas vezes (ex.: 2ª série principal)
+            if (!Array.isArray(partes) || partes.length === 0 || partes.some((p) => !validParts.includes(p))) {
+                problems.push(`${label}: "partes" precisa ser uma lista com: ${validParts.join(', ')}.`)
             }
             const last = i === estruturas.length - 1
             if (last && estrutura?.ateMinutos !== undefined) {
@@ -66,6 +66,17 @@ export function validateRules(rules) {
                 }
             }
         })
+    }
+
+    for (const [nome, pausa] of Object.entries(rules.pausas ?? {})) {
+        const where = `pausas.${nome}`
+        if (PARTS.includes(nome)) problems.push(`${where}: "${nome}" já é uma parte do treino; use outro nome.`)
+        if (!(Number.isInteger(pausa?.minutos) && pausa.minutos >= 1 && pausa.minutos <= 30)) {
+            problems.push(`${where}.minutos precisa ser de 1 a 30.`)
+        }
+        if (typeof pausa?.texto !== 'string' || pausa.texto.trim() === '') {
+            problems.push(`${where}.texto é obrigatório (é como a pausa aparece no treino).`)
+        }
     }
 
     for (const [parte, regra] of Object.entries(rules.material ?? {})) {
@@ -156,12 +167,17 @@ export function loadRules(file = new URL('./regras.json', import.meta.url)) {
 
 // Partes do treino para o nível e o tempo de aula, na ordem em que são nadadas.
 // Vale a primeira estrutura cujo "ateMinutos" comporta a aula; a última vale
-// para qualquer tempo acima. Ex.: até 50 min sem perna; acima disso, com perna.
+// para qualquer tempo acima. Ex.: até 50 min sem perna; até 1h15 com perna;
+// acima disso, com pausa de hidratação e 2ª série principal.
+// Os nomes que estão em "pausas" (ex.: "hidratacao") não são séries: veja pauseOf.
 export function partsForLevel(rules, nivel, minutos) {
     const estruturas = rules.niveis[nivel].estruturas
     const estrutura = estruturas.find((e) => e.ateMinutos === undefined || minutos <= e.ateMinutos)
     return estrutura.partes
 }
+
+// Pausa do treino (ex.: hidratação), ou null se o nome é uma parte com séries
+export const pauseOf = (rules, nome) => rules.pausas?.[nome] ?? null
 
 // Agrupa as séries que ficam iguais: "1ª e 3ª séries com palmar, 2ª e 4ª séries nadando"
 function groupSets(descriptions) {

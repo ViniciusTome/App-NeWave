@@ -99,18 +99,32 @@ As séries ficam "brutas", sem material. As regras dizem como montar o treino co
 "intermediario": {
   "estruturas": [
     { "ateMinutos": 50, "partes": ["aquecimento", "velocidade", "solto", "principal", "soltura"] },
-    { "partes": ["aquecimento", "velocidade", "solto", "principal", "perna", "soltura"] }
+    { "ateMinutos": 75, "partes": ["aquecimento", "velocidade", "solto", "principal", "perna", "soltura"] },
+    { "partes": ["aquecimento", "velocidade", "solto", "principal", "hidratacao", "perna", "principal", "soltura"] }
   ]
 }
 ```
 
 - Vale a primeira estrutura cujo `ateMinutos` comporta o tempo de aula do atleta. A última não tem `ateMinutos` e vale para qualquer tempo acima.
-- A ordem da lista é a ordem do treino.
+- A ordem da lista é a ordem do treino. Uma parte pode aparecer duas vezes (a **2ª série principal** recebe outra série).
 
-| Nível | Até 50 min | Acima de 50 min |
-|---|---|---|
-| Iniciante | aquecimento → principal → solto | (igual) |
-| Intermediário e avançado | aquecimento → velocidade → solto → principal → soltura | aquecimento → velocidade → solto → principal → **perna** → soltura |
+| Tempo de aula | Intermediário e avançado |
+|---|---|
+| Até 50 min | aquecimento → velocidade → solto → principal → soltura |
+| De 50 min a 1h15 | aquecimento → velocidade → solto → principal → **perna** → soltura |
+| Acima de 1h15 (até 2 h) | aquecimento → velocidade → solto → principal → **hidratação** → **perna** → **2ª principal** → soltura |
+
+O iniciante faz aquecimento → principal → solto em qualquer tempo de aula.
+
+### Pausas
+
+```json
+"pausas": {
+  "hidratacao": { "minutos": 5, "texto": "5 min de hidratação e reposição (comer uma fruta)" }
+}
+```
+
+Uma pausa entra na lista de `partes` pelo nome (`"hidratacao"`). Ela não tem séries: aparece no treino com o `texto` e ocupa os `minutos` do tempo de aula.
 
 O iniciante não faz velocidade e faz o solto **no final do treino**.
 
@@ -184,7 +198,6 @@ As fases são `acumulacao`, `transicao` e `realizacao`.
 
 ### A decidir
 
-- **Treinos acima de 1h15:** por enquanto usam a mesma estrutura dos treinos de 50 min a 1h15.
 - **Iniciante em treinos mais longos:** por enquanto, a mesma estrutura em qualquer tempo de aula.
 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
