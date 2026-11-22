@@ -425,6 +425,46 @@ test('mistura de nados: sem melhor estilo na anamnese, vale a ordem de velocidad
   assert.equal(intermediario.melhorEstilo, 'costas') // borboleta de 200 não vale para ele
 })
 
+// ---------- 150 m: estilo, medley sem crawl, melhor estilo e medley ----------
+
+test('6 x 150: estilo, medley sem crawl e alternando melhor estilo e medley', () => {
+  const serie = principalSerie('pri-6x150')
+  const para = (athlete) => seriesVariations(rules, 'principal', serie, { equipment: [], ...athlete }).map((v) => v.texto)
+
+  const avancado = para({ strokes: QUATRO_ESTILOS, level: 'avancado', bestStroke: 'costas' })
+  assert.ok(avancado.includes('6 x 150 · costas'))
+  assert.ok(avancado.includes('6 x 150 · peito'))
+  assert.ok(avancado.includes('6 x 150 · borboleta'))
+  assert.ok(avancado.includes('6 x 150 · medley (borboleta, costas, peito)'))
+  assert.ok(avancado.includes('6 x 150 · alternando costas (melhor estilo) e medley (borboleta, costas, peito)'))
+
+  // Intermediário: borboleta de 150 não (até 100 m); o medley sem crawl sim (só 50 de borboleta)
+  const intermediario = para({ strokes: QUATRO_ESTILOS, level: 'intermediario', bestStroke: 'peito' })
+  assert.ok(!intermediario.includes('6 x 150 · borboleta'))
+  assert.ok(intermediario.includes('6 x 150 · medley (borboleta, costas, peito)'))
+  assert.ok(intermediario.includes('6 x 150 · alternando peito (melhor estilo) e medley (borboleta, costas, peito)'))
+
+  // Medley sem crawl exige borboleta, costas e peito
+  const semBorboleta = para({ strokes: ['crawl', 'costas', 'peito'], level: 'avancado', bestStroke: 'costas' })
+  assert.ok(!semBorboleta.some((t) => t.includes('medley')))
+  assert.ok(semBorboleta.includes('6 x 150 · costas'))
+})
+
+test('melhor estilo e medley também vale em 200 m, com o medley individual', () => {
+  const serie = describe({
+    id: 'p-200', texto: '6 x 200', outrosNados: ['melhorEstiloEMedley'],
+    blocos: [{ repeticoes: 6, distancia: 200, nado: 'livre' }],
+  })
+  const lista = seriesVariations(rules, 'principal', serie, { equipment: [], strokes: QUATRO_ESTILOS, level: 'avancado', bestStroke: 'peito' })
+  assert.ok(lista.some((v) => v.texto === '6 x 200 · alternando peito (melhor estilo) e medley'))
+})
+
+test('melhorEstiloEMedley só em séries onde cabem o estilo e o medley', () => {
+  const problems = validate([{ id: 'x', texto: '4 x 400', outrosNados: ['melhorEstiloEMedley'], blocos: [{ repeticoes: 4, distancia: 400, nado: 'livre' }] }])
+  assert.ok(problems.some((p) => p.includes('o melhor estilo vai até 200 m')))
+  assert.deepEqual(validate([{ id: 'y', texto: '6 x 150', outrosNados: ['medley'], blocos: [{ repeticoes: 6, distancia: 150, nado: 'livre' }] }]), [])
+})
+
 // ---------- 2ª série principal ----------
 
 // Séries principais de exemplo (o principal.json ainda não existe)

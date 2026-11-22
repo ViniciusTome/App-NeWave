@@ -6,7 +6,9 @@
 // ("(2x) 4 x 25": 1ª série com pé de pato, 2ª nadando). Dentro de uma série
 // é sempre o mesmo, porque não dá para colocar e tirar material com 20" de descanso.
 import { readFileSync } from 'node:fs'
-import { MATERIAIS, PARTS, canAlternateMedley, canSwimInStroke, individualMedleyPools } from './index.js'
+import {
+    MATERIAIS, PARTS, canAlternateMedley, canSwimInStroke, canSwimMedleyWithoutCrawl, individualMedleyPools,
+} from './index.js'
 
 const NIVEIS = ['iniciante', 'intermediario', 'avancado']
 const ESTILOS = ['borboleta', 'costas', 'peito'] // "estilo" = qualquer um que não seja o crawl
@@ -366,6 +368,7 @@ function perBlockText(serie, porBloco) {
 // ---------- Variações de nado ----------
 
 const ORDEM_MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']
+const MEDLEY_SEM_CRAWL_TEXTO = 'medley (borboleta, costas, peito)'
 
 // Nados possíveis para a série, só com os estilos que o atleta marcou na anamnese:
 // - "livre": a série como está (sempre entra);
@@ -398,6 +401,25 @@ function strokeOptions(rules, serie, athlete) {
             }
             const pools = individualMedleyPools(serie.blocos)
             if (pools.length > 0) options.push({ nado: 'medley_individual', texto: 'medley', piscinas: pools })
+        }
+        // 150 m: medley sem crawl (50 borboleta, 50 costas, 50 peito)
+        if (outro === 'medley' && canSwimMedleyWithoutCrawl(serie.blocos) && ESTILOS.every((s) => has.has(s))) {
+            options.push({ nado: 'medley_sem_crawl', texto: MEDLEY_SEM_CRAWL_TEXTO })
+        }
+        // Repetições alternando: melhor estilo, medley, melhor estilo, medley...
+        if (outro === 'melhorEstiloEMedley') {
+            const melhor = bestStrokeOf(athlete, ESTILOS.filter(podeNadar))
+            const semCrawl = canSwimMedleyWithoutCrawl(serie.blocos) && ESTILOS.every((s) => has.has(s))
+            const individual = ORDEM_MEDLEY.every((s) => has.has(s)) ? individualMedleyPools(serie.blocos) : []
+            if (melhor && canSwimInStroke(serie.blocos) && (semCrawl || individual.length > 0)) {
+                const medley = semCrawl ? MEDLEY_SEM_CRAWL_TEXTO : 'medley'
+                options.push({
+                    nado: 'melhor_estilo_e_medley',
+                    melhorEstilo: melhor,
+                    texto: `alternando ${melhor} (melhor estilo) e ${medley}`,
+                    ...(!semCrawl && { piscinas: individual }),
+                })
+            }
         }
         if (outro === 'estilo' && canSwimInStroke(serie.blocos)) {
             const estilos = ESTILOS.filter(podeNadar)

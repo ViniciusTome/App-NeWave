@@ -26,7 +26,8 @@ const SERIE_KEYS = ['id', 'texto', 'observacao', 'vezes', 'blocos', 'usos', 'out
 // Além do nado escrito nos blocos, a série também pode ser feita em:
 // "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
 // "estilo" (toda no estilo do atleta: borboleta, costas ou peito).
-export const OUTROS_NADOS = ['medley', 'estilo']
+// "melhorEstiloEMedley": as repetições alternam entre o melhor estilo e o medley.
+export const OUTROS_NADOS = ['medley', 'estilo', 'melhorEstiloEMedley']
 
 // Provas de piscina: a distância de uma repetição num nado segue as provas
 // oficiais. Borboleta, costas e peito vão até 200 m; medley (cada repetição
@@ -35,6 +36,8 @@ export const OUTROS_NADOS = ['medley', 'estilo']
 export const PROVAS = {
     estiloAte: 200,
     medley: { 25: [100, 200, 400], 50: [200, 400] },
+    // 150 m em medley é sem crawl: 50 borboleta, 50 costas, 50 peito
+    medleySemCrawl: [150],
 }
 const ESTILOS_DE_PROVA = ['costas', 'peito', 'borboleta', 'estilo']
 
@@ -46,6 +49,8 @@ export const canAlternateMedley = (blocos) =>
 export const individualMedleyPools = (blocos) =>
     PISCINAS.filter((pool) => blocos.every((b) => PROVAS.medley[pool].includes(b.distancia)))
 export const canSwimInStroke = (blocos) => blocos.every((b) => b.distancia <= PROVAS.estiloAte)
+// Medley sem crawl (borboleta, costas, peito) em cada repetição: 150 m
+export const canSwimMedleyWithoutCrawl = (blocos) => blocos.every((b) => PROVAS.medleySemCrawl.includes(b.distancia))
 const BLOCO_KEYS = ['vezes', 'repeticoes', 'distancia', 'nado', 'intensidade', 'trechos', 'descanso', 'material']
 const TRECHO_KEYS = ['metros', 'intensidade']
 
@@ -163,10 +168,15 @@ export function validate(series) {
             } else if (Array.isArray(serie.blocos) && serie.blocos.length > 0 &&
                 serie.blocos.every((b) => Number.isInteger(b?.repeticoes) && Number.isInteger(b?.distancia))) {
                 // Provas de piscina: o nado extra precisa ser possível na série
-                if (list.includes('medley') && !canAlternateMedley(serie.blocos) &&
-                    individualMedleyPools(serie.blocos).length === 0) {
+                const temMedley = canAlternateMedley(serie.blocos) ||
+                    individualMedleyPools(serie.blocos).length > 0 || canSwimMedleyWithoutCrawl(serie.blocos)
+                if ((list.includes('medley') || list.includes('melhorEstiloEMedley')) && !temMedley) {
                     report('"medley" não cabe nesta série: medley alternado precisa de repetições em múltiplo de 4 ' +
-                        'de até 200 m; medley individual, repetições de 200 ou 400 m (100 m na piscina de 25 m).')
+                        'de até 200 m; medley individual, repetições de 200 ou 400 m (100 m na piscina de 25 m); ' +
+                        'medley sem crawl, de 150 m.')
+                }
+                if (list.includes('melhorEstiloEMedley') && !canSwimInStroke(serie.blocos)) {
+                    report('"melhorEstiloEMedley" não cabe nesta série: o melhor estilo vai até 200 m (provas de piscina).')
                 }
                 if (list.includes('estilo') && !canSwimInStroke(serie.blocos)) {
                     report('"estilo" não cabe nesta série: borboleta, costas e peito vão até 200 m (provas de piscina).')

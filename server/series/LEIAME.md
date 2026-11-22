@@ -33,7 +33,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | `observacao` | Opcional. Um aviso que aparece junto da série, ex.: `"Pode ser feito com pull buoy."`. É só texto: não muda o material exigido. |
 | `blocos` | As partes da série. A maioria tem um bloco só; uma série que muda no meio (ex.: 4 x 25 com pé de pato + 4 x 25 sem) tem dois. |
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
-| `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"` e/ou `"estilo"` (borboleta, costas ou peito), respeitando as provas de piscina (veja abaixo). |
+| `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"`, `"estilo"` (borboleta, costas ou peito) e/ou `"melhorEstiloEMedley"` (repetições alternando melhor estilo e medley), respeitando as provas de piscina (veja abaixo). |
 | `porSensacao` + `duracaoMinutos` | Para séries sem metragem, como "aqueça até sentir o corpo aquecido". Aí `blocos` fica `[]`. |
 
 Cada bloco:
@@ -239,6 +239,10 @@ Então **não existe 400 de estilo, a não ser medley**:
 - `"estilo"` só em séries com repetições de até 200 m.
 - **Medley alternado** (cada repetição num estilo): repetições em múltiplo de 4, de até 200 m. Em 25 e 50 m aparece só como `medley`; em 100 e 200 m, como `medley alternado (um estilo por repetição)`.
 - **Medley individual** (cada repetição é um medley completo): repetições de 200 ou 400 m, e de 100 m só na piscina de 25 m. Ex.: `5 x 400 · medley`.
+
+**150 m em medley é sem crawl**: 50 de borboleta, 50 de costas e 50 de peito (`6 x 150 · medley (borboleta, costas, peito)`).
+
+**Melhor estilo e medley** (`"melhorEstiloEMedley"`): as repetições alternam entre o melhor estilo e o medley, ex.: `6 x 150 · alternando costas (melhor estilo) e medley (borboleta, costas, peito)`. Vale para repetições de até 200 m que tenham medley (150 sem crawl; 200 medley individual).
 
 O validador também recusa um bloco escrito com o nado fora das provas, como `"nado": "costas"` com `"distancia": 400`.
 

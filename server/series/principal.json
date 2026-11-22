@@ -86,6 +86,7 @@
   {
     "id": "pri-6x150",
     "texto": "6 x 150",
+    "outrosNados": ["estilo", "medley", "melhorEstiloEMedley"],
     "blocos": [
       { "repeticoes": 6, "distancia": 150, "nado": "livre" }
     ]
