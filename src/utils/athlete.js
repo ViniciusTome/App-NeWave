@@ -19,7 +19,8 @@ export const RECENT_BREAK = options([
 ])
 
 export const CONTINUOUS_DISTANCE = options([
-    ['ate_100', 'Até 100 m'],
+    ['ate_50', 'Até 50 m'],
+    ['ate_100', '50 a 100 m'],
     ['100_400', '100 a 400 m'],
     ['400_1000', '400 m a 1 km'],
     ['1000_2000', '1 a 2 km'],

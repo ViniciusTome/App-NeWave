@@ -135,6 +135,7 @@ test('valida as respostas da anamnese', async () => {
     { swimmingSince: 'sempre' },
     { recentBreak: undefined },
     { continuousDistance: '5000' },
+    { continuousDistance: 'ate_25' },
     { strokes: [] },
     { strokes: ['crawl', 'golfinho'] },
     { trainingDays: [] },
@@ -174,8 +175,9 @@ test('cálculo do nível', () => {
 
   assert.equal(computeLevel(base, fast).level, 'avancado')
   assert.equal(computeLevel({ ...base, swimmingSince: 'menos_6m', continuousDistance: '100_400' }, slow).level, 'iniciante')
-  // Quem nada até 100 m sem parar é sempre iniciante
+  // Quem nada até 100 m sem parar (ou só 50 m) é sempre iniciante
   assert.equal(computeLevel({ ...base, continuousDistance: 'ate_100' }, fast).level, 'iniciante')
+  assert.equal(computeLevel({ ...base, continuousDistance: 'ate_50' }, fast).level, 'iniciante')
   // Até 400 m sem parar: no máximo intermediário
   assert.equal(computeLevel({ ...base, continuousDistance: '100_400' }, fast).level, 'intermediario')
   // Parado há mais de 6 meses: um nível abaixo, em readaptação
