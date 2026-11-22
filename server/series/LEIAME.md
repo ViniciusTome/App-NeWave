@@ -299,6 +299,30 @@ Hoje: `8 x 25`, `(2x) 8 x 25` e `16 x 25` podem ser medley; o `(4x) 4 x 25` pode
 
 Se uma série tiver `material` escrito no próprio JSON, ela é fixa e o gerador não muda.
 
+### Descanso entre as repetições
+
+```json
+"descansos": {
+  "iniciante": { "50": [25, 40], "100": [30, 40], "200": [40, 60], "400": [60, 60] },
+  "intermediario": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60] },
+  "avancado": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60] }
+}
+```
+
+Descanso padrão de cada repetição, em segundos, `[mínimo, máximo]`, por nível e distância:
+
+| Repetição | Intermediário e avançado | Iniciante |
+|---|---|---|
+| 50 m | 15" a 30" | 25" a 40" |
+| 100 m | 20" a 30" | 30" a 40" |
+| 200 m | 40" | 40" a 1' |
+| 400 m | 1' | 1' |
+
+- Distâncias que não estão na tabela ficam entre as vizinhas, arredondadas de 5 em 5 segundos. Ex.: 150 m do avançado = 30" a 35".
+- Abaixo de 50 m e acima de 400 m vale o valor da ponta (ex.: 800 m = 1').
+- Uma série com `descanso` escrito no bloco usa o que está escrito.
+- A velocidade usa a **saída** (veja o intervalo entre as séries), não esta tabela.
+
 ### Intervalo entre as séries
 
 ```json

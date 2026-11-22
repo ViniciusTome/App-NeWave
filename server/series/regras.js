@@ -100,6 +100,26 @@ export function validateRules(rules) {
         problems.push('segundaPrincipal.alternarCrawlEEstilo precisa ser true ou false.')
     }
 
+    if (rules.descansos !== undefined) {
+        for (const nivel of NIVEIS) {
+            const tabela = rules.descansos?.[nivel]
+            const where = `descansos.${nivel}`
+            if (tabela === null || typeof tabela !== 'object' || Object.keys(tabela).length === 0) {
+                problems.push(`${where} precisa ser uma tabela, ex.: { "50": [15, 30], "100": [20, 30] }.`)
+                continue
+            }
+            for (const [distancia, faixa] of Object.entries(tabela)) {
+                const d = Number(distancia)
+                if (!Number.isInteger(d) || d <= 0) problems.push(`${where}: "${distancia}" precisa ser uma distância em metros.`)
+                const valid = Array.isArray(faixa) && faixa.length === 2 &&
+                    faixa.every((s) => Number.isInteger(s) && s >= 0 && s <= 600) && faixa[0] <= faixa[1]
+                if (!valid) {
+                    problems.push(`${where}.${distancia}: use [mínimo, máximo] em segundos, ex.: [15, 30].`)
+                }
+            }
+        }
+    }
+
     for (const [nome, pausa] of Object.entries(rules.pausas ?? {})) {
         const where = `pausas.${nome}`
         if (PARTS.includes(nome)) problems.push(`${where}: "${nome}" já é uma parte do treino; use outro nome.`)
@@ -662,4 +682,25 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
         ...(usaMedley && { piscinas: medleyPools }),
         texto,
     }
+}
+
+// ---------- Descanso entre as repetições ----------
+
+// Descanso padrão de uma repetição, pelo nível e pela distância, em segundos:
+// { min, max }. As distâncias que não estão na tabela ficam entre as vizinhas
+// (ex.: 150 m entre o 100 e o 200), arredondadas de 5 em 5 segundos. Abaixo da
+// menor e acima da maior distância da tabela, vale a da ponta.
+// Séries com "descanso" escrito no próprio bloco usam o que está escrito.
+export function restFor(rules, nivel, distancia) {
+    const tabela = Object.entries(rules.descansos[nivel])
+        .map(([d, faixa]) => [Number(d), faixa])
+        .sort((a, b) => a[0] - b[0])
+    const arredonda = (s) => Math.round(s / 5) * 5
+    const [primeira, ultima] = [tabela[0], tabela.at(-1)]
+    if (distancia <= primeira[0]) return { min: primeira[1][0], max: primeira[1][1] }
+    if (distancia >= ultima[0]) return { min: ultima[1][0], max: ultima[1][1] }
+    const i = tabela.findIndex(([d]) => d >= distancia)
+    const [[d0, [min0, max0]], [d1, [min1, max1]]] = [tabela[i - 1], tabela[i]]
+    const t = (distancia - d0) / (d1 - d0)
+    return { min: arredonda(min0 + (min1 - min0) * t), max: arredonda(max0 + (max1 - max0) * t) }
 }

@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { describe, loadPart, validate } from './series/index.js'
 import {
-  allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
+  allowedAsSecondMain, drawMixedStrokes, intervalBetweenSets, restFor, loadRules, partsForLevel, pauseOf, seriesVariations, strokeCategory, validateRules,
 } from './series/regras.js'
 
 const rules = loadRules()
@@ -581,6 +581,34 @@ test('a regra da 2ª série principal pode ser desligada', () => {
   assert.equal(allowedAsSecondMain(semRegra, as(crawl), as(crawl), ['crawl', 'costas']), true)
 })
 
+// ---------- Descanso ----------
+
+test('descanso: a tabela do treinador para intermediário e avançado', () => {
+  for (const nivel of ['intermediario', 'avancado']) {
+    assert.deepEqual(restFor(rules, nivel, 50), { min: 15, max: 30 })
+    assert.deepEqual(restFor(rules, nivel, 100), { min: 20, max: 30 })
+    assert.deepEqual(restFor(rules, nivel, 200), { min: 40, max: 40 })
+    assert.deepEqual(restFor(rules, nivel, 400), { min: 60, max: 60 })
+  }
+})
+
+test('descanso: iniciante descansa mais', () => {
+  assert.deepEqual(restFor(rules, 'iniciante', 50), { min: 25, max: 40 })
+  assert.deepEqual(restFor(rules, 'iniciante', 100), { min: 30, max: 40 })
+  assert.deepEqual(restFor(rules, 'iniciante', 200), { min: 40, max: 60 })
+  assert.deepEqual(restFor(rules, 'iniciante', 400), { min: 60, max: 60 })
+})
+
+test('descanso: distâncias fora da tabela ficam entre as vizinhas, de 5 em 5 segundos', () => {
+  assert.deepEqual(restFor(rules, 'avancado', 75), { min: 20, max: 30 })
+  assert.deepEqual(restFor(rules, 'avancado', 150), { min: 30, max: 35 })
+  assert.deepEqual(restFor(rules, 'avancado', 300), { min: 50, max: 50 })
+  assert.deepEqual(restFor(rules, 'iniciante', 150), { min: 35, max: 50 })
+  // Fora das pontas: vale a ponta
+  assert.deepEqual(restFor(rules, 'avancado', 25), { min: 15, max: 30 })
+  assert.deepEqual(restFor(rules, 'avancado', 800), { min: 60, max: 60 })
+})
+
 // ---------- Validação do arquivo de regras ----------
 
 test('a validação das regras aponta os erros', () => {
@@ -599,6 +627,9 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.material.perna.pesoComMaterial = 0 }, 'material.perna.pesoComMaterial'],
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
     [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
+    [(r) => { r.descansos.iniciante['50'] = [40, 25] }, 'descansos.iniciante.50'],
+    [(r) => { r.descansos.avancado = {} }, 'descansos.avancado'],
+    [(r) => { r.descansos.avancado['cem'] = [20, 30] }, '"cem" precisa ser uma distância'],
     [(r) => { r.misturaDeNados.minimoDeSeries = 1 }, 'misturaDeNados.minimoDeSeries'],
     [(r) => { r.misturaDeNados.pesoMelhorEstilo = 0 }, 'misturaDeNados.pesoMelhorEstilo'],
     [(r) => { r.limitesPorNivel.borboleta.iniciante = 110 }, 'limitesPorNivel.borboleta.iniciante'],
