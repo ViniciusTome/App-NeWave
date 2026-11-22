@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:server": "node --test server/app.test.js server/swimming.test.js server/athlete.test.js server/series.test.js server/regras.test.js",
+    "test:server": "node --test server/app.test.js server/swimming.test.js server/athlete.test.js server/series.test.js server/regras.test.js server/generator.test.js",
     "seed": "node server/seed.js"
   },
   "dependencies": {

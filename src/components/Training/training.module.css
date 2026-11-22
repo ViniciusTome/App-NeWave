@@ -21,3 +21,17 @@
     white-space: pre-line;
     line-height: 1.5;
 }
+
+/* Treino gerado: observação da série e estimativa de metragem/tempo */
+.note {
+    font-size: 0.85em;
+    font-style: italic;
+    color: #4a6a8a;
+    margin-top: 2px;
+}
+
+.estimate {
+    font-size: 0.8em;
+    color: #6b829a;
+    margin-top: 2px;
+}

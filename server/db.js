@@ -67,7 +67,8 @@ export function openDatabase(path) {
       release      TEXT    NOT NULL DEFAULT '',
       notes        TEXT    NOT NULL DEFAULT '',
       created_at   TEXT    NOT NULL,
-      completed_at TEXT
+      completed_at TEXT,
+      parts        TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_trainings_user ON trainings(user_id, date);
@@ -128,6 +129,10 @@ export function openDatabase(path) {
       UPDATE trainings SET completed_at = created_at;
     `)
   }
+
+  // Treinos gerados guardam as partes (JSON); bancos antigos não têm a coluna
+  const trainingCols = db.prepare('PRAGMA table_info(trainings)').all().map((col) => col.name)
+  if (!trainingCols.includes('parts')) db.exec('ALTER TABLE trainings ADD COLUMN parts TEXT')
 
   // Pergunta "Qual é o seu melhor estilo?" chegou depois: bancos antigos não têm a coluna
   const profileColumns = db.prepare('PRAGMA table_info(athlete_profiles)').all().map((col) => col.name)

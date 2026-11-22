@@ -55,6 +55,8 @@ const publicTraining = (row) => ({
   release: row.release,
   notes: row.notes,
   completed: row.completed_at !== null,
+  // Treinos gerados: as partes, na ordem (aquecimento, velocidade, ...)
+  partes: row.parts ? JSON.parse(row.parts) : null,
 })
 
 function parseId(value) {
@@ -74,7 +76,7 @@ export function createSwimmingRoutes({ db, requireUser }) {
   `)
   const deleteTest = db.prepare('DELETE FROM tests WHERE id = ? AND user_id = ?')
 
-  const TRAINING_COLUMNS = 'id, date, title, warm_up, speed, main_series, release, notes, completed_at'
+  const TRAINING_COLUMNS = 'id, date, title, warm_up, speed, main_series, release, notes, completed_at, parts'
   // Histórico: treinos concluídos e treinos cuja data já passou
   const listHistory = db.prepare(`
     SELECT ${TRAINING_COLUMNS} FROM trainings

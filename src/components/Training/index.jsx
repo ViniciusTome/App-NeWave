@@ -16,6 +16,24 @@ const SECTIONS = [
 // Com `training` (vindo do banco): mostra as partes preenchidas desse treino.
 export const Training = ({ training }) => {
 
+    // Treino gerado: as partes na ordem, com observação e o tempo estimado
+    if (training?.partes) {
+        return (
+            <div>
+                {training.partes.map((parte, i) => (
+                    <div key={i} className={styles.section}>
+                        <h3>{parte.titulo}</h3>
+                        <p className={styles.text}>{parte.texto}</p>
+                        {parte.observacao && <p className={styles.note}>{parte.observacao}</p>}
+                        {parte.metros > 0 && (
+                            <p className={styles.estimate}>{parte.metros} m · ~{parte.minutos} min</p>
+                        )}
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
     if (training) {
         return (
             <div>

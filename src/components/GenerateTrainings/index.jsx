@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { AnamnesisForm } from './AnamnesisForm'
 import { ChoiceGroup } from '../ChoiceGroup'
-import { api, notifyAthleteChanged } from '../../services/api'
+import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
     MODALITY, NO_COMPETITION_GOALS, competitionLabel, daysUntil, daysUntilText,
     goalLabel, levelText, profileSummary,
 } from '../../utils/athlete'
-import { todayIso } from '../../utils/format'
+import { formatDate, todayIso } from '../../utils/format'
 import styles from './wizard.module.css'
 
 const EMPTY_COMPETITION = { name: '', date: '', modality: null, event: '' }
@@ -118,9 +118,12 @@ export const GenerateTrainings = ({ onClose }) => {
                 method: 'POST',
                 body: targetPayload(),
             })
-            setSaved(preparation)
+            // Primeira versão do gerador: monta os treinos das próximas duas semanas
+            const generated = await api(`/trainings/generate?today=${today}`, { method: 'POST' })
+            setSaved({ ...preparation, trainings: generated.trainings, replaced: generated.replaced })
             setPhase('pronto')
             notifyAthleteChanged()
+            notifyTrainingsChanged() // o carrossel recarrega
         } catch (err) {
             setSaveError(err.message)
         } finally {
@@ -276,12 +279,17 @@ export const GenerateTrainings = ({ onClose }) => {
                     Algo mudou? Atualizar meus dados
                 </button>
 
+                <p className={styles.hint}>
+                    Vamos montar os treinos das próximas duas semanas. Os treinos agendados que você ainda não
+                    fez serão substituídos pelos novos.
+                </p>
+
                 {saveError && <p className={styles.error} role='alert'>{saveError}</p>}
 
                 <div className={styles.actions}>
                     <button type='button' className={styles.secondary} onClick={() => setPhase('alvo')}>Voltar</button>
                     <button type='button' className={styles.primary} onClick={confirm} disabled={saving}>
-                        {saving ? 'Salvando...' : 'Confirmar e gerar'}
+                        {saving ? 'Gerando...' : 'Confirmar e gerar'}
                     </button>
                 </div>
             </div>
@@ -291,15 +299,27 @@ export const GenerateTrainings = ({ onClose }) => {
     // phase === 'pronto'
     return (
         <div className={styles.done}>
-            <p className={styles.doneTitle}>Preparação salva!</p>
+            <p className={styles.doneTitle}>
+                {saved.trainings.length === 1 ? '1 treino gerado!' : `${saved.trainings.length} treinos gerados!`}
+            </p>
             <p>
                 {saved.competition
                     ? <>Prova alvo: <strong>{competitionLabel(saved.competition)}</strong> ({daysUntilText(daysUntil(saved.competition.date, today))}).</>
                     : <>Objetivo: <strong>{goalLabel(saved.goal)}</strong>, sem prova alvo.</>}
             </p>
+            {saved.trainings.length > 0 && (
+                <ul className={styles.generatedList}>
+                    {saved.trainings.map((t) => (
+                        <li key={t.date}>
+                            <strong>{formatDate(t.date)}</strong> · {t.metros} m · ~{t.minutos} min
+                        </li>
+                    ))}
+                </ul>
+            )}
             <p className={styles.hint}>
-                A montagem automática dos treinos é a próxima etapa do app. Quando ela estiver pronta,
-                os treinos desta preparação vão aparecer no seu carrossel.
+                Eles já estão no seu carrossel, na página inicial.
+                {saved.replaced > 0 && ` ${saved.replaced} treino(s) agendado(s) que ainda não tinham sido feitos foram substituídos.`}
+                {' '}Esta é a primeira versão do gerador: o tempo de cada série ainda é uma estimativa.
             </p>
             <div className={styles.actions}>
                 <button type='button' className={styles.primary} onClick={onClose}>Fechar</button>

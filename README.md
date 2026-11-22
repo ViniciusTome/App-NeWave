@@ -10,7 +10,7 @@ Aplicativo web para acompanhamento de treinos de natação. Reúne o planejament
 - Carrossel na Home só com os próximos treinos: o treino de hoje (ou o próximo) fica em destaque, com o botão "Concluir treino"
 - Dashboard com gráfico da evolução dos tempos (a partir dos testes registrados) e histórico de treinos (os concluídos e os que passaram da data), que abrem numa janela flutuante
 - Feedback com os mesmos treinos do histórico, com busca pelo título ou pela data
-- Botão "Gerar treinos": na primeira vez faz a anamnese do atleta (experiência, rotina, piscina, material, lesões e tempo nos 400 m), que fica guardada; toda vez pergunta a prova alvo da preparação (continuar a atual, escolher do calendário, cadastrar uma nova ou treinar sem prova) e mostra um resumo para conferir. A montagem automática dos treinos é a próxima etapa
+- Botão "Gerar treinos": na primeira vez faz a anamnese do atleta (experiência, rotina, piscina, material, lesões e tempo nos 400 m), que fica guardada; toda vez pergunta a prova alvo da preparação (continuar a atual, escolher do calendário, cadastrar uma nova ou treinar sem prova) e mostra um resumo para conferir. Ao confirmar, gera os treinos das próximas duas semanas (primeira versão do gerador, em `server/generator.js`)
 - Nível do atleta calculado a partir das respostas (não é perguntado)
 - Perfil com o bloco "Meu treino" (preparação atual, nível e respostas, com edição), próxima competição, dados pessoais, pagamentos e suporte
 
@@ -68,6 +68,7 @@ server/
 ├── http.js       # funções HTTP comuns (JSON, cookies, erros)
 ├── swimming.js   # rotas de testes e treinos (agendados e realizados)
 ├── athlete.js    # anamnese, nível, calendário de competições e prova alvo
+├── generator.js  # gerador de treinos (primeira versão)
 ├── series/       # biblioteca de séries (um JSON por parte do treino); guia em series/LEIAME.md
 ├── seed.js       # dados de exemplo (npm run seed)
 ├── db.js         # banco SQLite e tabelas
@@ -76,7 +77,9 @@ server/
 ├── app.test.js   # testes de autenticação
 ├── swimming.test.js  # testes de testes/treinos
 ├── athlete.test.js   # testes da anamnese, competições e preparação
-└── series.test.js    # conferência da biblioteca de séries
+├── series.test.js    # conferência da biblioteca de séries
+├── regras.test.js    # regras de montagem
+└── generator.test.js # gerador de treinos
 ```
 
 ## Rotas
@@ -117,6 +120,7 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `GET /api/competitions?today=AAAA-MM-DD` | Calendário: competições de hoje em diante |
 | `POST /api/competitions` | Cadastra competição (`name`, `date`, `modality`, `event`, `priority` A/B/C) |
 | `GET /api/preparations/current?today=AAAA-MM-DD` | Preparação atual (objetivo e prova alvo) |
+| `POST /api/trainings/generate?today=AAAA-MM-DD` | Gera os treinos das próximas duas semanas e substitui os agendados que não foram feitos |
 | `POST /api/preparations` | Nova preparação: `goal` e `competitionId` (prova do calendário) ou `competition` (prova nova) |
 
 As rotas de testes e treinos exigem login, e cada usuário só vê e altera os próprios dados. O tempo é guardado em centésimos de segundo (5'32"45 = `33245`). O `today` é a data de hoje no aparelho do atleta, para o "hoje" não mudar por causa do fuso; sem ele, vale a data do servidor (UTC).
@@ -144,7 +148,7 @@ Variáveis de ambiente (todas opcionais): `PORT` (padrão 3001), `HOST` (padrão
 
 Crie uma conta no app e rode `npm run seed -- seu@email.com` (com o email dessa conta). Isso coloca alguns testes, treinos realizados, treinos agendados, a anamnese e duas competições de exemplo, para ver o carrossel, o gráfico, o histórico e o Perfil preenchidos. Para testar a anamnese desde o início, use uma conta sem `seed`. Testes também podem ser registrados pelo próprio app, no botão "+ Teste".
 
-O botão "Gerar treinos" já faz a anamnese e salva a prova alvo, mas ainda não monta os treinos: por enquanto, eles entram pela rota `POST /api/trainings` ou pelo `seed`. Concluir um treino já dá para fazer pelo carrossel da Home.
+O botão "Gerar treinos" faz a anamnese, salva a prova alvo e gera os treinos das próximas duas semanas. É a **primeira versão** do gerador: o tempo de cada série, a divisão do tempo entre as partes e o descanso usado ainda são estimativas (marcadas como PROVISÓRIO em `server/generator.js`), e a intensidade e as fases da temporada ainda não entram. Concluir um treino já dá para fazer pelo carrossel da Home.
 
 ### Testando "esqueci a senha" na sua máquina
 
