@@ -470,7 +470,7 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
 
   | Etapa | Dias | O que tem |
   |---|---|---|
-  | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), intervalos maiores: +1' entre as séries e +10" de descanso |
+  | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), descanso maior entre as repetições (+10"); o intervalo entre as séries continua 2' |
   | Acumulação 2 | 14 a 45 | Séries aeróbicas A1/A2, intervalos ajustados (os normais) |
   | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 85% |
   | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 85% |

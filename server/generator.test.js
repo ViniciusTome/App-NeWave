@@ -975,10 +975,9 @@ test('periodização: cada etapa muda o treino', () => {
   for (const p of [...principais('acumulacao1'), ...principais('acumulacao2')]) {
     assert.ok(!/A3|(?<!30 )AC\)|NEG|POS|NAD x 25 fo/.test(p.texto), p.texto)
   }
-  // Acumulação 1: intervalo maior entre as séries
+  // Intervalo entre as séries: 2' em todas as etapas (o treinador achou 3' grande demais)
   const intervalos = (e) => principais(e).map((p) => p.intervalo).filter(Boolean)
-  assert.ok(intervalos('acumulacao1').every((i) => i.startsWith("3'")), intervalos('acumulacao1').join(', '))
-  assert.ok(intervalos('acumulacao2').every((i) => i.startsWith("2'")))
+  assert.ok([...intervalos('acumulacao1'), ...intervalos('acumulacao2')].every((i) => i.startsWith("2'")), intervalos('acumulacao1').join(', '))
   // Transição: entra o A3; Realização: menos volume
   assert.ok([...principais('transicao1'), ...principais('transicao2')].some((p) => /A3|AC\)|fo\)/.test(p.texto)))
   const media = (e) => daEtapa(e).reduce((s, t) => s + t.plano.fatorPrincipal, 0) / daEtapa(e).length

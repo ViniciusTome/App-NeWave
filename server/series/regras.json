@@ -167,8 +167,8 @@
     "etapas": {
       "acumulacao1": {
         "nome": "Acumulação 1", "fase": "acumulacao", "dias": [14, 45],
-        "objetivo": "Séries aeróbicas A1/A2, com intervalos maiores",
-        "tipos": { "intensidades": 100 }, "semA3": true, "intervaloExtra": 60, "descansoExtra": 10, "volume": 1
+        "objetivo": "Séries aeróbicas A1/A2, com descanso maior entre as repetições (+10 segundos); o intervalo entre as séries é o normal (2')",
+        "tipos": { "intensidades": 100 }, "semA3": true, "descansoExtra": 10, "volume": 1
       },
       "acumulacao2": {
         "nome": "Acumulação 2", "fase": "acumulacao", "dias": [14, 45],
