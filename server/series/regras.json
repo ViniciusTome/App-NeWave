@@ -155,8 +155,9 @@
     "fatorMaximo": 1
   },
   "feedback": {
-    "_comentario": "Ao concluir o treino o atleta diz a dificuldade da série principal (1 a 10). A partir de 'perguntarMotivoAPartirDe', pergunta se foi pela respiração ou pela força. O app compara com o esforço esperado (escondido do atleta). Se os últimos 'treinosEmSequencia' treinos seguidos foram 8 ou mais sem o treino ser para isso, os treinos já montados são refeitos com 'ajusteDaPrincipal' a menos de tempo na principal (e sem A3 nos 2 primeiros); se foram 'diferencaParaFacil' ou mais abaixo do esperado, com mais. 1 ou 2 treinos fora do esperado não mudam nada (pode ser o dia do atleta). Respiração: séries de repetições curtas (até 50 m) com mais repetições. Força: mais palmar e palmar + pull buoy.",
+    "_comentario": "Ao concluir o treino o atleta diz a dificuldade da série principal (1 a 10). A partir de 'perguntarMotivoAPartirDe', pergunta se foi pela respiração ou pela força. O app compara com o esforço esperado (escondido do atleta). Se os últimos 'treinosEmSequencia' treinos seguidos tiveram nota de 'pesadoAPartirDe' ou mais (8; avançado, que já está acostumado, 9) sem o treino ser para isso, os treinos já montados são refeitos com 'ajusteDaPrincipal' a menos de tempo na principal (e sem A3 nos 2 primeiros); se foram 'diferencaParaFacil' ou mais abaixo do esperado, com mais. 1 ou 2 treinos fora do esperado não mudam nada (pode ser o dia do atleta). Respiração: séries de repetições curtas (até 50 m) com mais repetições. Força: mais palmar e palmar + pull buoy.",
     "perguntarMotivoAPartirDe": 8,
+    "pesadoAPartirDe": { "padrao": 8, "avancado": 9 },
     "motivos": ["respiracao", "forca"],
     "esforcoEsperado": { "A1": 4, "A2": 6, "A3": 8, "teste": 9 },
     "treinosEmSequencia": 3,

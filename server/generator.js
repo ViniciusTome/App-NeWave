@@ -794,7 +794,7 @@ export function expectedEffort(rules, partes) {
 // [{ difficulty, reason, plan: { esforcoEsperado, fatorPrincipal } }].
 // Só ajusta quando os últimos 3 treinos SEGUIDOS saíram do esperado (1 ou 2 podem ser
 // do dia do atleta: dormiu mal, trabalhou muito, não comeu direito...):
-// - pesado: os 3 com nota 8 ou mais, sem o treino ser para isso (esperado abaixo de 8);
+// - pesado: os 3 com nota 8 ou mais (avançado: 9 ou mais), sem o treino ser para isso;
 // - fácil: os 3 com nota 2 ou mais abaixo do esperado.
 // E só se a carga ainda não mudou depois deles (`fatorDoProximo`), para não ajustar duas vezes.
 // Devolve { carga: -1 (pesado) | 0 | 1 (fácil), foco, fatorPrincipal }.
@@ -807,7 +807,8 @@ export function feedbackAdjustment(rules, athlete, historico = [], fatorDoProxim
     const n = cfg.treinosEmSequencia ?? 3
     const seguidos = historico.filter((t) => t.plan?.esforcoEsperado).slice(-n)
     const avaliados = seguidos.length === n && seguidos.every((t) => Number.isInteger(t.difficulty))
-    const limite = cfg.perguntarMotivoAPartirDe
+    // Nota que conta como pesado: 8; o avançado, que já está acostumado, só 9 e 10
+    const limite = cfg.pesadoAPartirDe?.[athlete.level] ?? cfg.pesadoAPartirDe?.padrao ?? cfg.perguntarMotivoAPartirDe
     const pesado = avaliados && seguidos.every((t) => t.difficulty >= limite && t.plan.esforcoEsperado < limite)
     const facil = avaliados && seguidos.every((t) => t.difficulty <= t.plan.esforcoEsperado - cfg.diferencaParaFacil)
     // Já ajustado depois desses treinos: o próximo treino montado tem outra carga
@@ -815,7 +816,7 @@ export function feedbackAdjustment(rules, athlete, historico = [], fatorDoProxim
         (pesado ? fatorDoProximo < t.plan.fatorPrincipal - 1e-6 : fatorDoProximo > t.plan.fatorPrincipal + 1e-6)
     const carga = (pesado || facil) && !seguidos.some(ja) ? (pesado ? -1 : 1) : 0
     // Foco: o motivo que mais apareceu nos treinos pesados (o mais recente desempata)
-    const motivos = seguidos.filter((t) => t.difficulty >= limite && t.reason).map((t) => t.reason)
+    const motivos = seguidos.filter((t) => t.difficulty >= cfg.perguntarMotivoAPartirDe && t.reason).map((t) => t.reason)
     const contagem = (m) => motivos.filter((x) => x === m).length
     const foco = [...motivos].reverse().sort((a, b) => contagem(b) - contagem(a))[0] ?? null
     if (carga === 0 && fatorDoProximo !== null) fator = fatorDoProximo

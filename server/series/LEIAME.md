@@ -446,7 +446,7 @@ Vale para todos os níveis. A nota (e o motivo) aparece na página **Desempenho/
 
 **Como o feedback muda os treinos:** só depois de **3 treinos seguidos** fora do esperado (1 ou 2 podem ser do dia do atleta: dormiu mal, trabalhou muito, não comeu direito).
 
-- **Pesados:** os 3 com nota **8 ou mais**, sem o treino ser para isso (esforço esperado abaixo de 8). Ao concluir o 3º, os **treinos já montados são refeitos**: 10% a menos de tempo na principal e os 2 primeiros sem A3. O atleta vê o aviso "ajustamos os próximos para você".
+- **Pesados:** os 3 com nota **8 ou mais**, sem o treino ser para isso (esforço esperado abaixo da nota). No **avançado**, que já está acostumado, só contam **9 e 10** (`pesadoAPartirDe`). Ao concluir o 3º, os **treinos já montados são refeitos**: 10% a menos de tempo na principal e os 2 primeiros sem A3. O atleta vê o aviso "ajustamos os próximos para você".
 - **Fáceis:** os 3 com nota 2 ou mais abaixo do esperado: refeitos com 10% a mais.
 - **Faltou ar (respiração):** ele tem força, falta condicionamento. A principal prefere **repetições curtas (até 50 m) com mais repetições** (ex.: no lugar de 3 x 4 x 50, 3 x 6 x 50, evoluindo para 3 x 8 x 50 ou 2 x 8 x 50).
 - **Faltou força:** ele precisa empurrar mais água. A principal prefere **palmar e palmar + pull buoy** (sem pé de pato).

@@ -858,6 +858,13 @@ test('feedback: só ajusta com 3 treinos seguidos fora do esperado', () => {
   // 3 seguidos com 8 ou mais, num treino que não era para isso: diminui
   const pesado = feedbackAdjustment(rules, condicionando, feitos(5, 8, 9, 10))
   assert.deepEqual([pesado.carga, pesado.fatorPrincipal, pesado.foco], [-1, 0.7, 'respiracao'])
+  // Avançado já está acostumado: 8 não conta, só 9 e 10
+  const moderado = { esforcoEsperado: 6, fatorPrincipal: 1 }
+  const doAvancado = (...notas) => feedbackAdjustment(rules, avancado, notas.map((difficulty) => ({ difficulty, plan: moderado })))
+  assert.equal(doAvancado(8, 8, 8).carga, 0)
+  assert.equal(doAvancado(8, 9, 9).carga, 0)
+  assert.equal(doAvancado(9, 10, 9).carga, -1)
+  assert.equal(feedbackAdjustment(rules, { ...avancado, level: 'intermediario' }, [8, 8, 8].map((difficulty) => ({ difficulty, plan: moderado }))).carga, -1)
   // Treino que era para ser forte (esperado 8) com nota 8: está certo
   const forte = { esforcoEsperado: 8, fatorPrincipal: 1 }
   assert.equal(feedbackAdjustment(rules, avancado, [8, 9, 8].map((difficulty) => ({ difficulty, plan: forte }))).carga, 0)
@@ -879,8 +886,8 @@ test('feedback: só ajusta com 3 treinos seguidos fora do esperado', () => {
 })
 
 test('feedback: os próximos treinos menores; sem A3 nos 2 primeiros quando foi pesado demais', () => {
-  const historico = [8, 9, 9].map((difficulty) => ({ difficulty, plan: { esforcoEsperado: 6, fatorPrincipal: 1 } }))
-  // (3 seguidos com 8 ou mais num treino que era para ser moderado)
+  const historico = [9, 9, 10].map((difficulty) => ({ difficulty, plan: { esforcoEsperado: 6, fatorPrincipal: 1 } }))
+  // (avançado: 3 seguidos com 9 ou mais num treino que era para ser moderado)
   const treinos = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), historico })
   assert.ok(treinos.every((t) => t.plano.fatorPrincipal === 0.9 && t.plano.carga === -1))
   for (const t of treinos.slice(0, 2)) assert.notEqual(t.plano.intensidade, 'A3')
