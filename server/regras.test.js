@@ -138,7 +138,7 @@ test('medley só para quem nada os quatro estilos; estilo só os que o atleta na
   assert.deepEqual(textos('vel-8x25-forte', [], ['crawl', 'costas', 'peito']), ['8 x 25 forte'])
 })
 
-test('medley precisa de repetições em múltiplo de 4', () => {
+test('medley alternado precisa de repetições em múltiplo de 4', () => {
   const problems = validate([{
     id: 'x-1', texto: '6 x 25', outrosNados: ['medley'],
     blocos: [{ repeticoes: 6, distancia: 25, nado: 'livre', intensidade: 'forte' }],
@@ -215,6 +215,58 @@ test('intervalo entre séries: uma saída do 25; 1 minuto na Realização ou ent
   assert.equal(intervalBetweenSets(rules, 'velocidade', serie('vel-2x4x25-forte'), realizacao), 60)
   // Série sem "(2x)", "(4x)": não tem intervalo entre séries
   assert.equal(intervalBetweenSets(rules, 'velocidade', serie('vel-8x25-forte'), contexto), null)
+})
+
+// ---------- Provas de piscina ----------
+
+const comNados = (texto, repeticoes, distancia) => describe({
+  id: 'p-x', texto, outrosNados: ['medley', 'estilo'],
+  blocos: [{ repeticoes, distancia, nado: 'livre', intensidade: 'A2' }],
+})
+const nadosDe = (serie) => seriesVariations(rules, 'principal', serie, { equipment: [], strokes: QUATRO_ESTILOS })
+  .map((v) => v.texto)
+
+test('provas de piscina: repetição de 400 só em crawl ou medley, nunca em estilo', () => {
+  const lista = nadosDe(comNados('8 x 400', 8, 400))
+  assert.deepEqual(lista, ['8 x 400', '8 x 400 · medley'])
+  const medley = seriesVariations(rules, 'principal', comNados('8 x 400', 8, 400), { equipment: [], strokes: QUATRO_ESTILOS })[1]
+  assert.equal(medley.nado, 'medley_individual')
+  assert.deepEqual(medley.piscinas, [25, 50])
+})
+
+test('provas de piscina: até 200 m vale estilo, medley alternado e medley individual', () => {
+  const lista = nadosDe(comNados('8 x 200', 8, 200))
+  assert.ok(lista.includes('8 x 200 · costas'))
+  assert.ok(lista.includes('8 x 200 · medley alternado (um estilo por repetição)'))
+  assert.ok(lista.includes('8 x 200 · medley'))
+})
+
+test('provas de piscina: 100 medley só na piscina de 25 m', () => {
+  const lista = seriesVariations(rules, 'principal', comNados('8 x 100', 8, 100), { equipment: [], strokes: QUATRO_ESTILOS })
+  assert.deepEqual(lista.find((v) => v.nado === 'medley_individual').piscinas, [25])
+})
+
+test('provas de piscina: 25 e 50 m em medley é sempre um estilo por repetição', () => {
+  const lista = nadosDe(comNados('8 x 50', 8, 50))
+  assert.ok(lista.includes('8 x 50 · medley'))
+  const nados = seriesVariations(rules, 'principal', comNados('8 x 50', 8, 50), { equipment: [], strokes: QUATRO_ESTILOS })
+  assert.ok(!nados.some((v) => v.nado === 'medley_individual'))
+})
+
+test('provas de piscina: a validação recusa estilo acima de 200 m', () => {
+  const bloco = (nado, distancia) => [{ id: 'x-1', texto: 't', blocos: [{ repeticoes: 1, distancia, nado }] }]
+  assert.ok(validate(bloco('costas', 400)).some((p) => p.includes('costas vai até 200 m')))
+  assert.ok(validate(bloco('peito', 800)).some((p) => p.includes('peito vai até 200 m')))
+  assert.deepEqual(validate(bloco('costas', 200)), [])
+  assert.deepEqual(validate(bloco('medley', 400)), [])
+  assert.ok(validate(bloco('medley', 300)).some((p) => p.includes('medley é de 200 ou 400 m')))
+  assert.deepEqual(validate(bloco('crawl', 1500)), [])
+  // Série que não comporta o nado extra
+  const serie = (outrosNados, repeticoes, distancia) =>
+    validate([{ id: 'x-2', texto: 't', outrosNados, blocos: [{ repeticoes, distancia, nado: 'livre' }] }])
+  assert.ok(serie(['estilo'], 3, 800).some((p) => p.includes('"estilo" não cabe')))
+  assert.ok(serie(['medley'], 3, 800).some((p) => p.includes('"medley" não cabe')))
+  assert.deepEqual(serie(['medley'], 5, 400), [])
 })
 
 // ---------- 2ª série principal ----------

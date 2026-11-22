@@ -33,7 +33,7 @@ Copie uma série parecida, mude o `id` e preencha:
 | `observacao` | Opcional. Um aviso que aparece junto da série, ex.: `"Pode ser feito com pull buoy."`. É só texto: não muda o material exigido. |
 | `blocos` | As partes da série. A maioria tem um bloco só; uma série que muda no meio (ex.: 4 x 25 com pé de pato + 4 x 25 sem) tem dois. |
 | `usos` | Opcional. `["treino"]` (padrão), `["teste"]` (só em dia de teste) ou os dois. |
-| `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"` (cada repetição num estilo; repetições em múltiplo de 4) e/ou `"estilo"` (toda em borboleta, costas ou peito). |
+| `outrosNados` | Opcional. Além do nado dos blocos, a série também pode ser feita em `"medley"` e/ou `"estilo"` (borboleta, costas ou peito), respeitando as provas de piscina (veja abaixo). |
 | `porSensacao` + `duracaoMinutos` | Para séries sem metragem, como "aqueça até sentir o corpo aquecido". Aí `blocos` fica `[]`. |
 
 Cada bloco:
@@ -182,6 +182,24 @@ Toda série pode ser feita **sem equipamento**, e só aparece o material que o a
 - Repetições **acima de 400 m** (ex.: `3 x 800`) sempre usam **pé de pato + palmar**, em qualquer parte do treino. O `5 x 400` não entra (400 não é "acima").
 - Nas **pirâmides** (séries com vários blocos), as repetições **a partir de 400 m** usam o material, e o resto é nadando: `1 x 400, 2 x 200, 4 x 100, 8 x 50 · os 400 com pé de pato + palmar`.
 - Quem não tem os dois materiais não recebe a série.
+
+### Provas de piscina
+
+A distribuição dos nados segue as **provas de piscina**: uma repetição não passa da maior prova daquele nado.
+
+| Nado | Provas | Repetição máxima |
+|---|---|---|
+| Crawl (livre) | 50, 100, 200, 400, 800, 1500 | sem limite |
+| Borboleta, costas, peito | 50, 100, 200 | 200 m |
+| Medley | 200, 400 (100 só na piscina de 25 m) | 400 m |
+
+Então **não existe 400 de estilo, a não ser medley**:
+
+- `"estilo"` só em séries com repetições de até 200 m.
+- **Medley alternado** (cada repetição num estilo): repetições em múltiplo de 4, de até 200 m. Em 25 e 50 m aparece só como `medley`; em 100 e 200 m, como `medley alternado (um estilo por repetição)`.
+- **Medley individual** (cada repetição é um medley completo): repetições de 200 ou 400 m, e de 100 m só na piscina de 25 m. Ex.: `5 x 400 · medley`.
+
+O validador também recusa um bloco escrito com o nado fora das provas, como `"nado": "costas"` com `"distancia": 400`.
 
 ### Medley e estilo
 

@@ -6,7 +6,7 @@
 // ("(2x) 4 x 25": 1ª série com pé de pato, 2ª nadando). Dentro de uma série
 // é sempre o mesmo, porque não dá para colocar e tirar material com 20" de descanso.
 import { readFileSync } from 'node:fs'
-import { MATERIAIS, PARTS } from './index.js'
+import { MATERIAIS, PARTS, canAlternateMedley, canSwimInStroke, individualMedleyPools } from './index.js'
 
 const NIVEIS = ['iniciante', 'intermediario', 'avancado']
 // Fases da periodização ATR: Acumulação, Transição, Realização
@@ -302,10 +302,17 @@ function strokeOptions(serie, athleteStrokes) {
     const options = [{ nado: 'livre' }]
     for (const outro of serie.outrosNados) {
         if (outro === 'medley' && ORDEM_MEDLEY.every((s) => has.has(s))) {
-            options.push({ nado: 'medley' })
-            if (sets % 4 === 0) options.push({ nado: 'medley_por_serie', nados: cycle(ORDEM_MEDLEY, sets) })
+            // Provas de piscina: alternado (um estilo por repetição) só até 200 m;
+            // medley individual (cada repetição um medley) em 200/400 m (100 m na de 25 m)
+            const curta = serie.blocos.every((b) => b.distancia <= 50)
+            if (canAlternateMedley(serie.blocos)) {
+                options.push({ nado: 'medley', texto: curta ? 'medley' : 'medley alternado (um estilo por repetição)' })
+                if (sets % 4 === 0) options.push({ nado: 'medley_por_serie', nados: cycle(ORDEM_MEDLEY, sets) })
+            }
+            const pools = individualMedleyPools(serie.blocos)
+            if (pools.length > 0) options.push({ nado: 'medley_individual', texto: 'medley', piscinas: pools })
         }
-        if (outro === 'estilo') {
+        if (outro === 'estilo' && canSwimInStroke(serie.blocos)) {
             const estilos = ESTILOS.filter((s) => has.has(s))
             for (const estilo of estilos) options.push({ nado: estilo })
             if (sets > 1 && estilos.length > 1) {
@@ -321,7 +328,7 @@ function strokeOptions(serie, athleteStrokes) {
 // "(4x) 4 x 25 forte · 1ª série borboleta com pé de pato, 2ª série costas com pé de pato + palmar, ..."
 function variationText(serie, stroke, option) {
     const parts = [serie.texto]
-    if (!stroke.nados && stroke.nado !== 'livre') parts.push(stroke.nado)
+    if (!stroke.nados && stroke.nado !== 'livre') parts.push(stroke.texto ?? stroke.nado)
     if (option.padrao === 'serie_inteira' || option.padrao === 'obrigatorio') {
         parts.push(`com ${materialText(option.material)}`)
     }
@@ -350,7 +357,8 @@ export function seriesVariations(rules, parte, serie, athlete) {
     const variations = []
     for (const stroke of strokeOptions(serie, athlete.strokes)) {
         for (const option of materialOptions(rules, parte, serie, athlete.equipment)) {
-            variations.push({ ...stroke, ...option, texto: variationText(serie, stroke, option) })
+            const { texto: _nadoTexto, ...strokeInfo } = stroke
+            variations.push({ ...strokeInfo, ...option, texto: variationText(serie, stroke, option) })
         }
     }
     return variations
@@ -378,7 +386,7 @@ export function intervalBetweenSets(rules, parte, serie, contexto) {
 
 // ---------- 2ª série principal ----------
 
-// A variação é de crawl ou de estilo? Medley conta como estilo (não é só crawl).
+// A variação é de crawl ou de estilo? Medley (alternado ou individual) conta como estilo.
 // "livre" segue o nado escrito nos blocos: crawl/livre é crawl; o resto é estilo.
 export function strokeCategory(serie, variation) {
     if (variation.nado !== 'livre') return 'estilo'

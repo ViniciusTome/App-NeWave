@@ -27,6 +27,25 @@ const SERIE_KEYS = ['id', 'texto', 'observacao', 'vezes', 'blocos', 'usos', 'out
 // "medley" (cada repetição num estilo: borboleta, costas, peito, crawl) ou
 // "estilo" (toda no estilo do atleta: borboleta, costas ou peito).
 export const OUTROS_NADOS = ['medley', 'estilo']
+
+// Provas de piscina: a distância de uma repetição num nado segue as provas
+// oficiais. Borboleta, costas e peito vão até 200 m; medley (cada repetição
+// um medley completo) é 200 ou 400 m, e 100 m só na piscina de 25 m.
+// Crawl não tem limite. Ex.: não existe 400 de costas, mas existe 400 medley.
+export const PROVAS = {
+    estiloAte: 200,
+    medley: { 25: [100, 200, 400], 50: [200, 400] },
+}
+const ESTILOS_DE_PROVA = ['costas', 'peito', 'borboleta', 'estilo']
+
+// Medley alternado: cada repetição num estilo (precisa de repetições em múltiplo
+// de 4 e cada uma até 200 m). Medley individual: cada repetição é um medley
+// completo (200 ou 400 m; 100 m na piscina de 25 m).
+export const canAlternateMedley = (blocos) =>
+    blocos.every((b) => b.repeticoes % 4 === 0 && b.distancia <= PROVAS.estiloAte)
+export const individualMedleyPools = (blocos) =>
+    PISCINAS.filter((pool) => blocos.every((b) => PROVAS.medley[pool].includes(b.distancia)))
+export const canSwimInStroke = (blocos) => blocos.every((b) => b.distancia <= PROVAS.estiloAte)
 const BLOCO_KEYS = ['vezes', 'repeticoes', 'distancia', 'nado', 'intensidade', 'trechos', 'descanso', 'material']
 const TRECHO_KEYS = ['metros', 'intensidade']
 
@@ -141,9 +160,17 @@ export function validate(series) {
             const list = serie.outrosNados
             if (!Array.isArray(list) || list.length === 0 || list.some((n) => !OUTROS_NADOS.includes(n))) {
                 report(`"outrosNados" precisa ser uma lista com: ${OUTROS_NADOS.join(', ')}.`)
-            } else if (list.includes('medley') && Array.isArray(serie.blocos) &&
-                serie.blocos.some((b) => !Number.isInteger(b?.repeticoes) || b.repeticoes % 4 !== 0)) {
-                report('"medley" precisa de repetições em múltiplo de 4 (uma para cada estilo).')
+            } else if (Array.isArray(serie.blocos) && serie.blocos.length > 0 &&
+                serie.blocos.every((b) => Number.isInteger(b?.repeticoes) && Number.isInteger(b?.distancia))) {
+                // Provas de piscina: o nado extra precisa ser possível na série
+                if (list.includes('medley') && !canAlternateMedley(serie.blocos) &&
+                    individualMedleyPools(serie.blocos).length === 0) {
+                    report('"medley" não cabe nesta série: medley alternado precisa de repetições em múltiplo de 4 ' +
+                        'de até 200 m; medley individual, repetições de 200 ou 400 m (100 m na piscina de 25 m).')
+                }
+                if (list.includes('estilo') && !canSwimInStroke(serie.blocos)) {
+                    report('"estilo" não cabe nesta série: borboleta, costas e peito vão até 200 m (provas de piscina).')
+                }
             }
         }
 
@@ -194,6 +221,14 @@ export function validate(series) {
                 : NADOS.includes(bloco.nado)
             if (!nadoOk) {
                 report(`${where}"nado" precisa ser um de (${NADOS.join(', ')}) ou ida e volta: ["crawl", "estilo"].`)
+            } else if (!Array.isArray(bloco.nado) && Number.isInteger(bloco.distancia)) {
+                // Provas de piscina (ida e volta diferentes é educativo, não prova: fica de fora)
+                if (ESTILOS_DE_PROVA.includes(bloco.nado) && bloco.distancia > PROVAS.estiloAte) {
+                    report(`${where}${bloco.nado} vai até ${PROVAS.estiloAte} m (provas de piscina). Para mais, use medley ou crawl.`)
+                }
+                if (bloco.nado === 'medley' && individualMedleyPools([bloco]).length === 0) {
+                    report(`${where}medley é de 200 ou 400 m (100 m só na piscina de 25 m), como nas provas de piscina.`)
+                }
             }
             // Uma intensidade para a repetição inteira, ou trechos (ex.: 15 m forte + 10 m solto).
             // Sem nenhum dos dois, a intensidade fica em aberto (definida na hora de gerar o treino).
