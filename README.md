@@ -49,6 +49,11 @@ npm run test:server  # roda os testes do backend
 npm run seed -- seu@email.com  # coloca testes e treinos de exemplo nessa conta
 ```
 
+## Documentos de referência
+
+- [`docs/tabela-de-percentuais.md`](docs/tabela-de-percentuais.md): tabela do treinador com os tempos de treino em cada porcentagem (100% a 60%) a partir do melhor tempo. Guardada para usar quando o atleta registrar testes de 50, 100 ou 200 m.
+- [`server/series/LEIAME.md`](server/series/LEIAME.md): como cadastrar séries e as regras de montagem dos treinos.
+
 ## Estrutura
 
 ```
