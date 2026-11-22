@@ -305,14 +305,18 @@ export function createApp({
     sendJson(res, 200, { message: 'Senha alterada com sucesso.' })
   }
 
+  const rules = loadRules()
   // Ao concluir um treino, o feedback pode refazer os próximos (3 seguidos fora do esperado)
   const swimming = createSwimmingRoutes({
     db, requireUser, onTrainingCompleted: (userId) => athlete.reformulateIfNeeded(userId),
     // Tempo novo (teste de 400 m): os treinos não feitos ganham os tempos, sem mudar as séries
     onTimesChanged: (userId) => athlete.refreshTrainingTimes(userId),
     plannedTest: (userId) => athlete.plannedTest(userId),
+    // Falta: muitas seguidas deixam os próximos treinos mais leves
+    onTrainingMissed: (userId, today) => athlete.applyAbsenceRule(userId, today),
+    askAboutLastDays: rules.faltas?.perguntarDosUltimosDias ?? 21,
   })
-  const athlete = createAthleteRoutes({ db, requireUser, library: loadLibrary(), rules: loadRules() })
+  const athlete = createAthleteRoutes({ db, requireUser, library: loadLibrary(), rules })
 
   // Rotas da API. Trechos como ":id" viram parâmetros (ex.: /api/tests/7).
   const routes = [
@@ -327,6 +331,8 @@ export function createApp({
     ['DELETE', '/api/tests/:id', swimming.removeTest],
     ['GET', '/api/trainings', swimming.getTrainings],
     ['GET', '/api/trainings/upcoming', swimming.getUpcomingTrainings],
+    ['GET', '/api/trainings/pending', swimming.getPendingTrainings],
+    ['POST', '/api/trainings/:id/missed', swimming.missTraining],
     ['POST', '/api/trainings/generate', athlete.generate],
     ['POST', '/api/trainings', swimming.createTraining],
     ['POST', '/api/trainings/:id/complete', swimming.completeTraining],

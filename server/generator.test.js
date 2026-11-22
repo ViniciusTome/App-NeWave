@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -1120,4 +1120,17 @@ test('velocidade: o estilo vai escrito no card (CR, CO, PE, BO ou medley)', () =
   const soCrawl = [1, 2, 3].flatMap((seed) => gerar({ ...avancado, strokes: ['crawl'], bestStroke: null }, seed))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
   assert.ok(soCrawl.every((t) => /\bCR\b/.test(t) && !/\b(CO|PE|BO)\b/.test(t)), soCrawl.join('\n'))
+})
+
+test('treino mais leve depois de faltas: as intensidades descem um degrau, as séries ficam', () => {
+  const [treino] = gerar(avancado, 3).filter((t) => t.plano.intensidade === 'A3')
+  assert.ok(treino, 'precisa de um treino com A3')
+  const leve = lightenTraining(rules, avancado, treino)
+  assert.equal(leve.plano.maisLeve, true)
+  assert.equal(leve.plano.intensidade, 'A2')
+  assert.deepEqual(leve.partes.map((p) => p.serieId), treino.partes.map((p) => p.serieId))
+  for (const p of leve.partes.filter((x) => x.intensidades)) {
+    assert.ok(!p.intensidades.valores.includes('A3'), p.texto)
+    assert.ok(!/\bA3\b|AC\)|NEG|POS/.test(p.texto), p.texto)
+  }
 })

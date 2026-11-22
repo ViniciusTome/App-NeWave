@@ -197,6 +197,13 @@
       }
     }
   },
+  "faltas": {
+    "_comentario": "Treino que passou da data sem resposta: ao abrir o app, o atleta diz se fez ou não. Faltas deixam as intensidades mais leves (as séries não mudam): cada intensidade desce um degrau (A3 -> A2, A2 -> A1; AC, NEG, POS e final forte -> A2). Quem treina mais vezes por semana perde menos: a regra vale só até 'ateTreinosPorSemana'. Iniciante e intermediário: mais de 'faltasSeguidasMaisQue' faltas seguidas deixam os próximos 'treinosMaisLeves' treinos mais leves. Avançado: 'diasSemTreinar' dias ou mais sem treinar deixam o primeiro treino da volta mais leve. PROVISÓRIO.",
+    "perguntarDosUltimosDias": 21,
+    "iniciante": { "ateTreinosPorSemana": 3, "faltasSeguidasMaisQue": 3, "treinosMaisLeves": 2 },
+    "intermediario": { "ateTreinosPorSemana": 3, "faltasSeguidasMaisQue": 3, "treinosMaisLeves": 2 },
+    "avancado": { "ateTreinosPorSemana": 3, "diasSemTreinar": 3, "treinosMaisLeves": 1 }
+  },
   "condicionamento": {
     "_comentario": "Quem não nada 400 m sem parar: não faz teste; a metragem da série principal vai aumentando devagar ('fatorInicial' do tempo da principal, + 'aumentoPorTreino' a cada treino, até 'fatorMaximo') até ele conseguir nadar 400 m sem parar.",
     "paraQuemNadaMenosDe": 400,

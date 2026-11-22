@@ -1,4 +1,4 @@
-import styles from './App.module.css'
+import './App.module.css'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 import { HomePage } from './Pages/HomePage'

@@ -1,0 +1,82 @@
+.box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color: #0b2f57;
+    font-size: 15px;
+}
+
+.list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid #d6e6f5;
+    border-radius: 8px;
+}
+
+.toggle {
+    display: flex;
+    border: 1px solid #1d6fb8;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.toggle button {
+    font: inherit;
+    font-size: 13px;
+    padding: 4px 12px;
+    border: none;
+    background: #ffffff;
+    color: #1d6fb8;
+    cursor: pointer;
+}
+
+.toggle button[aria-pressed='true'] {
+    background-color: #1d6fb8;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.primary,
+.secondary {
+    font: inherit;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+.primary {
+    border: none;
+    background-color: #1d6fb8;
+    color: #ffffff;
+}
+
+.secondary {
+    border: 1px solid #1d6fb8;
+    background-color: #ffffff;
+    color: #1d6fb8;
+}
+
+.primary:disabled,
+.secondary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.error {
+    color: #b00020;
+    font-size: 14px;
+}

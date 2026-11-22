@@ -832,6 +832,32 @@ export function renderPart(rules, athlete, montagem) {
     return { texto: cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas), aviso }
 }
 
+// Treino mais leve depois de faltas: cada intensidade desce um degrau (A3 -> A2,
+// A2 -> A1; AC, NEG, POS e final forte -> A2). As séries e o material não mudam.
+// `treino` = { partes, plano } como guardado. Devolve { partes, plano }.
+export function lightenTraining(rules, athlete, treino) {
+    const desce = (v) => (v === 'A3' ? 'A2' : v === 'A2' || v === 'A1' ? 'A1' : 'A2')
+    const pronto = prepareAthlete(rules, athlete)
+    const montagem = (treino.plano?.montagem ?? []).map((m) => (m?.intensidades
+        ? { ...m, intensidades: { ...m.intensidades, tipo: 'intensidades', valores: m.intensidades.valores.map(desce) } }
+        : m))
+    const partes = treino.partes.map((p, i) => {
+        const m = montagem[i]
+        if (!m?.intensidades) return p
+        const { texto, aviso } = renderPart(rules, pronto, m)
+        const { aviso: _antigo, ...resto } = p
+        return { ...resto, texto, intensidades: m.intensidades, ...(aviso && { aviso }) }
+    })
+    const intensidade = treino.plano?.intensidade ? desce(treino.plano.intensidade) : null
+    return {
+        partes,
+        plano: {
+            ...treino.plano, montagem, maisLeve: true, intensidade,
+            esforcoEsperado: rules.feedback?.esforcoEsperado?.[intensidade] ?? treino.plano?.esforcoEsperado,
+        },
+    }
+}
+
 // O atleta pronto para gerar ou reescrever os treinos: tabela de tempos (teste de
 // 400 m ou o tempo informado) e o tempo de treino do nível.
 export function prepareAthlete(rules, athlete) {

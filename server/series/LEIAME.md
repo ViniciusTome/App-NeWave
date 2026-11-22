@@ -586,6 +586,13 @@ O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, 
 
 Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
 
+### Treinos sem resposta e faltas
+
+- **Ao abrir o app**, se algum treino passou da data sem resposta (dos últimos 21 dias), aparece a pergunta: **"Você fez este treino?"** (às vezes ele só esqueceu de clicar em "Concluir treino"). Um treino: "Sim, fiz" leva às perguntas da série principal; "Não fiz" marca a falta. Vários: uma lista para marcar "Fiz" ou "Não fiz" em cada um.
+- **Faltas** deixam os próximos treinos **mais leves**: só as intensidades descem um degrau (A3 vira A2, A2 vira A1; AC, NEG, POS e final forte viram A2). As séries e o material ficam. Quem treina mais vezes por semana perde menos, então a regra vale só para quem treina **até 3 vezes por semana** (`faltas` no `regras.json`, PROVISÓRIO):
+  - **Iniciante e intermediário:** mais de 3 faltas seguidas deixam os **próximos 2 treinos** mais leves.
+  - **Avançado:** **3 dias ou mais sem treinar** deixam o **primeiro treino da volta** mais leve.
+
 ### Teste de estresse
 
 Para conferir todas as regras de uma vez, com centenas de atletas diferentes (iniciante, intermediário e avançado; com e sem tempo; com e sem prova; piscinas, materiais, estilos, dias e tempos de aula):

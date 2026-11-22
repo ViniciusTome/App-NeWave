@@ -2,7 +2,7 @@
 // É a base do botão "Gerar treinos": as respostas ficam guardadas para o atleta
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
-import { feedbackAdjustment, generateTrainings, legacyFields, refreshTimes, seriesUsadas } from './generator.js'
+import { feedbackAdjustment, generateTrainings, legacyFields, lightenTraining, refreshTimes, seriesUsadas } from './generator.js'
 import { timeTable } from './series/regras.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -296,6 +296,16 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     UPDATE trainings SET parts = ?, plan = ?, warm_up = ?, speed = ?, main_series = ?, release = ? WHERE id = ? AND user_id = ?
   `)
   const setPlan = db.prepare('UPDATE trainings SET plan = ? WHERE id = ? AND user_id = ?')
+  // Treinos que já passaram, do mais recente (para contar as faltas seguidas)
+  const pastTrainings = db.prepare(`
+    SELECT date, completed_at, missed_at FROM trainings WHERE user_id = ? AND date < ? ORDER BY date DESC, id DESC LIMIT 30
+  `)
+  const lastCompleted = db.prepare('SELECT MAX(date) AS date FROM trainings WHERE user_id = ? AND completed_at IS NOT NULL')
+  const upcomingOrdered = db.prepare(`
+    SELECT id, parts, plan FROM trainings
+    WHERE user_id = ? AND completed_at IS NULL AND date >= ? AND parts IS NOT NULL AND plan IS NOT NULL
+    ORDER BY date, id LIMIT ?
+  `)
   const updateParts = db.prepare(`
     UPDATE trainings SET parts = ?, warm_up = ?, speed = ?, main_series = ?, release = ? WHERE id = ? AND user_id = ?
   `)
@@ -573,6 +583,47 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
         throw err
       }
       return atualizados
+    },
+
+    // Faltas: quem treina pouco por semana perde mais com elas. Iniciante e intermediário
+    // com mais de 3 faltas seguidas, e avançado com 3 dias ou mais sem treinar, têm os
+    // próximos treinos mais leves (só as intensidades descem um degrau; as séries ficam).
+    // Devolve quantos treinos ficaram mais leves.
+    applyAbsenceRule(userId, today = new Date().toISOString().slice(0, 10)) {
+      const { profile, time400, level } = profileResponse(userId)
+      const regra = rules.faltas?.[level?.level]
+      if (!profile || !regra || profile.trainingDays.length > regra.ateTreinosPorSemana) return 0
+      let seguidas = 0
+      for (const t of pastTrainings.all(userId, today)) {
+        if (!t.missed_at) break
+        seguidas++
+      }
+      if (seguidas === 0) return 0
+      let vale
+      if (regra.faltasSeguidasMaisQue !== undefined) vale = seguidas > regra.faltasSeguidasMaisQue
+      else {
+        const ultimo = lastCompleted.get(userId).date
+        const dias = ultimo ? Math.round((Date.parse(`${today}T12:00:00Z`) - Date.parse(`${ultimo}T12:00:00Z`)) / 86_400_000) : Infinity
+        vale = dias >= regra.diasSemTreinar
+      }
+      if (!vale) return 0
+      const proximos = upcomingOrdered.all(userId, today, regra.treinosMaisLeves)
+      // Já ficaram mais leves por essas faltas
+      if (proximos.length === 0 || JSON.parse(proximos[0].plan).maisLeve) return 0
+      const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 }
+      db.exec('BEGIN')
+      try {
+        for (const row of proximos) {
+          const { partes, plano } = lightenTraining(rules, athlete, { partes: JSON.parse(row.parts), plano: JSON.parse(row.plan) })
+          const f = legacyFields(partes)
+          replaceTraining.run(JSON.stringify(partes), JSON.stringify(plano), f.warmUp, f.speed, f.mainSeries, f.release, row.id, userId)
+        }
+        db.exec('COMMIT')
+      } catch (err) {
+        db.exec('ROLLBACK')
+        throw err
+      }
+      return proximos.length
     },
 
     // Teste de 400 m planejado (o de quem não tinha tempo) que o atleta ainda não disse
