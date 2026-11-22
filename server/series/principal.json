@@ -113,6 +113,17 @@
     ]
   },
   {
+    "id": "pri-3x-1x100-1x75-1x50-1x25",
+    "texto": "(3x) 1 x 100, 1 x 75, 1 x 50, 1 x 25",
+    "vezes": 3,
+    "blocos": [
+      { "repeticoes": 1, "distancia": 100, "nado": "livre" },
+      { "repeticoes": 1, "distancia": 75, "nado": "livre" },
+      { "repeticoes": 1, "distancia": 50, "nado": "livre" },
+      { "repeticoes": 1, "distancia": 25, "nado": "livre" }
+    ]
+  },
+  {
     "id": "pri-4x-100-75-100-25",
     "texto": "(4x) 1 x 100, 2 x 75, 3 x 100, 4 x 25",
     "vezes": 4,
