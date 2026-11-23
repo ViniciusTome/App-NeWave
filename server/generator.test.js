@@ -1518,6 +1518,14 @@ test('prova no crawl (triatlo, águas abertas, livre): a série principal é só
   assert.doesNotMatch(linhas, /\b(CO|BO|MD)\b|medley/)
 })
 
+test('triatlo e maratona aquática: aquecimento e velocidade também de crawl', () => {
+  const athlete = { ...avancado, strokes: ['crawl', 'costas', 'peito', 'borboleta'], bestStroke: 'peito', modalidade: 'triatlo' }
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-03-20', testeNaTransicao: false, numeroInicial: 1, provas: [] }
+  const partes = [1, 2].flatMap((seed) => generateTrainings({ rules, library, athlete, today: '2026-11-23', random: seeded(seed), periodizacao }))
+    .flatMap((t) => t.partes).filter((p) => ['aquecimento', 'velocidade'].includes(p.parte))
+  for (const p of partes) assert.doesNotMatch(p.texto.split('\n')[0], /\b(CO|PE|BO|MD|ME)\b|estilo|medley/, p.texto)
+})
+
 test('condicionamento com prova alvo: tem Transição e Realização (sem prova, fica na Acumulação)', () => {
   const iniciante = {
     level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '100_200',

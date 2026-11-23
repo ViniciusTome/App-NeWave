@@ -130,10 +130,18 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
     // em todo treino (menos o dia do teste), antes da principal, um passo acima do que nada hoje
     const alvo = Math.max(0, ...(a.provas ?? []).map((p) => p.distancia))
     const ritmo = (a.time400?.hundredths ?? { iniciante: 54000, intermediario: 42000, avancado: 33000 }[a.level]) / 400
-    const precisa = !periodizacao.semProva && Boolean(testSeriesDistance(rules, prepareAthlete(rules, a), [], ritmo))
+    const precisa = !periodizacao.semProva && a.level === 'iniciante' && Boolean(testSeriesDistance(rules, prepareAthlete(rules, a), [], ritmo))
     for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
         const i = t.partes.findIndex((p) => p.parte === 'continuo')
-        confere('Nado contínuo só para quem tem prova mais longa do que nada sem parar', (i >= 0) === precisa, () => `${quem}: alvo ${alvo} ${t.date}`)
+        // Triatlo e maratona aquática: aquecimento, velocidade e principal só de crawl
+        if (['triatlo', 'maratona_aquatica'].includes(a.modalidade)) {
+            for (const p of t.partes.filter((x) => ['aquecimento', 'velocidade', 'principal'].includes(x.parte))) {
+                confere('Triatlo e maratona: aquecimento, velocidade e série principal só de crawl',
+                    !/\b(CO|PE|BO|MD|ME)\b|estilo|medley|costas|peito|borboleta/.test(p.texto.split('\n').filter((l) => !/^Técnica|^Foco/.test(l)).join(' ').replace(/\d+ x \d+ m · CR: .*/, '')),
+                    () => `${quem}: [${p.parte}] ${p.texto}`)
+            }
+        }
+        confere('Nado contínuo só para o iniciante com prova mais longa do que nada sem parar', (i >= 0) === precisa, () => `${quem}: alvo ${alvo} ${t.date}`)
         if (i < 0) continue
         confere('Nado contínuo antes da série principal, até a distância da prova (e o que cabe na aula)', t.partes[i + 1]?.parte === 'principal' &&
             t.partes[i].metros <= alvo && t.plano.serieDeTeste?.distancia === t.partes[i].metros && t.partes[i].minutos <= minutosDoTreino * 0.45 + 1,

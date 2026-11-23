@@ -817,7 +817,7 @@ test('várias provas na mesma competição: a 1ª é a principal', async () => {
 
 test('nado contínuo: "precisei parar" ao concluir faz os próximos treinos voltarem um passo', async () => {
   const cookie = await userFor('feedback')
-  await saveProfile(cookie, { ...sampleProfile, continuousDistance: '200_400', reported400Hundredths: 48000 })
+  await saveProfile(cookie, { ...sampleProfile, swimmingSince: 'menos_6m', continuousDistance: '100_200', reported400Hundredths: 60000 }) // iniciante
   const hoje = daysFromToday(0)
   await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...sampleCompetition, name: 'Triatlo', modality: 'triatlo', distance: 1500 } } })
   await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
@@ -825,12 +825,12 @@ test('nado contínuo: "precisei parar" ao concluir faz os próximos treinos volt
   const continuoDe = (t) => t.partes.find((p) => p.parte === 'continuo')
   const todos = await lista()
   const primeiro = todos.find(continuoDe)
-  assert.equal(continuoDe(primeiro).metros, 250) // nada 200 m: começa em 250
+  assert.equal(continuoDe(primeiro).metros, 150) // nada 100 m: começa em 150
   // Pergunta precisa ser sim ou não
   assert.equal((await api(`/api/trainings/${primeiro.id}/complete`, { method: 'POST', cookie, body: { difficulty: 5, nonstop: 'talvez' } })).status, 400)
   const res = await api(`/api/trainings/${primeiro.id}/complete`, { method: 'POST', cookie, body: { difficulty: 5, nonstop: false } })
   assert.equal(res.status, 200)
   assert.ok(res.body.reformulados > 0)
   const depois = (await lista()).find(continuoDe)
-  assert.equal(continuoDe(depois).metros, 200)
+  assert.equal(continuoDe(depois).metros, 100)
 })

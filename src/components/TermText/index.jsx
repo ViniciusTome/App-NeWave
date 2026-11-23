@@ -6,28 +6,25 @@ import styles from './termtext.module.css'
 
 // Texto de uma parte do treino com os termos explicados: na 1ª preparação (`extenso`)
 // o nome vai por extenso com a abreviação entre parênteses ("com pé de pato (c/PÉ)").
-// Cada termo do glossário ganha um "?" (só na 1ª vez que aparece na parte) que abre a
-// explicação dele.
+// A abreviação é clicável (azul, sublinhado pontilhado) e abre a explicação do glossário.
 export const TermText = ({ texto, extenso = false }) => {
     const [aberto, setAberto] = useState(null)
-    const vistos = new Set()
     const pedacos = splitTerms(texto)
+
+    const clicavel = (rotulo, termo, chave) => (termo
+        ? <button key={chave} type='button' className={styles.abbr} onClick={() => setAberto(termo)}
+            title={`O que é ${termo.nome ?? termo.sigla}?`}>{rotulo}</button>
+        : <span key={chave}>{rotulo}</span>)
 
     return (
         <>
             {pedacos.map((p, i) => {
                 if (typeof p === 'string') return <span key={i}>{p}</span>
-                const primeira = p.termo && !vistos.has(p.termo.sigla)
-                if (p.termo) vistos.add(p.termo.sigla)
-                return (
-                    <span key={i} className={styles.term}>
-                        {extenso ? p.extenso : p.texto}
-                        {primeira && (
-                            <button type='button' className={styles.help} onClick={() => setAberto(p.termo)}
-                                aria-label={`O que é ${p.termo.nome ?? p.termo.sigla}?`}>?</button>
-                        )}
-                    </span>
-                )
+                if (!extenso) return clicavel(p.texto, p.termo, i)
+                // "com pé de pato (c/PÉ)": o nome normal e a abreviação clicável
+                const m = /^(.*?)\s*\(([^()]*)\)$/.exec(p.extenso)
+                if (!m) return clicavel(p.extenso, p.termo, i)
+                return <span key={i}>{m[1]} <span className={styles.junto}>({clicavel(m[2], p.termo, 'a')})</span></span>
             })}
             <Modal open={aberto !== null} onClose={() => setAberto(null)} title={aberto ? `${aberto.sigla}${aberto.nome ? ` · ${aberto.nome}` : ''}` : ''}>
                 {aberto && (

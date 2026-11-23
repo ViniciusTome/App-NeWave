@@ -938,9 +938,12 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
     // A série principal segue a prova alvo: prova no crawl (triatlo, águas abertas, livre)
     // só crawl; prova num estilo: ele é o "melhor estilo" da principal
     const daPrincipal = athleteForMain(athlete)
+    // Triatlo e maratona aquática: o aquecimento e a velocidade também são de crawl
+    const soCrawl = NO_CRAWL.includes(athlete.modalidade) ? { ...athlete, strokes: ['crawl'], bestStroke: null } : athlete
+    const doAtleta = (parte) => (parte === 'principal' ? daPrincipal : ['aquecimento', 'velocidade'].includes(parte) ? soCrawl : athlete)
     const escolher = (i, budget, primeiraPrincipal = null) => {
         const parte = estrutura[i]
-        const escolha = pickForPart({ rules, library, parte, budget, athlete: parte === 'principal' ? daPrincipal : athlete, pace, random, recentes, primeiraPrincipal, bloqueadas })
+        const escolha = pickForPart({ rules, library, parte, budget, athlete: doAtleta(parte), pace, random, recentes, primeiraPrincipal, bloqueadas })
         if (escolha) {
             escolhas.set(i, escolha)
             recentes.add(escolha.serie.id)
@@ -963,7 +966,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         // Técnica no aquecimento e no solto depois da velocidade (técnica cansado)
         const comTecnica = parte === parteComTecnica && (parte === 'aquecimento' || estrutura[i - 1] === 'velocidade')
         if (escolha && comTecnica) {
-            escolha.tecnica = montarTecnica({ tecnica, athlete, parte, pace, random, recentes, estado: estadoTecnica })
+            escolha.tecnica = montarTecnica({ tecnica, athlete: doAtleta(parte), parte, pace, random, recentes, estado: estadoTecnica })
             if (escolha.tecnica) usado += escolha.tecnica.segundos
         }
     })
@@ -1043,7 +1046,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
         // Velocidade "livre": o estilo vai escrito (sorteado entre os que o atleta nada).
         // Série principal "livre": é crawl, e o card diz isso (CR)
-        if (parte === 'velocidade') escolha.variation = withSpeedStroke(rules, escolha.variation, athlete, random)
+        if (parte === 'velocidade') escolha.variation = withSpeedStroke(rules, escolha.variation, soCrawl, random)
         if (parte === 'principal') escolha.variation = withCrawl(escolha.variation)
         if (parte === 'perna') {
             const distancia = Math.max(...escolha.serie.blocos.map((b) => b.distancia))
@@ -1593,7 +1596,9 @@ export function generateTrainings({
     const estadoTecnica = estadoDaTecnica(historico)
     // Série de teste: o nado contínuo que vai crescendo até a distância da prova
     // (no Específico o atleta já nada a distância da prova: não precisa)
-    const serieDeTeste = periodizacao && !periodizacao.semProva && athlete.modelo !== 'especifico' ? testSeriesDistance(rules, athlete, historico, pace) : null
+    // Só para o iniciante (regra do treinador)
+    const serieDeTeste = periodizacao && !periodizacao.semProva && athlete.modelo !== 'especifico' && athlete.level === 'iniciante'
+        ? testSeriesDistance(rules, athlete, historico, pace) : null
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino
     const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false

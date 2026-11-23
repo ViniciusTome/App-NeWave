@@ -673,7 +673,7 @@ Como entra no treino:
 
 Só para o treinador: o atleta não sabe que é um teste.
 
-- **Quem recebe:** quem tem prova alvo **mais longa** do que nada sem parar hoje (anamnese). Com várias provas na competição, vale a mais longa. No Específico não entra (ele já nada a distância da prova).
+- **Quem recebe:** só o **iniciante** que tem prova alvo **mais longa** do que nada sem parar hoje (anamnese). Com várias provas na competição, vale a mais longa. No Específico não entra (ele já nada a distância da prova).
 - **O que é:** em cada treino (menos o dia do teste), antes da série principal, um nado contínuo em ritmo leve, no crawl (ou no estilo da prova, se for costas ou peito). Ele fica no lugar da 2ª série principal.
 - **Começo:** um passo acima do que o atleta nada hoje (quem nada "100 a 200 m" começa nos 150 m).
 - **Passos** (`regras.json` → `serieDeTeste`): +50 m até 400 m; +100 m até 1 km; +250 m até 2 km; +500 m acima disso. Nunca passa da prova, nem de 40% do tempo da aula.
@@ -684,10 +684,15 @@ Só para o treinador: o atleta não sabe que é um teste.
 
 ### Série principal pela prova (modelo Geral)
 
-- **Prova no crawl** (triatlo, águas abertas ou livre na piscina): a série principal é **só crawl**.
+- **Prova no crawl** (triatlo, águas abertas ou livre na piscina): a série principal é **só crawl**. No **triatlo** e na **maratona aquática**, o **aquecimento** e a **velocidade** também são só de crawl.
 - **Prova num estilo** (costas, peito, borboleta): a principal fica nesse estilo e no crawl, e o "ME" é o estilo da prova. Com várias provas, entram os estilos de todas.
 - **Medley:** fica como antes (todos os estilos).
 - **Um estilo só:** a mistura de nados alterna o estilo com o crawl (nunca o mesmo seguido).
+
+### Nomes dos termos nos treinos
+
+- Na **1ª preparação** do atleta, os termos vão **por extenso** com a abreviação entre parênteses (ex.: "com pé de pato (c/PÉ)", "negativo (NEG)", "saída a cada 1'50\" (a/c)"). A partir da 2ª, só a abreviação.
+- A **abreviação é clicável** (azul, com sublinhado pontilhado) e abre a explicação do glossário, com o link para o glossário completo. Os termos ficam em `src/utils/terms.js`; as explicações, no `glossario.json`.
 
 ### Modelo de treino: Geral ou Específico da prova
 
