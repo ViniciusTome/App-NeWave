@@ -945,7 +945,7 @@ export function renderPart(rules, athlete, montagem) {
     const aviso = avisoComEquipamento(rules, doDia, { variation, intensidades }, saidas)
     // Sem tempos de referência: o descanso no lugar da saída (velocidade: 20" a 30")
     if (!doDia.tabela) {
-        // (na Realização, 20 a 30% a mais e de 5 em 5: 25" a 40")
+        // (na Realização, 30 a 40% a mais e de 5 em 5: 25" a 40")
         const [de, ate] = (rules.saidas?.velocidade?.descanso ?? [20, 30]).map((x) => restOfPhase(doDia, x))
         saidas = parte === 'velocidade'
             ? (saidas?.[0] ? saidas : [`c/${de}" a ${ate}" de descanso`])
