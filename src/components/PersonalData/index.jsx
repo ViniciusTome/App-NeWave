@@ -24,7 +24,7 @@ export const PersonalData = () => {
                 </div>
                 <div className={styles.email}>
                     <label>Email</label>
-                    <p>{conta.email}</p>
+                    <p>{conta.email}{conta.google && <span className={styles.empty}> · conta Google</span>}</p>
                 </div>
                 <div className={styles.phone}>
                     <label>Telefone</label>
@@ -32,7 +32,7 @@ export const PersonalData = () => {
                 </div>
                 <div className={styles.password}>
                     <label>Senha</label>
-                    <p>••••••••</p>
+                    <p>{conta.hasPassword ? '••••••••' : <span className={styles.empty}>sem senha (você entra com o Google)</span>}</p>
                 </div>
                 <div className={styles.birth}>
                     <label>Data de nascimento</label>
@@ -41,13 +41,15 @@ export const PersonalData = () => {
             </div>
             <div className={styles.buttons}>
                 <button type='button' className={styles.edit} onClick={() => setAberto('dados')}>Editar dados</button>
-                <button type='button' className={styles.edit} onClick={() => setAberto('senha')}>Trocar senha</button>
+                <button type='button' className={styles.edit} onClick={() => setAberto('senha')}>
+                    {conta.hasPassword ? 'Trocar senha' : 'Criar senha'}
+                </button>
             </div>
             <Modal open={aberto === 'dados'} onClose={() => setAberto(null)} title='Editar dados pessoais'>
                 {aberto === 'dados' && <EditPersonalData account={conta} onDone={() => setAberto(null)} />}
             </Modal>
-            <Modal open={aberto === 'senha'} onClose={() => setAberto(null)} title='Trocar senha'>
-                {aberto === 'senha' && <ChangePassword onDone={() => setAberto(null)} />}
+            <Modal open={aberto === 'senha'} onClose={() => setAberto(null)} title={conta.hasPassword ? 'Trocar senha' : 'Criar senha'}>
+                {aberto === 'senha' && <ChangePassword temSenha={conta.hasPassword} onDone={() => setAberto(null)} />}
             </Modal>
         </div>
     )

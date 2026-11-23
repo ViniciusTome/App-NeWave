@@ -164,6 +164,10 @@ export function openDatabase(path) {
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((col) => col.name)
   if (!userColumns.includes('phone')) db.exec('ALTER TABLE users ADD COLUMN phone TEXT')
   if (!userColumns.includes('birth_date')) db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT')
+  // Entrar com o Google: o id da conta Google e se a pessoa já criou uma senha no app
+  if (!userColumns.includes('google_sub')) db.exec('ALTER TABLE users ADD COLUMN google_sub TEXT')
+  if (!userColumns.includes('password_set')) db.exec('ALTER TABLE users ADD COLUMN password_set INTEGER NOT NULL DEFAULT 1')
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_sub) WHERE google_sub IS NOT NULL')
 
   // Mensagens para o suporte (Perfil -> Suporte -> Entre em contato)
   db.exec(`

@@ -5,8 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- viewport-fit=cover: no iPhone o app ocupa a tela toda (respeitando o entalhe) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- O link de "esqueci a senha" tem um token na URL: não repassar para outros sites -->
-    <meta name="referrer" content="no-referrer" />
+    <!-- O link de "esqueci a senha" tem um token na URL: para outros sites vai só a origem
+         (sem o caminho e o token). O login do Google precisa da origem. -->
+    <meta name="referrer" content="strict-origin" />
     <!-- App instalável no celular (PWA): ícone na tela inicial e tela cheia -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#171D1F" />

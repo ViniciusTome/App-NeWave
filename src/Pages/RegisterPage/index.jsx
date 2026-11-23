@@ -9,6 +9,7 @@ import { Input } from '../../components/Input'
 import { Label } from '../../components/Label'
 import { PasswordInput } from '../../components/PasswordInput'
 import { TextDivider } from '../../components/TextDivider'
+import { GoogleButton } from '../../components/GoogleButton'
 import styles from './register.module.css'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -89,6 +90,7 @@ export const Register = () => {
                 </Form>
                 
                 <TextDivider text='ou entre com outras contas' />
+                    <GoogleButton texto='signup_with' />
                 <footer className={styles.login}>
                     <p>Já tem conta?</p>
                     <Link to='/auth/login'>Faça seu login! <IconLogin color='#002638ff' /></Link>

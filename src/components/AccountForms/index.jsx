@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { formatPhone } from '../../hooks/useAccount'
+import { formatPhone, useAccount } from '../../hooks/useAccount'
 import { api, notifyAccountChanged } from '../../services/api'
 import { todayIso } from '../../utils/format'
 import styles from './accountforms.module.css'
@@ -75,7 +75,8 @@ export const EditPersonalData = ({ account, onDone }) => {
     )
 }
 
-export const ChangePassword = ({ onDone }) => {
+// `temSenha` = false: conta que entra só pelo Google (cria a senha, sem a atual)
+export const ChangePassword = ({ onDone, temSenha = true }) => {
     const [atual, setAtual] = useState('')
     const [nova, setNova] = useState('')
     const [confirma, setConfirma] = useState('')
@@ -89,7 +90,7 @@ export const ChangePassword = ({ onDone }) => {
             return
         }
         const resposta = await enviar(() => api('/account/password', {
-            method: 'POST', body: { currentPassword: atual, newPassword: nova },
+            method: 'POST', body: { ...(temSenha && { currentPassword: atual }), newPassword: nova },
         }))
         if (resposta) setOk(resposta.message)
     }
@@ -106,10 +107,14 @@ export const ChangePassword = ({ onDone }) => {
     }
     return (
         <form className={styles.form} onSubmit={salvar}>
-            <label className={styles.field}>
-                <span>Senha atual</span>
-                <input type='password' value={atual} onChange={(e) => setAtual(e.target.value)} required autoComplete='current-password' />
-            </label>
+            {temSenha ? (
+                <label className={styles.field}>
+                    <span>Senha atual</span>
+                    <input type='password' value={atual} onChange={(e) => setAtual(e.target.value)} required autoComplete='current-password' />
+                </label>
+            ) : (
+                <p className={styles.hint}>Com uma senha, você também entra com o email, além do Google.</p>
+            )}
             <label className={styles.field}>
                 <span>Nova senha (8 caracteres ou mais)</span>
                 <input type='password' value={nova} onChange={(e) => setNova(e.target.value)} required minLength={8} maxLength={128} autoComplete='new-password' />
@@ -119,7 +124,7 @@ export const ChangePassword = ({ onDone }) => {
                 <input type='password' value={confirma} onChange={(e) => setConfirma(e.target.value)} required autoComplete='new-password' />
             </label>
             {erro && <p className={styles.error} role='alert'>{erro}</p>}
-            <Acoes onCancel={onDone} enviando={enviando} texto='Trocar senha' />
+            <Acoes onCancel={onDone} enviando={enviando} texto={temSenha ? 'Trocar senha' : 'Criar senha'} />
         </form>
     )
 }
@@ -162,6 +167,9 @@ export const ContactSupport = ({ onDone }) => {
 export const DeleteAccount = ({ onDone }) => {
     const { updateUser } = useAuth()
     const navigate = useNavigate()
+    // Conta só do Google (sem senha): confirma escrevendo EXCLUIR
+    const { data } = useAccount()
+    const temSenha = data?.account?.hasPassword ?? true
     const [senha, setSenha] = useState('')
     const [entendi, setEntendi] = useState(false)
     const { enviando, erro, enviar } = useEnvio()
@@ -169,7 +177,7 @@ export const DeleteAccount = ({ onDone }) => {
     const excluir = async (e) => {
         e.preventDefault()
         const feito = await enviar(async () => {
-            await api('/account', { method: 'DELETE', body: { password: senha } })
+            await api('/account', { method: 'DELETE', body: temSenha ? { password: senha } : { confirm: senha } })
             return true
         })
         if (!feito) return
@@ -186,10 +194,17 @@ export const DeleteAccount = ({ onDone }) => {
                 <input type='checkbox' checked={entendi} onChange={(e) => setEntendi(e.target.checked)} />
                 <span>Entendi que a exclusão é definitiva.</span>
             </label>
-            <label className={styles.field}>
-                <span>Digite a sua senha para confirmar</span>
-                <input type='password' value={senha} onChange={(e) => setSenha(e.target.value)} required autoComplete='current-password' />
-            </label>
+            {temSenha ? (
+                <label className={styles.field}>
+                    <span>Digite a sua senha para confirmar</span>
+                    <input type='password' value={senha} onChange={(e) => setSenha(e.target.value)} required autoComplete='current-password' />
+                </label>
+            ) : (
+                <label className={styles.field}>
+                    <span>Escreva EXCLUIR para confirmar</span>
+                    <input value={senha} onChange={(e) => setSenha(e.target.value)} required autoComplete='off' />
+                </label>
+            )}
             {erro && <p className={styles.error} role='alert'>{erro}</p>}
             <div className={styles.actions}>
                 <button type='button' className={styles.secondary} onClick={onDone}>Cancelar</button>

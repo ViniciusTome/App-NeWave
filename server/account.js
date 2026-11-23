@@ -41,9 +41,9 @@ export function trainingStats(rows, today) {
 // `sessionTokenHash(req)`: o hash da sessão atual (ela continua aberta ao trocar a senha);
 // `logoutCookie()`: o cookie que encerra a sessão (ao excluir a conta)
 export function createAccountRoutes({ db, requireUser, mailer, supportEmail = null, sessionTokenHash, logoutCookie }) {
-  const findUser = db.prepare('SELECT id, name, email, phone, birth_date, created_at, password_hash FROM users WHERE id = ?')
+  const findUser = db.prepare('SELECT id, name, email, phone, birth_date, created_at, password_hash, password_set, google_sub FROM users WHERE id = ?')
   const updateUser = db.prepare('UPDATE users SET name = ?, phone = ?, birth_date = ? WHERE id = ?')
-  const updatePassword = db.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+  const updatePassword = db.prepare('UPDATE users SET password_hash = ?, password_set = 1 WHERE id = ?')
   const deleteOtherSessions = db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?')
   const deleteUser = db.prepare('DELETE FROM users WHERE id = ?')
   const listTrainings = db.prepare('SELECT id, date, completed_at, missed_at FROM trainings WHERE user_id = ?')
@@ -55,6 +55,8 @@ export function createAccountRoutes({ db, requireUser, mailer, supportEmail = nu
   const publicAccount = (row) => ({
     id: row.id, name: row.name, email: row.email, phone: row.phone ?? null,
     birthDate: row.birth_date ?? null, createdAt: row.created_at,
+    // Quem entrou só pelo Google não tem senha no app (pode criar uma)
+    hasPassword: row.password_set !== 0, google: Boolean(row.google_sub),
   })
   const readToday = (req) => {
     const today = new URL(req.url, 'http://localhost').searchParams.get('today')
@@ -107,7 +109,8 @@ export function createAccountRoutes({ db, requireUser, mailer, supportEmail = nu
       const user = requireUser(req)
       const body = await readJson(req)
       const row = findUser.get(user.id)
-      await checkPassword(row, body.currentPassword, `senha:${user.id}`)
+      // Conta só do Google: cria a senha sem pedir a atual (não existe)
+      if (row.password_set !== 0) await checkPassword(row, body.currentPassword, `senha:${user.id}`)
       if (typeof body.newPassword !== 'string' || body.newPassword.length < 8 || body.newPassword.length > 128) {
         throw new HttpError(400, 'A nova senha deve ter de 8 a 128 caracteres.')
       }
@@ -145,7 +148,10 @@ export function createAccountRoutes({ db, requireUser, mailer, supportEmail = nu
       const user = requireUser(req)
       const body = await readJson(req)
       const row = findUser.get(user.id)
-      await checkPassword(row, body.password, `excluir:${user.id}`)
+      // Conta só do Google (sem senha): confirma escrevendo EXCLUIR
+      if (row.password_set === 0) {
+        if (String(body.confirm ?? '').trim().toUpperCase() !== 'EXCLUIR') throw new HttpError(400, 'Escreva EXCLUIR para confirmar.')
+      } else await checkPassword(row, body.password, `excluir:${user.id}`)
       deleteUser.run(user.id) // ON DELETE CASCADE: sessões, treinos, testes, perfil, provas
       res.writeHead(204, { 'Set-Cookie': logoutCookie(), 'Cache-Control': 'no-store' })
       res.end()
