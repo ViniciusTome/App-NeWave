@@ -1143,7 +1143,7 @@ export function renderPart(rules, athlete, montagem) {
             ? (saidas?.[0] ? saidas : [`D${de}" a ${ate}" de descanso`])
             : descansosDaSerie(rules, doDia, serie, intensidades, strokeFactor(rules, variation, null, doDia, serie))
     }
-    const texto = cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas)
+    const texto = cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas) + legAlternation(parte, serie, variation)
     // Técnica da parte (aquecimento, solto): vai embaixo, como foi montada. A observação
     // da série (ex.: "Pode ser feito com pull buoy.") vai junto da série, para não
     // parecer ser da técnica
@@ -1151,6 +1151,18 @@ export function renderPart(rules, athlete, montagem) {
     const obs = montagem.serie.observacao?.replace(/\.$/, '')
     const daSerie = obs ? `${texto} (${obs[0].toLowerCase()}${obs.slice(1)})` : texto
     return { texto: `${daSerie}\n${montagem.tecnica}`, aviso }
+}
+
+// Perna com dois estilos ("CO | CR"): explica que alterna a cada repetição, para não
+// parecer ida de um e volta de outro. Ex.: "1ª: 100 m CO · 2ª: 100 m CR · 3ª: 100 m CO..."
+function legAlternation(parte, serie, variation) {
+    const dois = parte === 'perna' && /^(\w+) \| (\w+)$/.exec(variation.nadoAbrev ?? '')
+    if (!dois) return ''
+    const reps = serie.blocos.flatMap((b) => Array(b.repeticoes).fill(b.distancia))
+    const todas = Array.from({ length: serie.vezes ?? 1 }, () => reps).flat()
+    const mostrar = Math.min(todas.length, 4)
+    const lista = todas.slice(0, mostrar).map((d, i) => `${ORDINAIS[i]}: ${d} m ${dois[1 + (i % 2)]}`).join(' · ')
+    return `\nUma repetição de cada estilo, alternando: ${lista}${todas.length > mostrar ? ' · e assim por diante' : ''}`
 }
 
 // Treino mais leve depois de faltas. `como` = 'degrau' (iniciante e intermediário):

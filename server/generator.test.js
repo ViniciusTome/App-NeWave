@@ -1580,3 +1580,16 @@ test('séries de teste: o nado contínuo cresce aos poucos até a distância da 
     assert.doesNotMatch(t.partes[i].texto + t.partes[i].titulo + t.partes[i].observacao, /teste/i) // o atleta não sabe
   }
 })
+
+test('perna com dois estilos: o card explica que alterna a cada repetição', () => {
+  const athlete = { ...avancado, strokes: ['crawl', 'costas'], bestStroke: 'costas' }
+  const pernas = [1, 2, 3, 4, 5].flatMap((seed) => gerar(athlete, seed)).flatMap((t) => t.partes).filter((p) => p.parte === 'perna')
+  const duas = pernas.filter((p) => / \| /.test(p.texto.split('\n')[0]))
+  assert.ok(duas.length > 0, 'nenhuma perna com dois estilos')
+  for (const p of duas) {
+    const [, a, b] = /· (\w+) \| (\w+)/.exec(p.texto)
+    assert.match(p.texto, new RegExp(`\\nUma repetição de cada estilo, alternando: 1ª: \\d+ m ${a} · 2ª: \\d+ m ${b}`), p.texto)
+  }
+  // Um estilo só: sem a explicação
+  assert.ok(pernas.filter((p) => !/ \| /.test(p.texto)).every((p) => !/alternando/.test(p.texto)))
+})
