@@ -7,7 +7,9 @@ import { IconArrowFoward } from '../../components/icons/IconArrowFoward'
 import { IconLogin } from '../../components/icons/IconLogin'
 import { Input } from '../../components/Input'
 import { Label } from '../../components/Label'
+import { PasswordInput } from '../../components/PasswordInput'
 import { TextDivider } from '../../components/TextDivider'
+import { GoogleButton } from '../../components/GoogleButton'
 import styles from './register.module.css'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -71,22 +73,16 @@ export const Register = () => {
                     </Fieldset>
                     <Fieldset>
                         <Label>Senha</Label>
-                        <Input 
-                            type='password' 
-                            name='password' 
-                            id='password' 
-                            placeholder='Senha (mínimo de 8 caracteres)' 
+                        <PasswordInput
+                            name='password'
+                            id='password'
+                            placeholder='Senha (mínimo de 8 caracteres)'
                             required
                             minLength={8}
                             maxLength={128}
+                            autoComplete='new-password'
                         />
                     </Fieldset>
-                    <div className={styles.remember}>
-                        <div className={styles.checkbox}>
-                            <input type='checkbox'></input>
-                            <label> Lembrar-me</label>
-                        </div>
-                    </div>
                     {error && <p className={styles.error} role='alert'>{error}</p>}
                     <Button type='submit' disabled={isSubmitting}>
                         {isSubmitting ? 'Cadastrando...' : <>Cadastrar <IconArrowFoward /></>}
@@ -94,6 +90,7 @@ export const Register = () => {
                 </Form>
                 
                 <TextDivider text='ou entre com outras contas' />
+                    <GoogleButton texto='signup_with' />
                 <footer className={styles.login}>
                     <p>Já tem conta?</p>
                     <Link to='/auth/login'>Faça seu login! <IconLogin color='#002638ff' /></Link>

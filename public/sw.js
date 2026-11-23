@@ -1,9 +1,10 @@
-// Service worker do NeWave (versão 0.1 para celular).
+// Service worker do NeWave (app para celular). Mudar o CACHE a cada versão nova:
+// assim o celular que já tem o app instalado baixa a versão nova.
 // - As chamadas da API (/api/...) vão sempre para a internet: treinos e tempos
 //   precisam estar atualizados.
 // - O resto do app (telas, estilos, ícones) fica guardado no aparelho e abre mais
 //   rápido; sem internet, abre a última versão guardada.
-const CACHE = 'newave-v0.1'
+const CACHE = 'newave-v0.2.0'
 
 // Na instalação já guarda a tela e os arquivos que ela usa (os /assets/ do build)
 self.addEventListener('install', (event) => {

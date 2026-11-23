@@ -523,7 +523,7 @@ test('registrar o teste de 400 m coloca os tempos (cd) nos treinos já montados,
   const antes = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
   // (o dia do teste não tem série principal)
   const principal = (t) => t.partes.find((p) => p.parte === 'principal') ?? { texto: '' }
-  assert.ok(antes.every((t) => !/cd \d/.test(principal(t).texto)), 'sem tempo não tem cd')
+  assert.ok(antes.every((t) => !/a\/c \d/.test(principal(t).texto)), 'sem tempo não tem cd')
   assert.ok(antes.some((t) => /de descanso/.test(principal(t).texto)))
 
   // Registra o teste de 400 m
@@ -534,7 +534,7 @@ test('registrar o teste de 400 m coloca os tempos (cd) nos treinos já montados,
   // As mesmas séries, nos mesmos dias...
   assert.deepEqual(depois.map((t) => [t.date, t.partes.map((p) => p.serieId)]), antes.map((t) => [t.date, t.partes.map((p) => p.serieId)]))
   // ... agora com o cd e sem o ritmo por extenso
-  assert.ok(depois.some((t) => /cd \d/.test(principal(t).texto)))
+  assert.ok(depois.some((t) => /a\/c \d/.test(principal(t).texto)))
   assert.ok(depois.every((t) => !/ritmo (leve|moderado|forte)/.test(principal(t).texto)))
   // Os campos antigos (histórico) também
   const linha = db.prepare('SELECT main_series FROM trainings WHERE id = ?').get(depois[0].id)
@@ -569,14 +569,14 @@ test('tempo novo com teste planejado: pergunta se vai fazer; sem tempos de novo,
   assert.equal(diaDoTeste(semTeste), undefined)
   const trocado = semTeste.find((t) => t.date === teste.date)
   assert.ok(trocado.partes.some((p) => p.parte === 'principal'))
-  assert.match(trocado.partes.find((p) => p.parte === 'principal').texto, /cd \d|A1|A2|A3/)
+  assert.match(trocado.partes.find((p) => p.parte === 'principal').texto, /a\/c \d|A1|A2|A3/)
 
   // Apaga o tempo: a evolução fica vazia e volta o planejamento sem tempos (com o teste)
   const { tests } = (await api('/api/tests', { cookie })).body
   for (const t of tests) await api(`/api/tests/${t.id}`, { method: 'DELETE', cookie })
   const deNovo = await proximos()
   assert.ok(diaDoTeste(deNovo), 'o teste volta')
-  assert.ok(deNovo.every((t) => !/cd \d/.test(t.partes.find((p) => p.parte === 'principal')?.texto ?? '')))
+  assert.ok(deNovo.every((t) => !/a\/c \d/.test(t.partes.find((p) => p.parte === 'principal')?.texto ?? '')))
 
   // Registra de novo e diz que vai fazer: o teste fica e não pergunta mais
   const r2 = await registrar()
@@ -706,13 +706,13 @@ test('tempo da anamnese: vai para a evolução e para os treinos já montados; n
   await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
   const principal = async () => (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
     .map((t) => t.partes.find((p) => p.parte === 'principal')?.texto ?? '').join('\n')
-  assert.ok(!/cd \d/.test(await principal()))
+  assert.ok(!/a\/c \d/.test(await principal()))
   // Informa o tempo na anamnese: entra na evolução e o cd entra nos treinos
   await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 37000 })
   let evolucao = (await api('/api/tests', { cookie })).body.tests
   assert.equal(evolucao.length, 1)
   assert.equal(evolucao[0].origin, 'anamnese')
-  assert.ok(/cd \d/.test(await principal()))
+  assert.ok(/a\/c \d/.test(await principal()))
   // Salvar a anamnese de novo com o mesmo tempo não duplica; tempo novo entra
   await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 37000 })
   assert.equal((await api('/api/tests', { cookie })).body.tests.length, 1)
@@ -724,7 +724,7 @@ test('tempo da anamnese: vai para a evolução e para os treinos já montados; n
   const perfil = (await api('/api/athlete-profile', { cookie })).body
   assert.equal(perfil.time400, null)
   assert.equal(perfil.profile.reported400Hundredths, null)
-  assert.ok(!/cd \d/.test(await principal()))
+  assert.ok(!/a\/c \d/.test(await principal()))
   db.close()
 })
 

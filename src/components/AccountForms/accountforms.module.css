@@ -1,0 +1,124 @@
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0b2f57;
+}
+
+.field input,
+.field textarea {
+    font: inherit;
+    font-weight: 400;
+    font-size: 16px;
+    padding: 10px 12px;
+    border: 1px solid #b6d4ee;
+    border-radius: 8px;
+    color: #0b2f57;
+    background-color: #ffffff;
+}
+
+.field textarea {
+    resize: vertical;
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible {
+    outline: 2px solid #1d6fb8;
+    outline-offset: 1px;
+}
+
+.check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #0b2f57;
+}
+
+.hint {
+    font-size: 13px;
+    color: #4a6a8a;
+}
+
+.warning {
+    font-size: 14px;
+    line-height: 1.45;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: #fff1f0;
+    color: #8a1c13;
+}
+
+.error,
+.success {
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 8px;
+}
+
+.error {
+    background-color: #fff1f0;
+    color: #8a1c13;
+}
+
+.success {
+    background-color: #eaf8ef;
+    color: #14532d;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.primary,
+.secondary,
+.danger {
+    font: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.primary {
+    border: none;
+    background-color: #1d6fb8;
+    color: #ffffff;
+}
+
+.secondary {
+    border: 1px solid #1d6fb8;
+    background-color: transparent;
+    color: #1d6fb8;
+}
+
+.danger {
+    border: none;
+    background-color: #c0392b;
+    color: #ffffff;
+}
+
+.primary:disabled,
+.danger:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.primary:focus-visible,
+.secondary:focus-visible,
+.danger:focus-visible {
+    outline: 2px solid #0b2f57;
+    outline-offset: 2px;
+}

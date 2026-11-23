@@ -49,7 +49,14 @@ npm run test:server  # roda os testes do backend
 npm run seed -- seu@email.com  # coloca testes e treinos de exemplo nessa conta
 ```
 
-## App no celular (versão 0.1)
+## App no celular (versão 0.2)
+
+**Versões** (o número aparece no Perfil, em Suporte):
+- **0.2:** entrar com o Google; Perfil funcional (números reais, dados pessoais, trocar/criar senha, suporte, excluir conta); ver a senha (olho) e o caractere digitado aparece por 1 segundo; biblioteca de técnica; notação do treinador (a/c, D de descanso); logo nova; regras novas de descanso e A3.
+- **0.1:** telas para celular e app instalável (PWA).
+
+Para lançar uma versão nova: mude `version` no `package.json` e o `CACHE` em `public/sw.js` (ex.: `newave-v0.3.0`). Quem já instalou recebe a versão nova ao abrir o app com internet.
+
 
 O NeWave funciona no celular de dois jeitos:
 
@@ -99,6 +106,26 @@ server/
 ├── regras.test.js    # regras de montagem
 └── generator.test.js # gerador de treinos
 ```
+
+## Entrar com o Google
+
+O login e o cadastro têm o botão oficial **"Continuar com o Google"**. Ele só aparece quando o servidor tem a variável `GOOGLE_CLIENT_ID`. Para criar (grátis, uma vez só):
+
+1. Entre em [console.cloud.google.com](https://console.cloud.google.com/) com a conta Google do NeWave e crie um projeto (ex.: "NeWave").
+2. **APIs e serviços → Tela de permissão OAuth**: tipo **Externo**, nome do app "NeWave", e-mail de suporte e logo (opcional). Salve e publique.
+3. **APIs e serviços → Credenciais → Criar credenciais → ID do cliente OAuth**: tipo **Aplicativo da Web**.
+4. Em **Origens JavaScript autorizadas**, coloque os endereços do app: `http://localhost:5173` (desenvolvimento) e o endereço publicado (ex.: `https://app.newave.com.br`). Não precisa de URI de redirecionamento.
+5. Copie o **ID do cliente** (termina em `.apps.googleusercontent.com`) e coloque na variável `GOOGLE_CLIENT_ID` do servidor. Ele não é segredo, mas fica fora do código.
+
+Como funciona: o botão do Google entrega ao navegador um token assinado; o servidor (`server/google.js`) confere a assinatura com as chaves públicas do Google, se o token é para o NeWave, a validade e se o e-mail foi verificado. Conta nova é criada na hora (sem senha: no Perfil dá para **criar uma senha** e entrar também com o e-mail). Se já existe uma conta com o mesmo e-mail, ela é ligada à conta Google. Quem não tem senha exclui a conta escrevendo **EXCLUIR**.
+
+## Perfil (conta)
+
+- **Treinos realizados e sequência sem falhar:** calculados pelos treinos do atleta. A sequência conta, do mais recente para trás, os treinos feitos; para na primeira falta ou no primeiro treino que passou da data sem resposta (o de hoje ainda não feito não quebra).
+- **Dados pessoais:** nome, telefone (com DDD) e data de nascimento editáveis; o email é o do login. **Trocar senha** pede a senha atual e encerra as outras sessões abertas.
+- **Suporte:** "Entre em contato" guarda a mensagem (e manda para `SUPPORT_EMAIL`, se configurado). **Excluir conta** pede a senha e apaga a conta e tudo dela (treinos, testes, provas, respostas).
+- **Pagamentos:** por enquanto o app é gratuito; quando houver planos, a escolha e o pagamento entram aqui.
+- Backend: `server/account.js` (rotas `GET/PATCH/DELETE /api/account`, `POST /api/account/password`, `POST /api/support`).
 
 ## Rotas
 
@@ -160,7 +187,7 @@ Como a segurança funciona:
 - Há limite de pedidos: 3 por email e 10 por IP a cada hora, e 10 links inválidos por IP a cada 15 minutos.
 - Uma senha fraca não gasta o link; a pessoa corrige e tenta de novo.
 
-Variáveis de ambiente (todas opcionais): `PORT` (padrão 3001), `HOST` (padrão 127.0.0.1), `DATABASE_PATH`, `APP_URL` (endereço do front-end usado no link do email, padrão `http://localhost:5173`) e `NODE_ENV=production` (liga o cookie `Secure`, que exige HTTPS).
+Variáveis de ambiente (todas opcionais): `PORT` (padrão 3001), `HOST` (padrão 127.0.0.1), `DATABASE_PATH`, `APP_URL` (endereço do front-end usado no link do email, padrão `http://localhost:5173`), `SUPPORT_EMAIL` (para onde vão as mensagens do "Entre em contato" do Perfil; sem ele, elas ficam guardadas na tabela `support_messages`), `GOOGLE_CLIENT_ID` ("Entrar com o Google"; sem ele, o botão não aparece) e `NODE_ENV=production` (liga o cookie `Secure`, que exige HTTPS).
 
 ### Vendo o Dashboard com dados
 

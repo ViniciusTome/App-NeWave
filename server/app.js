@@ -11,6 +11,8 @@ import {
 import { createConsoleMailer, passwordResetMessage } from './mailer.js'
 import { createSwimmingRoutes } from './swimming.js'
 import { createAthleteRoutes } from './athlete.js'
+import { createAccountRoutes } from './account.js'
+import { createGoogleVerifier } from './google.js'
 import { loadLibrary } from './series/index.js'
 import { loadRules } from './series/regras.js'
 import {
@@ -60,6 +62,9 @@ export function createApp({
   secureCookies = false,
   mailer = createConsoleMailer(),
   appUrl = 'http://localhost:5173', // endereço do front-end, usado no link do email
+  supportEmail = null, // para onde vão as mensagens do "Entre em contato" (sem ele, só ficam guardadas)
+  googleClientId = null, // "Entrar com o Google" (sem ele, o botão não aparece)
+  verifyGoogle = googleClientId ? createGoogleVerifier({ clientId: googleClientId }) : null,
 }) {
   const db = openDatabase(dbPath)
 
@@ -92,7 +97,12 @@ export function createApp({
   )
   const deleteUserResets = db.prepare('DELETE FROM password_resets WHERE user_id = ?')
   const deleteExpiredResets = db.prepare('DELETE FROM password_resets WHERE expires_at <= ?')
-  const updatePassword = db.prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+  const updatePassword = db.prepare('UPDATE users SET password_hash = ?, password_set = 1 WHERE id = ?')
+  const findUserByGoogle = db.prepare('SELECT id, name, email, password_hash, created_at FROM users WHERE google_sub = ?')
+  const linkGoogle = db.prepare('UPDATE users SET google_sub = ? WHERE id = ?')
+  const insertGoogleUser = db.prepare(
+    'INSERT INTO users (name, email, password_hash, created_at, google_sub, password_set) VALUES (?, ?, ?, ?, ?, 0)',
+  )
 
   // Limites de tentativas
   const registerLimiter = createRateLimiter({ max: 10, windowMs: 60 * 60 * 1000 })
@@ -101,6 +111,7 @@ export function createApp({
   const forgotLimiter = createRateLimiter({ max: 3, windowMs: 60 * 60 * 1000 }) // por IP + email
   const forgotIpLimiter = createRateLimiter({ max: 10, windowMs: 60 * 60 * 1000 }) // por IP
   const resetLimiter = createRateLimiter({ max: 10, windowMs: 15 * 60 * 1000 }) // links inválidos, por IP
+  const googleLimiter = createRateLimiter({ max: 30, windowMs: 15 * 60 * 1000 }) // tokens inválidos, por IP
 
   deleteExpiredSessions.run(Date.now())
   deleteExpiredResets.run(Date.now())
@@ -191,16 +202,59 @@ export function createApp({
     }
 
     loginLimiter.reset(emailKey)
-    deleteExpiredSessions.run(Date.now())
+    abrirSessao(res, row, body.remember === true)
+  }
 
-    const remember = body.remember === true
+  // Abre a sessão (cookie) e responde com o usuário
+  function abrirSessao(res, row, remember) {
+    deleteExpiredSessions.run(Date.now())
     const lifetime = remember ? SESSION_LONG_MS : SESSION_SHORT_MS
     const token = generateToken()
     insertSession.run(hashToken(token), row.id, Date.now() + lifetime)
-
     // Sem "Lembrar-me": cookie some quando o navegador fecha (e vale no máximo 1 dia no servidor).
     const cookie = cookieHeader(token, remember ? lifetime / 1000 : undefined)
     sendJson(res, 200, { user: publicUser(row) }, { 'Set-Cookie': cookie })
+  }
+
+  // GET /api/auth/config -> o que o front precisa para os botões de login (Google)
+  function authConfig(req, res) {
+    sendJson(res, 200, { googleClientId: verifyGoogle ? googleClientId : null })
+  }
+
+  // POST /api/auth/google { credential, remember } -> entra com a conta Google. Conta
+  // nova é criada na hora; se já existe uma conta com o mesmo email (verificado pelo
+  // Google), ela é ligada à conta Google.
+  async function loginGoogle(req, res) {
+    if (!verifyGoogle) throw new HttpError(404, 'Entrar com o Google não está disponível.')
+    const ip = clientIp(req)
+    const wait = googleLimiter.retryAfterMs(ip)
+    if (wait) throw tooManyRequests(wait)
+    const body = await readJson(req)
+    let google = null
+    try {
+      google = await verifyGoogle(body.credential)
+    } catch (err) {
+      console.error('Falha ao conferir o login do Google:', err)
+      throw new HttpError(502, 'Não foi possível falar com o Google. Tente novamente.')
+    }
+    if (!google) {
+      googleLimiter.fail(ip)
+      throw new HttpError(401, 'Não foi possível entrar com o Google. Tente novamente.')
+    }
+    let row = findUserByGoogle.get(google.sub)
+    if (!row) {
+      row = findUserByEmail.get(google.email)
+      if (row) linkGoogle.run(google.sub, row.id)
+      else {
+        // Conta nova: sem senha no app (pode criar uma depois, no Perfil)
+        const name = google.name.length >= 2 ? google.name.slice(0, 100) : google.email.split('@')[0]
+        const createdAt = new Date().toISOString()
+        const semSenha = await hashPassword(generateToken())
+        const id = Number(insertGoogleUser.run(name, google.email, semSenha, createdAt, google.sub).lastInsertRowid)
+        row = { id, name, email: google.email, created_at: createdAt }
+      }
+    }
+    abrirSessao(res, row, body.remember !== false)
   }
 
   function logout(req, res) {
@@ -317,6 +371,15 @@ export function createApp({
     askAboutLastDays: rules.faltas?.perguntarDosUltimosDias ?? 21,
   })
   const athlete = createAthleteRoutes({ db, requireUser, library: loadLibrary(), rules })
+  // Perfil: números de verdade, dados pessoais, senha, suporte e excluir a conta
+  const account = createAccountRoutes({
+    db, requireUser, mailer, supportEmail,
+    sessionTokenHash: (req) => {
+      const token = getSessionToken(req)
+      return token ? hashToken(token) : null
+    },
+    logoutCookie: () => cookieHeader('', 0),
+  })
 
   // Rotas da API. Trechos como ":id" viram parâmetros (ex.: /api/tests/7).
   const routes = [
@@ -326,6 +389,13 @@ export function createApp({
     ['GET', '/api/auth/me', me],
     ['POST', '/api/auth/forgot-password', forgotPassword],
     ['POST', '/api/auth/reset-password', resetPassword],
+    ['GET', '/api/auth/config', authConfig],
+    ['POST', '/api/auth/google', loginGoogle],
+    ['GET', '/api/account', account.getAccount],
+    ['PATCH', '/api/account', account.updateAccount],
+    ['DELETE', '/api/account', account.deleteAccount],
+    ['POST', '/api/account/password', account.changePassword],
+    ['POST', '/api/support', account.sendSupport],
     ['GET', '/api/tests', swimming.getTests],
     ['POST', '/api/tests', swimming.createTest],
     ['DELETE', '/api/tests/:id', swimming.removeTest],
@@ -391,6 +461,8 @@ export function createApp({
     server,
     async close() {
       registerLimiter.close()
+      googleLimiter.close()
+      account.close()
       loginLimiter.close()
       loginIpLimiter.close()
       forgotLimiter.close()

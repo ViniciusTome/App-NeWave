@@ -4,8 +4,10 @@ import { IconAssignement } from '../../components/icons/IconAssignement'
 import { Form } from '../../components/Form'
 import { Fieldset } from '../../components/Fieldset'
 import { Label } from '../../components/Label'
+import { PasswordInput } from '../../components/PasswordInput'
 import { Input } from '../../components/Input'
 import { TextDivider } from '../../components/TextDivider'
+import { GoogleButton } from '../../components/GoogleButton'
 import { Button } from '../../components/Button'
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -58,7 +60,7 @@ export const Login = () => {
                         </Fieldset>
                         <Fieldset>
                             <Label>Senha</Label>
-                            <Input type='password' name='password' id='password' placeholder='Senha' required />
+                            <PasswordInput name='password' id='password' placeholder='Senha' required autoComplete='current-password' />
                         </Fieldset>
                         <div className={styles.remember}>
                             <div className={styles.checkbox}>
@@ -73,6 +75,7 @@ export const Login = () => {
                         </Button>
                     </Form>
                     <TextDivider text='ou entre com outras contas' />
+                    <GoogleButton texto='continue_with' />
                     <footer className={styles.cadaster}>
                         <p>Ainda não tem conta?</p>
                         <Link to='/auth/register'>Crie seu cadastro! <IconAssignement /></Link>

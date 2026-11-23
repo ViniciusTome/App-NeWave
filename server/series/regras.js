@@ -93,6 +93,14 @@ export function validateRules(rules) {
         }
         if (!faixa(regra?.descanso)) problems.push(`${where}.descanso: use [mínimo, máximo] em segundos.`)
         if (!faixa(regra?.recuperacaoHoras)) problems.push(`${where}.recuperacaoHoras: use [mínimo, máximo] em horas.`)
+        const seguido = regra?.seguido?.maximoDasSemanas
+        const fasesDoSeguido = regra?.seguido?.fases
+        if (fasesDoSeguido !== undefined && !(Array.isArray(fasesDoSeguido) && fasesDoSeguido.every((f) => FASES.includes(f)))) {
+            problems.push(`${where}.seguido.fases: use fases entre ${FASES.join(', ')}.`)
+        }
+        if (seguido !== undefined && !(typeof seguido === 'number' && seguido >= 0 && seguido <= 1)) {
+            problems.push(`${where}.seguido.maximoDasSemanas: de 0 a 1 (ex.: 0.35 = 35% das semanas).`)
+        }
         if (regra?.material !== undefined) {
             const m = regra.material
             if (!Array.isArray(m.opcoes) || m.opcoes.some((o) => !Array.isArray(o) || o.some((x) => !MATERIAIS.includes(x)))) {
@@ -130,16 +138,14 @@ export function validateRules(rules) {
         problems.push('naoRepetirNoTreinoSeguinte.partes precisa ser uma lista de partes, ex.: ["principal", "perna"].')
     }
     if (rules.saidas !== undefined) {
-        const { igualarAoA1Ate, maximoAcimaDoA1, fasesComSaidaPorIntensidade = [] } = rules.saidas
-        for (const [k, v] of Object.entries({ igualarAoA1Ate, maximoAcimaDoA1 })) {
-            if (v !== undefined && !(Number.isFinite(v) && v >= 0)) problems.push(`saidas.${k} precisa ser um número de segundos.`)
+        const { maximoAcimaDoA1, saidaPorIntensidade: porIntensidade } = rules.saidas
+        if (maximoAcimaDoA1 !== undefined && !(Number.isFinite(maximoAcimaDoA1) && maximoAcimaDoA1 >= 0)) {
+            problems.push('saidas.maximoAcimaDoA1 precisa ser um número de segundos.')
         }
-        const longas = rules.saidas.igualarAoA1AteNasLongas
-        if (longas !== undefined && !(Number.isFinite(longas.aPartirDeMetros) && Number.isFinite(longas.segundos))) {
-            problems.push('saidas.igualarAoA1AteNasLongas: use { "aPartirDeMetros": 300, "segundos": 20 }.')
-        }
-        if (!Array.isArray(fasesComSaidaPorIntensidade) || fasesComSaidaPorIntensidade.some((f) => !FASES.includes(f))) {
-            problems.push(`saidas.fasesComSaidaPorIntensidade: use fases entre ${FASES.join(', ')}.`)
+        if (porIntensidade !== undefined && !(Array.isArray(porIntensidade.niveis) && porIntensidade.niveis.every((n) => NIVEIS.includes(n)) &&
+            Array.isArray(porIntensidade.fases) && porIntensidade.fases.every((f) => FASES.includes(f)) &&
+            typeof porIntensidade.chance === 'number' && porIntensidade.chance >= 0 && porIntensidade.chance <= 1)) {
+            problems.push(`saidas.saidaPorIntensidade: use { "niveis": [...], "fases": [${FASES.join(', ')}], "chance": 0 a 1 }.`)
         }
     }
     for (const [distancia, cfg] of Object.entries(rules.tabelaDeTempos ?? {})) {
@@ -885,8 +891,10 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
 // (ex.: 150 m entre o 100 e o 200), arredondadas de 5 em 5 segundos. Abaixo da
 // menor e acima da maior distância da tabela, vale a da ponta.
 // Séries com "descanso" escrito no próprio bloco usam o que está escrito.
-export function restFor(rules, nivel, distancia) {
-    const tabela = Object.entries(rules.descansos[nivel])
+// `soCrawl`: série só de crawl (tabela 'descansosCrawl' do nível, quando existe)
+export function restFor(rules, nivel, distancia, soCrawl = false) {
+    const fonte = (soCrawl && rules.descansosCrawl?.[nivel]) || rules.descansos[nivel]
+    const tabela = Object.entries(fonte)
         .map(([d, faixa]) => [Number(d), faixa])
         .sort((a, b) => a[0] - b[0])
     const arredonda = (s) => Math.round(s / 5) * 5

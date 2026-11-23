@@ -46,6 +46,10 @@ const app = createApp({
   appUrl: process.env.APP_URL ?? 'http://localhost:5173',
   // Em desenvolvimento, o "email" aparece no terminal do servidor
   mailer: createConsoleMailer({ showContent: !isProduction }),
+  // Para onde vão as mensagens do "Entre em contato" (sem ele, ficam guardadas no banco)
+  supportEmail: process.env.SUPPORT_EMAIL ?? null,
+  // "Entrar com o Google": o client ID criado no Google Cloud (sem ele, o botão não aparece)
+  googleClientId: process.env.GOOGLE_CLIENT_ID ?? null,
 })
 
 app.server.listen(port, host, () => {

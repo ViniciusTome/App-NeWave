@@ -36,7 +36,7 @@ export const AddTestForm = ({ defaultDistance, onSaved }) => {
             })
             onSaved(test, testePlanejado)
             // Um teste novo (de 400 m) muda a tabela de tempos e o nível, e os treinos
-            // que ainda não foram feitos ganham os tempos (cd)
+            // que ainda não foram feitos ganham os tempos (a/c)
             notifyAthleteChanged()
             notifyTrainingsChanged()
         } catch (err) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import styles from './profile.module.css'
 import { useAuth } from '../../hooks/useAuth'
+import { useAccount } from '../../hooks/useAccount'
 import { api, ATHLETE_CHANGED } from '../../services/api'
 import { daysUntil, daysUntilText, competitionLabel } from '../../utils/athlete'
 import { todayIso } from '../../utils/format'
@@ -10,6 +11,9 @@ export const Profile = () => {
 
     // Nome e email de quem está logado (vêm do backend)
     const { user } = useAuth()
+    // Treinos realizados e a sequência sem falhar (calculados pelos treinos de verdade)
+    const { data } = useAccount()
+    const stats = data?.stats
 
     // Próxima competição do calendário (undefined = carregando)
     const [nextCompetition, setNextCompetition] = useState(undefined)
@@ -32,7 +36,13 @@ export const Profile = () => {
             <div className={styles.description}>
                 <p  className={styles.name}>{user?.name}</p>
                 <p  className={styles.email}>{user?.email}</p>
-                <p className={styles.treinos}>Treinos realizados: 43 treinos - (Você está em uma sequência de 36 treinos sem falhar!)</p>
+                {stats && (
+                    <p className={styles.treinos}>
+                        Treinos realizados: {stats.realizados} {stats.realizados === 1 ? 'treino' : 'treinos'}
+                        {stats.sequencia > 1 && ` (você está numa sequência de ${stats.sequencia} treinos sem falhar!)`}
+                        {stats.sequencia === 1 && ' (sequência começando: 1 treino sem falhar)'}
+                    </p>
+                )}
                 {nextCompetition !== undefined && (
                     <p className={styles.competitionDate}>
                         Próxima competição: {nextCompetition

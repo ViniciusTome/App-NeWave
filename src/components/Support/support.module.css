@@ -3,15 +3,37 @@
     justify-content: space-around;
     margin: 20px;
 }
-.contact a {
-    text-decoration: none;
+.link {
+    font: inherit;
+    font-size: 16px;
     margin: 20px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #ffffff;
+    cursor: pointer;
 }
 
-.contact a:hover{
+.link:hover {
     text-decoration: underline;
 }
 
+.link:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+
+.danger {
+    color: #ffb4ab;
+}
+
+
+.versao {
+    margin: 20px;
+    font-size: 13px;
+    color: #bfe9ff;
+    align-self: center;
+}
 
 /* ---------- Celular ---------- */
 @media screen and (max-width: 768px) {
@@ -21,7 +43,7 @@
         margin: 10px;
     }
 
-    .contact a {
+    .link {
         margin: 8px 10px;
     }
 }

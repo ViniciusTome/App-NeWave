@@ -42,3 +42,7 @@ export const notifyTrainingsChanged = () => window.dispatchEvent(new Event(TRAIN
 // Disparado quando a anamnese ou a preparação mudam, para o Perfil recarregar.
 export const ATHLETE_CHANGED = 'newave:athlete-changed'
 export const notifyAthleteChanged = () => window.dispatchEvent(new Event(ATHLETE_CHANGED))
+
+// Disparado quando os dados da conta mudam (Perfil: dados pessoais), para recarregar.
+export const ACCOUNT_CHANGED = 'newave:account-changed'
+export const notifyAccountChanged = () => window.dispatchEvent(new Event(ACCOUNT_CHANGED))

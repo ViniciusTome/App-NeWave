@@ -116,6 +116,11 @@
       "esforco": { "iniciante": [80, 85], "avancado": [85, 85] },
       "descanso": [0, 60],
       "recuperacaoHoras": [24, 48],
+      "seguido": {
+        "_comentario": "Regra do treinador: A3 em 2 treinos seguidos só na mesma semana, no máximo uma vez por semana e em até 'maximoDasSemanas' das semanas da periodização; nunca 3 seguidos; só nas 'fases' (nunca na Acumulação). Quem treina até 2x por semana (ou aula curta) não precisa dessa recuperação (recuperacaoDispensada).",
+        "maximoDasSemanas": 0.35,
+        "fases": ["transicao", "realizacao"]
+      },
       "material": {
         "opcoes": [["pe_de_pato"], ["pe_de_pato", "palmar"]],
         "semMaterialSo": ["avancado"],
@@ -288,14 +293,12 @@
     "partes": ["aquecimento", "velocidade", "principal", "perna"]
   },
   "saidas": {
-    "_comentario": "Saída = tempo da intensidade + descanso. Em A2/A3 com saída até 'igualarAoA1Ate' segundos menor que a do A1, usa a do A1 (exceto nas fases de 'fasesComSaidaPorIntensidade'). Saída maior que a do A1 (iniciante, descanso maior no A3) fica no máximo 'maximoAcimaDoA1' segundos acima. Nas repetições de 300 m ou mais, 'igualarAoA1AteNasLongas'. PROVISÓRIO.",
-    "igualarAoA1Ate": 10,
+    "_comentario": "Saída = tempo da intensidade + descanso. A2/A3 com saída menor que a do A1 ficam com a saída do A1 (regra do treinador: mais descanso perto do 100%), a não ser no avançado a partir da Transição, em 'saidaPorIntensidade.chance' das séries, quando cada intensidade fica com a sua. Saída maior que a do A1 (iniciante, descanso maior no A3) fica no máximo 'maximoAcimaDoA1' segundos acima.",
     "acNoMesmoNivel": {
       "_comentario": "Quanto mais perto do 100%, maior o descanso: o AC abaixo de 'referencia' (ex.: 10 AC, 5 AC) fica com a saída do 'referencia' AC (o tempo de nado cai e o descanso cresce). Numa série com vários AC (ex.: 15, 10 e 5 AC), a saída nunca diminui: fica no nível do AC mais leve.",
       "referencia": 15
     },
-    "igualarAoA1AteNasLongas": { "aPartirDeMetros": 300, "segundos": 20 },
-    "fasesComSaidaPorIntensidade": ["transicao"],
+    "saidaPorIntensidade": { "niveis": ["avancado"], "fases": ["transicao", "realizacao"], "chance": 0.4 },
     "maximoAcimaDoA1": 20,
     "_comentarioRitmos": "NEG, POS e final forte: tempo do A2 + 20\" a 30\" de descanso nos 50 e 100 m (nas outras distâncias, a tabela de descanso).",
     "_comentarioEstilos": "Os tempos (tabela) são do crawl (teste de 400 m). Nos estilos o descanso é o mesmo e só o tempo de nado é maior: tempo do crawl x 'fatorDoEstilo'. Calibrado com a experiência do treinador (avançado): 100 de estilo misturado a cada 2'00\" contra 1'30\" no crawl, 200 a cada 4'00\" contra 3'10\" a 3'20\" = nado uns 35% maior. O treinador usa +35% para todos os estilos.",
@@ -315,6 +318,10 @@
     "iniciante": { "50": [25, 40], "100": [30, 40], "200": [40, 60], "400": [60, 60], "800": [120, 120] },
     "intermediario": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60], "800": [120, 120] },
     "avancado": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60], "800": [120, 120] }
+  },
+  "descansosCrawl": {
+    "_comentario": "Descanso entre as repetições nas séries só de crawl (regra do treinador). Nas séries com estilo (ou misturadas) vale a tabela 'descansos'. Dentro da faixa, o meio; distâncias que não estão na tabela ficam entre as vizinhas.",
+    "avancado": { "50": [15, 20], "100": [20, 20], "150": [30, 30], "200": [40, 40], "300": [50, 50], "400": [60, 60], "800": [120, 120] }
   },
   "intervalos": {
     "principal": {

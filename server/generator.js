@@ -15,6 +15,7 @@ import {
     partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
     drawIntensities, hardestIntensity, recoveryWaived,
 } from './series/regras.js'
+import { estadoDaTecnica, loadTecnica, montarTecnica, parteDaTecnica } from './tecnica/index.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
 const DEFAULT_400 = { iniciante: 9 * 6000, intermediario: 7 * 6000, avancado: 5 * 6000 + 3000 }
@@ -56,14 +57,15 @@ function paceFactor(rules, intensidade, athlete) {
 // Descanso de uma repetição: o escrito no bloco; senão, para iniciante e recém
 // intermediário, o da intensidade; para os outros, o da tabela por distância.
 // Dentro da faixa, o meio (PROVISÓRIO).
-function blockRest(rules, bloco, athlete) {
+// `soCrawl`: série só de crawl (o avançado tem a tabela de descanso do crawl)
+function blockRest(rules, bloco, athlete, soCrawl = false) {
     if (bloco.descanso !== undefined) return bloco.descanso
     const meio = (f) => (f[0] + f[1]) / 2
     const intensidade = intensityName(rules, bloco.trechos ? bloco.trechos[0].intensidade : bloco.intensidade)
     let descanso
     if (intensidade && usesIntensityRest(rules, athlete)) descanso = meio(rules.intensidades[intensidade].descanso)
     else {
-        const { min, max } = restFor(rules, athlete.level, bloco.distancia)
+        const { min, max } = restFor(rules, athlete.level, bloco.distancia, soCrawl)
         descanso = (min + max) / 2
     }
     // Quem nada pouco sem parar (até 400 m) descansa pelo menos 20 a 30 segundos
@@ -129,7 +131,7 @@ export function saidaFor(rules, athlete, bloco, valor, fator = 1) {
     const regra = rules.saidas?.negPosFinalForte
     const descanso = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
-        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : 'A3') }, athlete)
+        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : 'A3') }, athlete, fator === 1)
     const saida = saidaComDescanso(athlete, nado, descanso)
     // Quanto mais perto do 100%, maior o descanso: o AC abaixo da referência (ex.: 5 AC)
     // fica com a saída do 15 AC (nada mais rápido e descansa mais)
@@ -164,25 +166,25 @@ export function saidaVelocidade(rules, athlete, bloco, fator = 1) {
 }
 
 // Sem tempos de referência (sem teste de 400 m) não dá para montar a saída:
-// no lugar dela vai o descanso entre as repetições ("c/20\" de descanso").
-export function descansoFor(rules, athlete, bloco, valor) {
+// no lugar dela vai o descanso entre as repetições ("D20\" de descanso", notação do treinador).
+export function descansoFor(rules, athlete, bloco, valor, fator = 1) {
     const intensidade = /^A[123]$/.test(valor ?? '') ? valor : null
     const ritmoLivre = valor === 'NEG' || valor === 'POS' || / NAD x 25 fo$/.test(valor ?? '')
     const regra = rules.saidas?.negPosFinalForte
     const segundos = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
-        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : (valor ? 'A3' : bloco.intensidade)) }, athlete)
+        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : (valor ? 'A3' : bloco.intensidade)) }, athlete, fator === 1)
     // (o solto não muda na Realização)
     return Math.max(5, de5em5(intensityName(rules, bloco.intensidade) === 'solto' && !valor ? segundos : restOfPhase(athlete, segundos)))
 }
 const descansoText = (segundos) =>
-    `c/${segundos >= 60 ? minutosCurto(segundos) : `${segundos}"`} de descanso`
+    `D${segundos >= 60 ? minutosCurto(segundos) : `${segundos}"`} de descanso`
 
 // Os descansos de cada parte com intensidade, no mesmo formato das saídas
-function descansosDaSerie(rules, athlete, serie, intensidades) {
+function descansosDaSerie(rules, athlete, serie, intensidades, fator = 1) {
     if (!intensidades) return null
     const { unidade, valores } = intensidades
-    const marca = (b, v) => descansoText(descansoFor(rules, athlete, b, v))
+    const marca = (b, v) => descansoText(descansoFor(rules, athlete, b, v, fator))
     if (unidade === 'bloco') return serie.blocos.map((b, i) => marca(b, valores[i]))
     if (serie.blocos.length > 1) return { porBloco: serie.blocos.map((b) => valores.map((v) => marca(b, v))) }
     return valores.map((v) => marca(serie.blocos[0], v))
@@ -206,14 +208,16 @@ function comoMostrar(rules, athlete, intensidades) {
 }
 
 // Saída (segundos) ou descanso (texto) do jeito que vai no card
-const marcaText = (x) => (typeof x === 'number' ? `cd ${saidaText(x)}` : x)
+// Saída na notação do treinador: "a/c 1'50\"" (a cada)
+const marcaText = (x) => (typeof x === 'number' ? `a/c ${saidaText(x)}` : x)
 
 // 90 -> 1'30"; 45 -> 45"
 export const saidaText = (segundos) =>
     segundos >= 60 ? `${Math.floor(segundos / 60)}'${String(segundos % 60).padStart(2, '0')}"` : `${segundos}"`
 
 // Saídas de cada parte que recebeu intensidade (série, bloco, repetição ou a série toda)
-export function saidasDaSerie(rules, athlete, serie, intensidades, fase = null, variation = null) {
+// `porIntensidade`: cada intensidade com a sua saída (senão A2/A3 ficam com a do A1)
+export function saidasDaSerie(rules, athlete, serie, intensidades, porIntensidade = false, variation = null) {
     if (!intensidades) return null
     const { unidade, valores } = intensidades
     // O estilo de cada série (por série) ou o mais lento da série toda
@@ -226,12 +230,12 @@ export function saidasDaSerie(rules, athlete, serie, intensidades, fase = null, 
     if (serie.blocos.length > 1) {
         return {
             porBloco: serie.blocos.map((b) => acNoMesmoNivel(rules, valores, ajustarAoA1(rules, valores,
-                valores.map((v, i) => saidaFor(rules, athlete, b, v, fator(i))), saidaFor(rules, athlete, b, 'A1', todos), fase, b.distancia))),
+                valores.map((v, i) => saidaFor(rules, athlete, b, v, fator(i))), saidaFor(rules, athlete, b, 'A1', todos), porIntensidade))),
         }
     }
     const bloco = serie.blocos[0]
     return acNoMesmoNivel(rules, valores, ajustarAoA1(rules, valores, valores.map((v, i) => saidaFor(rules, athlete, bloco, v, fator(i))),
-        saidaFor(rules, athlete, bloco, 'A1', todos), fase, bloco.distancia))
+        saidaFor(rules, athlete, bloco, 'A1', todos), porIntensidade))
 }
 
 // Série com vários AC (ex.: 15, 10 e 5 AC): a saída nunca diminui quando o AC aperta;
@@ -278,20 +282,25 @@ export function strokeFactor(rules, variation, i = 0, athlete = {}, serie = null
     return Math.max(...nados.map(de))
 }
 
-// A2/A3 perto do A1: mesma saída do A1 (na transição, cada intensidade com a sua).
-// Acima do A1 (iniciante, que descansa mais no A3): só um pouco acima.
-function ajustarAoA1(rules, valores, saidas, saidaA1, fase, distancia) {
+// A2/A3 com saída menor que a do A1: a do A1 (mais descanso perto do 100%). Com
+// `porIntensidade` (avançado, a partir da Transição, 40% das séries: decidido na
+// montagem), cada intensidade fica com a sua. Acima do A1 (iniciante, que descansa
+// mais no A3): só um pouco acima.
+function ajustarAoA1(rules, valores, saidas, saidaA1, porIntensidade) {
     const cfg = rules.saidas
     if (!cfg || !saidaA1) return saidas
-    const porIntensidade = (cfg.fasesComSaidaPorIntensidade ?? []).includes(fase)
-    const longas = cfg.igualarAoA1AteNasLongas
-    const igualarAte = longas && distancia >= longas.aPartirDeMetros ? longas.segundos : (cfg.igualarAoA1Ate ?? 0)
     return saidas.map((s, i) => {
         if (!s || !['A2', 'A3'].includes(valores[i])) return s
         if (s > saidaA1) return Math.min(s, saidaA1 + (cfg.maximoAcimaDoA1 ?? Infinity))
-        if (!porIntensidade && saidaA1 - s <= igualarAte) return saidaA1
-        return s
+        return porIntensidade ? s : saidaA1
     })
+}
+
+// Sorteio (na montagem): esta série fica com a saída de cada intensidade?
+export function sorteiaSaidaPorIntensidade(rules, athlete, random = Math.random) {
+    const cfg = rules.saidas?.saidaPorIntensidade
+    if (!cfg || !cfg.niveis.includes(athlete.level) || !cfg.fases.includes(athlete.fase)) return false
+    return random() < cfg.chance
 }
 
 // Borboleta na série principal (regra do treinador): de preferência com pé de pato;
@@ -490,7 +499,7 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
         const daTabela = athlete.tabela && !bloco.trechos
             ? repSeconds(rules, athlete.tabela, bloco.distancia, bloco.intensidade) : null
         const nado = (daTabela ?? (bloco.distancia / 100) * pace * ritmo) * fator
-        const base = blockRest(rules, bloco, athlete)
+        const base = blockRest(rules, bloco, athlete, fator === 1)
         const descanso = intensityName(rules, bloco.intensidade) === 'solto' ? base : restOfPhase(athlete, base)
         const vezes = bloco.vezes ?? 1
         total += vezes * bloco.repeticoes * (nado + descanso)
@@ -875,7 +884,11 @@ export function trainingDates(today, trainingDays, dias = DIAS_PADRAO) {
 // ---------- Montagem ----------
 
 // Monta um treino: uma série para cada parte da estrutura do nível e do tempo de aula.
-function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1 }) {
+// Técnica (educativos): módulo separado, carregado uma vez
+let tecnicaPadrao = null
+const tecnicaDoApp = () => (tecnicaPadrao ??= loadTecnica())
+
+function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1, tecnica = null, estadoTecnica = null }) {
     const leve = soRitmoLeve(rules, athlete) || Boolean(athlete.soLeve)
     const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes).filter((p) => !leve || p !== 'velocidade')
     const pausas = estrutura.map((p) => pauseOf(rules, p)).filter(Boolean)
@@ -896,12 +909,22 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         return escolha
     }
 
+    // Técnica: no aquecimento OU no solto depois da velocidade (nunca nos dois)
+    const soltoDepoisDaVelocidade = estrutura.some((p, i) => p === 'solto' && estrutura[i - 1] === 'velocidade')
+    const parteComTecnica = tecnica ? parteDaTecnica({ tecnica, athlete, soltoDepoisDaVelocidade, random }) : null
+
     // 1º as partes que não são a principal, cada uma com a sua parte do tempo
     let usado = 0
     estrutura.forEach((parte, i) => {
         if (parte === 'principal' || pauseOf(rules, parte)) return
         const escolha = escolher(i, (segundosLivres * (TEMPO_DAS_PARTES[parte] ?? 0)) / somaPesos)
         if (escolha) usado += escolha.segundos
+        // Técnica no aquecimento e no solto depois da velocidade (técnica cansado)
+        const comTecnica = parte === parteComTecnica && (parte === 'aquecimento' || estrutura[i - 1] === 'velocidade')
+        if (escolha && comTecnica) {
+            escolha.tecnica = montarTecnica({ tecnica, athlete, parte, pace, random, recentes, estado: estadoTecnica })
+            if (escolha.tecnica) usado += escolha.tecnica.segundos
+        }
     })
     // 2º a série principal fica com o tempo que sobrou (dividido se forem duas)
     // (o feedback e o condicionamento aumentam ou diminuem esse tempo: `fatorPrincipal`)
@@ -928,6 +951,23 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             }
         }
     })
+
+    // A técnica não pode fazer o treino passar do tempo (a série principal já está no
+    // mínimo): sai primeiro a do solto, depois a do aquecimento
+    if (tecnica) {
+        const limite = Math.min(athlete.sessionMinutes, rules.niveis?.[athlete.level]?.maxMinutosDeTreino ?? Infinity) * 60 * 1.15
+        let total = pausas.reduce((s, p) => s + p.minutos * 60, 0) +
+            [...escolhas.values()].reduce((s, e) => s + e.segundos + (e.tecnica?.segundos ?? 0), 0)
+        for (const parte of ['solto', 'aquecimento']) {
+            if (total <= limite) break
+            const escolha = [...escolhas.entries()].find(([i, e]) => estrutura[i] === parte && e.tecnica)?.[1]
+            if (!escolha) continue
+            total -= escolha.tecnica.segundos
+            const { sequencia, passo } = escolha.tecnica.registro
+            if (sequencia && estadoTecnica) estadoTecnica.passos[sequencia] = passo - 1 // o passo fica para o próximo
+            escolha.tecnica = null
+        }
+    }
 
     // Monta na ordem do treino
     const partes = []
@@ -963,6 +1003,9 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         // Como a parte foi montada (fica no plano interno): com um tempo novo, o texto é
         // refeito (cd, ritmo, velocidade) sem mudar a série
         const montagem = partMontage(parte, escolha.serie, escolha.variation, faixaDoDia, escolha.intensidades, athlete)
+        if (escolha.tecnica) montagem.tecnica = escolha.tecnica.texto
+        // Saída de cada intensidade (avançado, a partir da Transição, 40% das séries)
+        if (escolha.intensidades && sorteiaSaidaPorIntensidade(rules, athlete, random)) montagem.dia.saidaPorIntensidade = true
         const { texto, aviso } = renderPart(rules, athlete, montagem)
         partes.push({
             parte,
@@ -977,9 +1020,10 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,
             material: escolha.variation.material,
-            ...(escolha.serie.observacao && { observacao: escolha.serie.observacao }),
-            metros: escolha.serie.volume,
-            minutos: Math.round(escolha.segundos / 60),
+            ...(escolha.serie.observacao && !escolha.tecnica && { observacao: escolha.serie.observacao }),
+            metros: escolha.serie.volume + (escolha.tecnica?.metros ?? 0),
+            minutos: Math.round((escolha.segundos + (escolha.tecnica?.segundos ?? 0)) / 60),
+            ...(escolha.tecnica && { _tecnica: escolha.tecnica.registro }),
         })
     })
     return partes
@@ -1013,17 +1057,24 @@ export function renderPart(rules, athlete, montagem) {
     const serie = describe(montagem.serie)
     let saidas = parte === 'velocidade'
         ? (serie.blocos.length === 1 ? [saidaVelocidade(rules, doDia, serie.blocos[0], strokeFactor(rules, variation, 0, doDia, serie))] : null)
-        : saidasDaSerie(rules, doDia, serie, intensidades, doDia.fase ?? null, variation)
+        : saidasDaSerie(rules, doDia, serie, intensidades, Boolean(montagem.dia?.saidaPorIntensidade), variation)
     const aviso = avisoComEquipamento(rules, doDia, { variation, intensidades }, saidas)
     // Sem tempos de referência: o descanso no lugar da saída (velocidade: 20" a 30")
     if (!doDia.tabela) {
         // (na Realização, 30 a 40% a mais e de 5 em 5: 25" a 40")
         const [de, ate] = (rules.saidas?.velocidade?.descanso ?? [20, 30]).map((x) => restOfPhase(doDia, x))
         saidas = parte === 'velocidade'
-            ? (saidas?.[0] ? saidas : [`c/${de}" a ${ate}" de descanso`])
-            : descansosDaSerie(rules, doDia, serie, intensidades)
+            ? (saidas?.[0] ? saidas : [`D${de}" a ${ate}" de descanso`])
+            : descansosDaSerie(rules, doDia, serie, intensidades, strokeFactor(rules, variation, null, doDia, serie))
     }
-    return { texto: cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas), aviso }
+    const texto = cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas)
+    // Técnica da parte (aquecimento, solto): vai embaixo, como foi montada. A observação
+    // da série (ex.: "Pode ser feito com pull buoy.") vai junto da série, para não
+    // parecer ser da técnica
+    if (!montagem.tecnica) return { texto, aviso }
+    const obs = montagem.serie.observacao?.replace(/\.$/, '')
+    const daSerie = obs ? `${texto} (${obs[0].toLowerCase()}${obs.slice(1)})` : texto
+    return { texto: `${daSerie}\n${montagem.tecnica}`, aviso }
 }
 
 // Treino mais leve depois de faltas. `como` = 'degrau' (iniciante e intermediário):
@@ -1396,9 +1447,17 @@ export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana 
 // `periodizacao` = { inicio, fim, testeNaTransicao, numeroInicial, provas, semProva }: gera todos os
 // treinos até o fim, cada um com a sua fase. `provas` = datas das provas importantes no
 // meio da preparação (o volume cai na semana delas). Sem ela, gera `dias` dias, sem fase.
+// Semana (de segunda a domingo) de uma data: a segunda-feira dela
+function semanaDe(iso) {
+    const ms = Date.parse(`${iso}T12:00:00Z`)
+    const diaDaSemana = (new Date(ms).getUTCDay() + 6) % 7
+    return new Date(ms - diaDaSemana * 86_400_000).toISOString().slice(0, 10)
+}
+
 export function generateTrainings({
     rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
     inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null, semTeste = false,
+    tecnica = tecnicaDoApp(),
 }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
@@ -1413,6 +1472,8 @@ export function generateTrainings({
     athlete = { ...athlete, foco: ajuste.foco }
     const condicionamento = inConditioning(rules, athlete)
     const recentes = recentWindow(4) // séries dos últimos 4 treinos perdem prioridade
+    // Técnica: continua do passo em que o atleta parou (saídas, viradas)
+    const estadoTecnica = estadoDaTecnica(historico)
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino
     const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false
@@ -1429,9 +1490,12 @@ export function generateTrainings({
     // Recuperação: depois de um treino com A3 na série principal, o próximo não tem
     // A3 enquanto não passarem as horas de recuperação do A3 (até 48 h)
     let anterior = null // { date, intensidade }
-    const horasEntre = (a, b) => (Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 3_600_000
+    let antesDoAnterior = null // a intensidade do treino antes do anterior (nunca 3 A3 seguidos)
+    const semanasComA3Seguido = new Set()
+    let a3SeguidoPermitido = null
 
     const datas = trainingDates(today, athlete.trainingDays, totalDeDias)
+    const totalDeSemanas = new Set(datas.map(semanaDe)).size
     // Volume da etapa: fixo (ex.: 85%) ou caindo treino a treino ([85%, 60%] na Realização)
     const etapaDeCada = faseDe ? datas.map((d) => faseDe(d).etapa) : []
     const volumeDaEtapa = (etapa, i) => {
@@ -1475,11 +1539,20 @@ export function generateTrainings({
         if (efeitos.semA3) proibidas.push('A3')
         // Pesado demais nos últimos treinos: os 2 primeiros sem A3
         if (ajuste.carga < 0 && i < 2) proibidas.push('A3')
-        const recuperacao = anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)
-        if (recuperacao) {
-            const horas = rules.intensidades?.A3?.recuperacaoHoras?.[1] ?? 48
-            if (horasEntre(anterior.date, date) < horas) proibidas.push('A3')
-        }
+        // A3 seguido (regra do treinador): 2 treinos seguidos com A3 só na mesma semana, uma
+        // vez por semana e em até 35% das semanas; nunca 3 seguidos
+        let recuperacao = false
+        const regraSeguido = rules.intensidades?.A3?.seguido
+        if (anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)) {
+            const semana = semanaDe(date)
+            const pode = regraSeguido && (regraSeguido.fases ?? []).includes(fase) && antesDoAnterior !== 'A3' && semanaDe(anterior.date) === semana &&
+                !semanasComA3Seguido.has(semana) &&
+                semanasComA3Seguido.size < Math.floor(regraSeguido.maximoDasSemanas * totalDeSemanas)
+            if (!pode) {
+                recuperacao = true
+                proibidas.push('A3')
+            } else a3SeguidoPermitido = semana
+        } else a3SeguidoPermitido = null
         // Tempo da principal: o do feedback; no condicionamento, aumenta um pouco a cada treino
         const cond = rules.condicionamento
         // A etapa também mexe no volume (Transição 85%; Realização de 85% a 60%) e a
@@ -1497,16 +1570,22 @@ export function generateTrainings({
         if (testeNaTransicao) testeDaPeriodizacao = true
         const partes = testeSemTempo || testeNaTransicao
             ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
-            : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
+            : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal, tecnica, estadoTecnica })
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
-        partes.forEach((p) => delete p._montagem)
+        const tecnicaDoTreino = partes.map((p) => p._tecnica).filter(Boolean)
+        partes.forEach((p) => {
+            delete p._montagem
+            delete p._tecnica
+        })
         bloqueadas = seriesUsadas(partes)
         recentes.fecharTreino()
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
         const diaDeTeste = partes.some((p) => p.parte === 'teste')
         if (diaDeTeste) intensidades.push('A3') // o teste é forte
+        antesDoAnterior = anterior?.intensidade ?? null
         anterior = { date, intensidade: intensidades.includes('A3') ? 'A3' : intensidades.includes('A2') ? 'A2' : 'A1' }
+        if (a3SeguidoPermitido && anterior.intensidade === 'A3') semanasComA3Seguido.add(a3SeguidoPermitido)
         const principais = partes.filter((p) => p.parte === 'principal')
         const numero = (periodizacao?.numeroInicial ?? 1) + i
         return {
@@ -1538,6 +1617,7 @@ export function generateTrainings({
                 foco: ajuste.foco,
                 condicionamento,
                 montagem,
+                tecnica: tecnicaDoTreino,
             },
         }
     })

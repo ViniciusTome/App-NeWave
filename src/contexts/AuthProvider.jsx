@@ -49,6 +49,17 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
+  // Entrar com o Google: o token que o botão do Google entregou vai para o servidor
+  const loginGoogle = useCallback(async (credential) => {
+    try {
+      const { user } = await api('/auth/google', { method: 'POST', body: { credential } })
+      setUser(user)
+      return { success: true, user }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await api('/auth/logout', { method: 'POST' })
@@ -76,6 +87,11 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
+  // Perfil: o nome mudou (atualiza o resto do app) ou a conta foi excluída (sai)
+  const updateUser = useCallback((changes) => {
+    setUser((atual) => (changes === null ? null : { ...atual, ...changes }))
+  }, [])
+
   const value = useMemo(
     () => ({
       user,
@@ -83,11 +99,13 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated: !!user,
       register,
       login,
+      loginGoogle,
       logout,
       forgotPassword,
       resetPassword,
+      updateUser,
     }),
-    [user, isLoading, register, login, logout, forgotPassword, resetPassword],
+    [user, isLoading, register, login, loginGoogle, logout, forgotPassword, resetPassword, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -5,9 +5,9 @@
       { "sigla": "4 x 100 m", "detectar": "\\d+ x \\d+ m", "explicacao": "4 repetições de 100 metros." },
       { "sigla": "(2x)", "detectar": "\\(\\d+x\\)", "explicacao": "Repita o que vem depois 2 vezes. Ex.: (2x) 4 x 100 m = duas séries de 4 x 100 m." },
       { "sigla": "1x / 2x / 3x (com chaves)", "detectar": false, "explicacao": "Quantas vezes o bloco inteiro é repetido." },
-      { "sigla": "cd", "nome": "Cada (saída)", "explicacao": "Tempo de saída de cada repetição: você nada e descansa o que sobrar. Ex.: cd 30\" = sai a cada 30 segundos." },
+      { "sigla": "a/c", "nome": "A cada (saída)", "explicacao": "Tempo de saída de cada repetição: você nada e descansa o que sobrar. Ex.: a/c 30\" = sai a cada 30 segundos; 4 x 100 m a/c 1'50\" = uma repetição a cada 1 minuto e 50 segundos." },
       { "sigla": "c/2' de intervalo", "detectar": "c/\\d+'( a \\d+')? de intervalo", "nome": "Intervalo entre séries", "explicacao": "Pausa maior, entre uma série e outra (ex.: entre as séries de um (3x)). Ex.: c/2' de intervalo = 2 minutos de intervalo antes da próxima série; c/2' a 3' de intervalo = de 2 a 3 minutos." },
-      { "sigla": "c/20\" de descanso", "detectar": "c/\\d+['\"]( a \\d+['\"])? de descanso", "nome": "Descanso entre as repetições", "explicacao": "Pausa entre uma repetição e outra. Ex.: c/20\" de descanso = ao chegar, descanse 20 segundos e saia de novo. Aparece no lugar do cd enquanto você não tem o teste de 400 m." },
+      { "sigla": "D20\" de descanso", "detectar": "D\\d+['\"]( a \\d+['\"])? de descanso", "nome": "Descanso entre as repetições", "explicacao": "Pausa entre uma repetição e outra. Ex.: D20\" de descanso = ao chegar, descanse 20 segundos e saia de novo (as aspas duplas \" são segundos e o ' são minutos). Aparece no lugar do a/c enquanto você não tem o teste de 400 m." },
       { "sigla": "Descanso", "detectar": false, "explicacao": "Pausa entre uma repetição e outra." },
       { "sigla": "Intervalo", "detectar": false, "explicacao": "Pausa maior, entre uma série e outra (ex.: entre as séries de um (3x))." },
       { "sigla": "Pirâmide", "detectar": false, "explicacao": "Série com metragens diferentes, uma embaixo da outra (ex.: 1 x 400 m, 2 x 200 m, 4 x 100 m, 8 x 50 m)." },
@@ -87,7 +87,23 @@
       { "sigla": "Acumulação", "explicacao": "Início da temporada: mais volume, base aeróbica." },
       { "sigla": "Transição", "explicacao": "Meio da temporada: o treino fica mais específico para a prova." },
       { "sigla": "Realização", "explicacao": "Final da temporada: perto da prova, menos volume e mais qualidade." },
-      { "sigla": "Teste de 400 m", "explicacao": "400 m de crawl no seu melhor tempo, cronometrado. É com ele que o app calcula os ritmos (A1, A2, A3) e as saídas (cd) dos treinos." }
+      { "sigla": "Teste de 400 m", "explicacao": "400 m de crawl no seu melhor tempo, cronometrado. É com ele que o app calcula os ritmos (A1, A2, A3) e as saídas (a/c) dos treinos." }
+    ]
+  },
+  {
+    "categoria": "Técnica",
+    "termos": [
+      { "sigla": "Técnica", "detectar": "(^|\\n)Técnica(\\n|$)", "nome": "Educativo", "explicacao": "Exercício para melhorar o jeito de nadar (braçada, pernada, respiração, rolamento...). Vem no aquecimento ou no solto depois da velocidade: treinar a técnica cansado ajuda a manter um nado bom mesmo no fim da prova." },
+      { "sigla": "Foco do dia", "detectar": "Foco do dia", "explicacao": "A saída aprendida passo a passo (passo 1, 2, 3... ao longo dos treinos) ou uma série para treinar um fundamento (ex.: virada forte, saída + 15 m forte)." },
+      { "sigla": "Palmateio", "detectar": "[Pp]almateio", "explicacao": "Movimento das mãos, para os lados e de volta, sentindo a água (como passar manteiga no pão). Ensina a 'segurar' a água na braçada." },
+      { "sigla": "Unilateral", "detectar": "[Uu]nilatera", "explicacao": "Nadar com um braço só, o outro parado (à frente ou ao lado do corpo)." },
+      { "sigla": "Ondulação submersa", "detectar": "[Oo]ndulaç", "explicacao": "Pernada de golfinho (como a do borboleta) embaixo d'água, depois da saída ou da virada." },
+      { "sigla": "Streamline", "detectar": "[Ss]treamline|posição de flecha", "nome": "Posição de flecha", "explicacao": "Braços esticados acima da cabeça, mãos uma sobre a outra, cabeça entre os braços: a posição mais hidrodinâmica." },
+      { "sigla": "Filipina", "detectar": "[Ff]ilipina", "explicacao": "No peito, depois da saída e da virada: uma braçada longa embaixo d'água, uma golfinhada e uma pernada de peito, antes de subir." },
+      { "sigla": "Virada olímpica", "detectar": "[Vv]irada olímpica|[Cc]ambalhota", "nome": "Cambalhota", "explicacao": "Virada do crawl e do costas dando uma cambalhota perto da parede, sem tocar a mão." },
+      { "sigla": "Decúbito dorsal / ventral", "detectar": "[Dd]ecúbito", "explicacao": "Dorsal: de barriga para cima. Ventral: de barriga para baixo." },
+      { "sigla": "Apneia", "detectar": "[Aa]pneia", "explicacao": "Nadar sem respirar (prendendo o ar). Treina o controle da respiração." },
+      { "sigla": "3x1, 5x1, 7x1", "detectar": "\\d+x1", "nome": "Respiração a cada X braçadas", "explicacao": "Respirar uma vez a cada 3, 5, 7... braçadas. Ex.: 5x1 = 5 braçadas para 1 respiração." }
     ]
   }
 ]
