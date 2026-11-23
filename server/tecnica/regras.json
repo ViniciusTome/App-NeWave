@@ -43,5 +43,26 @@
     "virada",
     "virada_medley"
   ],
-  "chanceNoSolto": 0.5
+  "chanceNoSolto": 0.5,
+  "porNivelEFase": {
+    "_comentario": "Regra do treinador: em que fase da periodização a técnica aparece, por nível (1 = em todo treino, 0.5 = em metade, 0 = nunca). Iniciante: nunca na Realização. Intermediário: Acumulação, e metade dos treinos da Transição. Avançado: só na Acumulação. Semana de recuperação: técnica para todos. Treino sem fase (sem periodização) conta como Acumulação.",
+    "iniciante": {
+      "acumulacao": 1,
+      "transicao": 1,
+      "recuperacao": 1,
+      "realizacao": 0
+    },
+    "intermediario": {
+      "acumulacao": 1,
+      "transicao": 0.5,
+      "recuperacao": 1,
+      "realizacao": 0
+    },
+    "avancado": {
+      "acumulacao": 1,
+      "transicao": 0,
+      "recuperacao": 1,
+      "realizacao": 0
+    }
+  }
 }

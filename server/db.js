@@ -153,6 +153,8 @@ export function openDatabase(path) {
   `)
   // Falta: o atleta disse que não fez o treino (a pergunta aparece quando ele abre o app)
   if (!trainingCols.includes('missed_at')) db.exec('ALTER TABLE trainings ADD COLUMN missed_at TEXT')
+  // Nado contínuo (série de teste): 1 = nadou sem parar; 0 = precisou parar; null = não tinha
+  if (!trainingCols.includes('nonstop_ok')) db.exec('ALTER TABLE trainings ADD COLUMN nonstop_ok INTEGER')
 
   // Pergunta "Qual é o seu melhor estilo?" chegou depois: bancos antigos não têm a coluna
   const profileColumns = db.prepare('PRAGMA table_info(athlete_profiles)').all().map((col) => col.name)
@@ -168,6 +170,16 @@ export function openDatabase(path) {
   if (!userColumns.includes('google_sub')) db.exec('ALTER TABLE users ADD COLUMN google_sub TEXT')
   if (!userColumns.includes('password_set')) db.exec('ALTER TABLE users ADD COLUMN password_set INTEGER NOT NULL DEFAULT 1')
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_sub) WHERE google_sub IS NOT NULL')
+
+  // Prova com distância, estilo e meta (modelo Específico); a preparação guarda o modelo
+  const competitionColumns = db.prepare('PRAGMA table_info(competitions)').all().map((col) => col.name)
+  if (!competitionColumns.includes('distance')) db.exec('ALTER TABLE competitions ADD COLUMN distance INTEGER')
+  if (!competitionColumns.includes('stroke')) db.exec('ALTER TABLE competitions ADD COLUMN stroke TEXT')
+  if (!competitionColumns.includes('goal_hundredths')) db.exec('ALTER TABLE competitions ADD COLUMN goal_hundredths INTEGER')
+  // Várias provas na mesma competição (JSON); a 1ª é a principal (fica também nas colunas acima)
+  if (!competitionColumns.includes('events')) db.exec('ALTER TABLE competitions ADD COLUMN events TEXT')
+  const preparationColumns = db.prepare('PRAGMA table_info(preparations)').all().map((col) => col.name)
+  if (!preparationColumns.includes('model')) db.exec("ALTER TABLE preparations ADD COLUMN model TEXT NOT NULL DEFAULT 'geral'")
 
   // Mensagens para o suporte (Perfil -> Suporte -> Entre em contato)
   db.exec(`

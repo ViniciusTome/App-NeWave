@@ -66,6 +66,56 @@ export const MODALITY = options([
     ['piscina_50', 'Piscina de 50 m'],
 ])
 
+// Prova: estilo e distâncias (as mesmas regras de server/especifico/index.js)
+export const POOL_MODALITIES = ['piscina_25', 'piscina_50']
+export const RACE_STROKES = options([
+    ['crawl', 'Livre (crawl)'],
+    ['costas', 'Costas'],
+    ['peito', 'Peito'],
+    ['borboleta', 'Borboleta'],
+    ['medley', 'Medley'],
+])
+const POOL_DISTANCES = {
+    crawl: [50, 100, 200, 400, 800, 1500],
+    costas: [50, 100, 200],
+    peito: [50, 100, 200],
+    borboleta: [50, 100, 200],
+    medley: [100, 200, 400],
+}
+const OPEN_WATER_DISTANCES = {
+    triatlo: [750, 1500, 1900, 3800],
+    maratona_aquatica: [1000, 1500, 2000, 3000, 5000, 10000, 25000],
+}
+export const distanceText = (m) => (m >= 1000 ? `${String(m / 1000).replace('.', ',')} km` : `${m} m`)
+// Distâncias que aparecem para escolher, conforme a modalidade e o estilo
+export function raceDistances(modality, stroke) {
+    if (!modality) return []
+    if (!POOL_MODALITIES.includes(modality)) return OPEN_WATER_DISTANCES[modality] ?? []
+    const list = POOL_DISTANCES[stroke] ?? []
+    return stroke === 'medley' && modality !== 'piscina_25' ? list.filter((d) => d !== 100) : list
+}
+
+// Modelo de treino
+export const TRAINING_MODELS = options([
+    ['geral', 'Geral'],
+    ['especifico', 'Específico da prova'],
+])
+export const MODEL_TEXT = {
+    geral: 'A periodização completa para nadar melhor, com séries de todas as distâncias.',
+    especifico: 'A Acumulação é igual à do Geral. Na Transição e na Realização, as séries são no estilo e no ritmo da sua prova, que sai da meta.',
+}
+const SWIMS_UP_TO = { ate_50: 50, '50_100': 100, '100_200': 200, '200_400': 400, '400_1000': 1000, '1000_2000': 2000, mais_2000: Infinity }
+// Pode usar o Específico? (o mesmo que o servidor confere) -> '' ou o motivo
+export function specificBlocker(competition, profile) {
+    if (!competition) return 'O modelo Específico é para quem tem uma prova alvo.'
+    if (!competition.distance) return 'Cadastre a distância da prova alvo para usar o modelo Específico.'
+    if (!competition.goalHundredths) return 'Informe o tempo que quer fazer na prova (a meta): o ritmo de prova sai dela.'
+    if ((SWIMS_UP_TO[profile?.continuousDistance] ?? 0) < Math.min(competition.distance, 2001)) {
+        return 'O modelo Específico é para quem já nada a distância da prova sem parar (nas provas acima de 2 km, mais de 2 km sem parar).'
+    }
+    return ''
+}
+
 export const NO_COMPETITION_GOALS = options([
     ['condicionamento', 'Condicionamento'],
     ['saude', 'Saúde / emagrecimento'],
@@ -93,9 +143,28 @@ export const labelsOf = (list, values) =>
 export const goalLabel = (goal) =>
     goal === 'competir' ? 'Competir' : labelOf(NO_COMPETITION_GOALS, goal)
 
-// "Troféu Estadual · 200 m livre · Piscina de 50 m · 21/01/2027"
+// Tempo da meta: 15000 -> 2'30"00; 4500000 -> 1h15'00"
+export const goalTimeText = (hundredths) => {
+    if (hundredths < 360000) return formatSwimTime(hundredths)
+    const h = Math.floor(hundredths / 360000)
+    const rest = Math.round((hundredths % 360000) / 100)
+    return `${h}h${String(Math.floor(rest / 60)).padStart(2, '0')}'${String(rest % 60).padStart(2, '0')}"`
+}
+
+// Nome da prova (distância e estilo): "200 m costas", "1,5 km"
+export function raceName(competition) {
+    // Várias provas: "100 m livre, 200 m livre"
+    if (competition.events?.length > 1) return competition.events.map((e) => raceName({ ...e, modality: competition.modality, events: null })).join(', ')
+    if (!competition.distance) return competition.event
+    if (!POOL_MODALITIES.includes(competition.modality)) return distanceText(competition.distance)
+    const stroke = competition.stroke === 'crawl' ? 'livre' : labelOf(RACE_STROKES, competition.stroke).toLowerCase()
+    return `${competition.distance} m ${stroke}`
+}
+
+// "Troféu Estadual · 200 m livre · meta 2'10"00 · Piscina de 50 m · 21/01/2027"
 export const competitionLabel = (competition) =>
-    [competition.name, competition.event, labelOf(MODALITY, competition.modality), formatDate(competition.date)]
+    [competition.name, raceName(competition), competition.goalHundredths ? `meta ${goalTimeText(competition.goalHundredths)}` : '',
+        labelOf(MODALITY, competition.modality), formatDate(competition.date)]
         .filter(Boolean)
         .join(' · ')
 

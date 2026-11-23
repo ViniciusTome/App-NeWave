@@ -1,0 +1,43 @@
+/* "(c/PÉ)" não quebra a linha no meio */
+.junto {
+    white-space: nowrap;
+}
+
+/* Abreviação clicável: abre a explicação do glossário */
+.abbr {
+    font: inherit;
+    color: #1d6fb8;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    text-decoration: underline dotted;
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.abbr:hover {
+    text-decoration-style: solid;
+}
+
+.abbr:focus-visible {
+    outline: 2px solid #0b2f57;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+.box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #0b2f57;
+}
+
+.link {
+    align-self: flex-start;
+    font-weight: 700;
+    color: #1d6fb8;
+}

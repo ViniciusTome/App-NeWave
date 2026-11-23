@@ -468,10 +468,16 @@ test('mistura de nados: só nas séries com (3x), (4x)', () => {
   assert.equal(drawMixedStrokes(rules, 'velocidade', principalSerie('pri-3x3x200'), avancadoCompleto, seeded(1)), null)
 })
 
-test('mistura de nados: precisa de pelo menos dois nados para misturar', () => {
+test('mistura de nados: só crawl não mistura; um estilo só alterna com o crawl', () => {
   const serie = principalSerie('pri-4x3x200')
   assert.equal(drawMixedStrokes(rules, 'principal', serie, { ...avancadoCompleto, strokes: ['crawl'] }, seeded(1)), null)
-  assert.equal(drawMixedStrokes(rules, 'principal', serie, { ...avancadoCompleto, strokes: ['crawl', 'costas'] }, seeded(1)), null)
+  // Crawl + costas: costas e crawl alternados (nunca o mesmo seguido)
+  const umEstilo = drawMixedStrokes(rules, 'principal', serie, { ...avancadoCompleto, strokes: ['crawl', 'costas'], bestStroke: 'costas' }, seeded(1))
+  assert.ok(umEstilo)
+  for (const lista of umEstilo.porSerie) {
+    assert.ok(lista.every((n) => n === 'crawl' || n === 'costas'), lista.join(','))
+    assert.ok(lista.every((n, i) => i === 0 || n !== lista[i - 1]), lista.join(','))
+  }
   assert.ok(drawMixedStrokes(rules, 'principal', serie, { ...avancadoCompleto, strokes: ['crawl', 'costas', 'peito'] }, seeded(1)))
 })
 

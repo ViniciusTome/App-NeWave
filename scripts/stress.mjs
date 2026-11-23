@@ -7,10 +7,11 @@
 // Uso:  node scripts/stress.mjs [quantidade de perfis] [semente]
 //       ex.: node scripts/stress.mjs 600 7
 import { computeLevel } from '../server/athlete.js'
-import { feedbackAdjustment, generateTrainings, planStages, refreshTimes, trainingDates } from '../server/generator.js'
+import { feedbackAdjustment, generateTrainings, planStages, prepareAthlete, refreshTimes, testSeriesDistance, trainingDates } from '../server/generator.js'
 import { loadLibrary } from '../server/series/index.js'
 import { loadRules } from '../server/series/regras.js'
-import { loadTecnica } from '../server/tecnica/index.js'
+import { chanceNaFase, loadTecnica } from '../server/tecnica/index.js'
+import { DISTANCIAS_NA_PISCINA, limiteDaProva, loadEspecifico, podeUsarEspecifico, ritmoDeProva, tempoText } from '../server/especifico/index.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -63,9 +64,11 @@ function perfil(i) {
     const fim = comProva ? addDays(HOJE, dias) : addDays(HOJE, rules.periodizacao.semanasSemProva * 7 - 1)
     const provas = comProva && random() < 0.4 ? [addDays(HOJE, Math.floor(dias / 2))] : []
     const evento = comProva ? um(['200 m livre', '400 m livre', '1,5 km', '100 m peito']) : ''
+    // Provas da competição alvo (metade das vezes cadastradas com a distância)
+    const provasDaCompeticao = comProva && random() < 0.5 ? [{ distancia: um([100, 200, 400, 750, 1500, 3000]), estilo: 'crawl' }] : []
     return {
         nome: `atleta ${i + 1}`,
-        athlete: { ...anamnese, level, recemIntermediario, time400, modalidade: comProva ? um(['triatlo', 'piscina_25', 'piscina_50', 'maratona_aquatica']) : null },
+        athlete: { ...anamnese, level, recemIntermediario, time400, provas: provasDaCompeticao, modalidade: comProva ? um(['triatlo', 'piscina_25', 'piscina_50', 'maratona_aquatica']) : null },
         periodizacao: {
             inicio: HOJE, fim, provas, semProva: !comProva,
             testeNaTransicao: Boolean(time400) && random() < 0.6, evento,
@@ -75,8 +78,9 @@ function perfil(i) {
 }
 
 // ---------- Regras conferidas ----------
-const contaTecnica = { treino: { com: 0, total: 0 } }
-const tecnicaPorId = new Map(loadTecnica().itens.map((i) => [i.id, i]))
+const contaTecnica = { treino: { com: 0, total: 0 }, metade: { com: 0, total: 0 } }
+const tecnicaDoStress = loadTecnica()
+const tecnicaPorId = new Map(tecnicaDoStress.itens.map((i) => [i.id, i]))
 const regras = new Map() // nome -> { conferidas, falhas: [] }
 const contaBorboleta = { linhas: 0, palmarBoia: 0 }
 function confere(nome, ok, exemplo) {
@@ -122,6 +126,28 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         () => `${quem}: ${treinos.length} de ${esperadas.length}`)
     confere('Gera rápido (menos de 1,5 s por atleta)', ms < 1500, () => `${quem}: ${Math.round(ms)} ms`)
 
+    // Séries de teste (o atleta vê "Nado contínuo"): prova mais longa do que nada sem parar ->
+    // em todo treino (menos o dia do teste), antes da principal, um passo acima do que nada hoje
+    const alvo = Math.max(0, ...(a.provas ?? []).map((p) => p.distancia))
+    const ritmo = (a.time400?.hundredths ?? { iniciante: 54000, intermediario: 42000, avancado: 33000 }[a.level]) / 400
+    const precisa = !periodizacao.semProva && a.level === 'iniciante' && Boolean(testSeriesDistance(rules, prepareAthlete(rules, a), [], ritmo))
+    for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
+        const i = t.partes.findIndex((p) => p.parte === 'continuo')
+        // Triatlo e maratona aquática: aquecimento, velocidade e principal só de crawl
+        if (['triatlo', 'maratona_aquatica'].includes(a.modalidade)) {
+            for (const p of t.partes.filter((x) => ['aquecimento', 'velocidade', 'principal'].includes(x.parte))) {
+                confere('Triatlo e maratona: aquecimento, velocidade e série principal só de crawl',
+                    !/\b(CO|PE|BO|MD|ME)\b|estilo|medley|costas|peito|borboleta/.test(p.texto.split('\n').filter((l) => !/^Técnica|^Foco/.test(l)).join(' ').replace(/\d+ x \d+ m · CR: .*/, '')),
+                    () => `${quem}: [${p.parte}] ${p.texto}`)
+            }
+        }
+        confere('Nado contínuo só para o iniciante com prova mais longa do que nada sem parar', (i >= 0) === precisa, () => `${quem}: alvo ${alvo} ${t.date}`)
+        if (i < 0) continue
+        confere('Nado contínuo antes da série principal, até a distância da prova (e o que cabe na aula)', t.partes[i + 1]?.parte === 'principal' &&
+            t.partes[i].metros <= alvo && t.plano.serieDeTeste?.distancia === t.partes[i].metros && t.partes[i].minutos <= minutosDoTreino * 0.45 + 1,
+        () => `${quem}: ${t.partes.map((p) => `${p.parte}:${p.metros}`).join(' ')}`)
+    }
+
     // Técnica: aquecimento (a partir de 30 min) e solto depois da velocidade (a partir de 45 min);
     // só educativos do nível, com o material e nos estilos do atleta
     for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
@@ -131,9 +157,16 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         const aq = t.partes.find((p) => p.parte === 'aquecimento')
         const solto = t.partes.find((p) => p.parte === 'solto')
         confere('Técnica num lugar só (aquecimento ou solto, nunca nos dois)', !(com(aq) && com(solto)), () => `${quem}: ${aq?.texto}\n${solto?.texto}`)
-        if (aq && a.sessionMinutes >= 30) {
-            contaTecnica.treino.total++
-            if (com(aq) || com(solto)) contaTecnica.treino.com++
+        // Fase (regra do treinador): iniciante nunca na Realização; intermediário na
+        // Acumulação e em metade da Transição; avançado só na Acumulação
+        const chance = chanceNaFase(tecnicaDoStress.regras, a.level, t.plano.fase)
+        if (chance === 0) {
+            confere('Técnica só nas fases do nível (iniciante: fora da Realização; intermediário: Acumulação e metade da Transição; avançado: só Acumulação; recuperação: todos)',
+                !com(aq) && !com(solto), () => `${quem}: ${t.date} ${t.plano.fase}`)
+        } else if (aq && a.sessionMinutes >= 30) {
+            const conta = chance === 1 ? contaTecnica.treino : contaTecnica.metade
+            conta.total++
+            if (com(aq) || com(solto)) conta.com++
         }
         for (const r of t.plano.tecnica) {
             const item = tecnicaPorId.get(r.id)
@@ -217,7 +250,7 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
 
         // Tempo do treino
         confere('Treino cabe na aula (até 20% a mais; iniciante até 50 min)', t.minutos <= minutosDoTreino * 1.2 + 1,
-            () => `${quem} ${t.date}: ${t.minutos} min para ${minutosDoTreino}`)
+            () => `${quem} ${t.date}: ${t.minutos} min para ${minutosDoTreino} ${t.partes.map((p) => `${p.parte}:${p.minutos}`).join(" ")}`)
         confere('Treino tem aquecimento e série principal (ou teste)', ordem.includes('aquecimento') && (principais.length > 0 || ehTeste),
             () => `${quem} ${t.date}: ${ordem.join(', ')}`)
 
@@ -392,6 +425,51 @@ function confereFeedback() {
     confere('Feedback: 3 seguidos fáceis aumentam', feedbackAdjustment(rules, base, notas(2, 3, 4)).carga === 1, () => '2, 3, 4')
 }
 
+// ---------- Modelo Específico da prova ----------
+// Atletas com prova (piscina e águas abertas, todos os estilos) no modelo Específico:
+// na Transição e na Realização, a série da prova, no estilo da prova, com o RP da meta e
+// o treino inteiro dentro de 15x (50 e 100 m) ou 10x (as outras) a distância da prova
+const especifico = loadEspecifico()
+const ABREV_ESP = { crawl: 'CR', costas: 'CO', peito: 'PE', borboleta: 'BO', medley: 'MD' }
+function confereEspecifico(i) {
+    const base = perfil(i)
+    const modalidade = um(['piscina_25', 'piscina_50', 'piscina_25', 'triatlo', 'maratona_aquatica'])
+    const piscina = modalidade.startsWith('piscina')
+    const estilo = piscina ? um(Object.keys(DISTANCIAS_NA_PISCINA)) : 'crawl'
+    let distancia = piscina ? um(DISTANCIAS_NA_PISCINA[estilo]) : um(modalidade === 'triatlo' ? [750, 1500, 1900, 3800] : [1000, 3000, 5000, 10000, 25000])
+    if (estilo === 'medley' && distancia === 100 && modalidade !== 'piscina_25') distancia = 200
+    // Meta: de 1'05" a 2'10" a cada 100 m
+    const prova = { distancia, estilo, metaCentesimos: Math.round((distancia / 100) * (6500 + random() * 6500)), modalidade }
+    const continuousDistance = um(['400_1000', '1000_2000', 'mais_2000'])
+    const anamnese = { ...base.athlete, continuousDistance, poolLength: modalidade === 'piscina_50' ? 50 : base.athlete.poolLength }
+    if (!podeUsarEspecifico({ goal: 'competir', competition: { distance: distancia, goalHundredths: prova.metaCentesimos }, profile: anamnese }).ok) return 0
+    const { level, recemIntermediario } = computeLevel(anamnese, base.athlete.time400)
+    const athlete = { ...anamnese, level, recemIntermediario, modalidade, modelo: 'especifico', prova, provas: [prova] }
+    const fim = addDays(HOJE, um([45, 60, 84, 120]))
+    const treinos = generateTrainings({ rules, library, athlete, today: HOJE, random, periodizacao: { inicio: HOJE, fim, provas: [], semProva: false, testeNaTransicao: Boolean(athlete.time400) } })
+    const quem = `${base.nome} (${level}, ${distancia} m ${estilo}, ${modalidade}, ${athlete.sessionMinutes} min)`
+    const limite = limiteDaProva(especifico.regras, distancia)
+    for (const t of treinos) {
+        const esp = t.partes.filter((p) => p.especifico)
+        const vale = ['transicao', 'realizacao'].includes(t.plano.fase) && !t.plano.diaDeTeste && !t.plano.condicionamento
+        confere('Específico: série da prova só na Transição e na Realização (Acumulação igual ao Geral)', vale || esp.length === 0, () => `${quem}: ${t.date} ${t.plano.fase}`)
+        if (!vale || !t.partes.some((p) => p.parte === 'principal')) continue
+        confere('Específico: uma série principal, a da prova', esp.length === 1 && t.partes.filter((p) => p.parte === 'principal').length === 1, () => `${quem}: ${t.date}`)
+        if (esp.length !== 1) continue
+        const metrosDaProva = t.partes.filter((p) => !p.foraDoLimite).reduce((m, p) => m + p.metros, 0)
+        confere('Específico: treino inteiro até 15x (50 e 100 m) ou 10x a prova (saídas e técnica do tempo que sobra não contam)', metrosDaProva <= limite, () => `${quem}: ${t.date} ${metrosDaProva} m (limite ${limite}) ${t.partes.map((p) => `${p.parte}:${p.metros}`).join(" ")}`)
+        const linhas = esp[0].texto.split('\n').filter((l) => / x \d+ m/.test(l))
+        confere('Específico: no estilo da prova (medley curto: estilo a estilo)', linhas.every((l) => l.includes(`· ${ABREV_ESP[estilo]} ·`) || (estilo === 'medley' && l.includes('BO|CO|PE|CR'))),
+            () => `${quem}: ${esp[0].texto}`)
+        confere('Específico: RP saindo da meta', [...esp[0].texto.matchAll(/(\d+) m[^·]*· RP ([^ ]+) ·/g)].every(([, d, rp]) => rp === tempoText(ritmoDeProva(prova, Number(d)))),
+            () => `${quem}: ${esp[0].texto}`)
+        confere('Específico: borboleta até 100 m; piscina de 50 sem 25 e 75 m', ![...esp[0].texto.matchAll(/x (\d+) m/g)].some(([, d]) =>
+            (estilo === 'borboleta' && Number(d) > 100) || (modalidade === 'piscina_50' && ['25', '75'].includes(d))), () => `${quem}: ${esp[0].texto}`)
+        confere('Específico: cabe no tempo da aula', t.minutos <= Math.max(athlete.sessionMinutes, 30) * 1.15, () => `${quem}: ${t.date} ${t.minutos} min ${t.partes.map((p) => `${p.parte}:${p.minutos}`).join(" ")}`)
+    }
+    return treinos.length
+}
+
 // ---------- Roda ----------
 const inicio = performance.now()
 const porNivel = { iniciante: 0, intermediario: 0, avancado: 0 }
@@ -404,9 +482,13 @@ for (let i = 0; i < QUANTOS; i++) {
     maisLento = Math.max(maisLento, r.ms)
 }
 confereFeedback()
+let treinosEspecificos = 0
+for (let i = 0; i < Math.ceil(QUANTOS / 3); i++) treinosEspecificos += confereEspecifico(QUANTOS + i)
+treinosGerados += treinosEspecificos
 const segundos = (performance.now() - inicio) / 1000
 
 console.log(`\nTeste de estresse: ${QUANTOS} atletas (iniciante ${porNivel.iniciante}, intermediário ${porNivel.intermediario}, avançado ${porNivel.avancado})`)
+console.log(`Modelo Específico: ${treinosEspecificos} treinos de atletas com prova`)
 console.log(`${treinosGerados} treinos gerados em ${segundos.toFixed(1)} s (o atleta mais lento: ${Math.round(maisLento)} ms)\n`)
 let falhou = 0
 for (const [nome, r] of regras) {
@@ -415,8 +497,11 @@ for (const [nome, r] of regras) {
     console.log(`${ok ? 'OK   ' : 'FALHA'} ${nome}  (${r.conferidas} conferências${ok ? '' : `, ${r.total} falhas`})`)
     for (const f of r.falhas) console.log(`        - ${f.replace(/\n/g, '\n          ')}`)
 }
-confere('Treino com técnica (95% ou mais; sai só quando falta tempo)', contaTecnica.treino.com >= contaTecnica.treino.total * 0.95,
+confere('Treino com técnica nas fases em que ela entra (95% ou mais; sai só quando falta tempo)', contaTecnica.treino.com >= contaTecnica.treino.total * 0.95,
     () => `${contaTecnica.treino.com} de ${contaTecnica.treino.total}`)
+confere('Intermediário na Transição: técnica em metade dos treinos (35% a 65%)',
+    contaTecnica.metade.total > 0 && Math.abs(contaTecnica.metade.com / contaTecnica.metade.total - 0.5) <= 0.15,
+    () => `${contaTecnica.metade.com} de ${contaTecnica.metade.total}`)
 confere('Borboleta com palmar + boia é rara (menos de 10%)', contaBorboleta.palmarBoia <= contaBorboleta.linhas * 0.1, () => `${contaBorboleta.palmarBoia} de ${contaBorboleta.linhas}`)
 console.log(`\n${regras.size - falhou} de ${regras.size} regras sem falhas.`)
 process.exitCode = falhou ? 1 : 0

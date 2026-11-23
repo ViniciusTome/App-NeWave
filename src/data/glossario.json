@@ -39,6 +39,8 @@
       { "sigla": "Velocidade", "explicacao": "Tiros curtos e fortes (ex.: 25 m)." },
       { "sigla": "Solto", "explicacao": "Nado bem leve, para recuperar." },
       { "sigla": "Série principal", "explicacao": "A parte mais importante do treino, com o objetivo do dia." },
+      { "sigla": "Saídas e técnica", "explicacao": "No modelo Específico da prova: saídas, um educativo no estilo da prova e viradas, para usar o tempo que sobra da aula. Não conta na metragem máxima da prova." },
+      { "sigla": "Série principal da prova", "explicacao": "No modelo Específico da prova, na Transição e na Realização: a série principal no estilo e no ritmo da sua prova alvo. O treino inteiro fica até 15 vezes a distância da prova (50 e 100 m) ou 10 vezes (as outras)." },
       { "sigla": "PR", "nome": "Perna (pernada)", "explicacao": "Série só de pernada, no estilo escrito (ex.: PR · CO = perna de costas; PR · MD = perna de medley). Com pé de pato não tem perna de peito." },
       { "sigla": "|", "nome": "Troca de estilo", "detectar": " \\| ", "explicacao": "Separa os estilos de cada repetição, na ordem. Ex.: ME | BO | ME | BO = 1ª repetição no melhor estilo, 2ª borboleta... Na perna, dois estilos (ex.: 8 x 50 m PR · CR | CO) se alternam a cada repetição: 1ª CR, 2ª CO, 3ª CR..." },
       { "sigla": "BR", "nome": "Braçada", "explicacao": "Série só de braçada, normalmente com pull buoy entre as pernas." },
@@ -61,9 +63,12 @@
       { "sigla": "NAD", "nome": "Nadando", "explicacao": "Nadando normal, sem material." },
       { "sigla": "AC", "nome": "Acima", "explicacao": "Acima do seu melhor tempo. Ex.: 10 AC = 10 segundos acima do seu melhor tempo naquela distância." },
       { "sigla": "NEG", "nome": "Negativo", "explicacao": "A segunda metade mais rápida que a primeira: vai nadando e volta mais forte." },
+      { "sigla": "sai/che", "nome": "Saída e chegada", "explicacao": "Nas repetições de 50 m: sai forte até a metade da piscina e depois desacelera; na volta, vai nadando até a metade da piscina e acelera até chegar na borda." },
       { "sigla": "POS", "nome": "Positivo", "explicacao": "O contrário do negativo: vai mais forte e volta nadando." },
       { "sigla": "75 NAD x 25 fo", "detectar": "\\d+ NAD x \\d+ fo", "nome": "Final forte", "explicacao": "Dentro de cada repetição, os primeiros metros nadando e os últimos 25 m forte. Ex.: num 100 m, 75 m nadando + 25 m forte; num 50 m, 25 nadando + 25 forte." },
-      { "sigla": "Tempo", "explicacao": "Repetição para marcar o seu tempo (valendo, o mais forte que conseguir)." }
+      { "sigla": "Tempo", "explicacao": "Repetição para marcar o seu tempo (valendo, o mais forte que conseguir)."  },
+      { "sigla": "RP", "nome": "Ritmo de prova", "explicacao": "O ritmo da sua meta na prova alvo, dividido igualmente pela distância. Ex.: meta de 2'30\" nos 200 m = RP 37\"5 a cada 50 m e 1'15\" a cada 100 m. Nade cada repetição nesse tempo (modelo Específico da prova)." },
+      { "sigla": "máx", "nome": "Máximo", "detectar": "· máx ·", "explicacao": "Tiro no máximo, mais rápido que o ritmo de prova, com descanso longo para chegar inteiro na próxima." }
     ]
   },
   {

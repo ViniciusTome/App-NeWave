@@ -71,16 +71,21 @@ const publicTraining = (row) => ({
 
 // { difficulty?, reason? } do "Concluir treino"
 function readFeedback(body) {
-  if (body.difficulty === undefined || body.difficulty === null) return { difficulty: null, reason: null }
+  // Nado contínuo: conseguiu nadar sem parar? (true / false; sem a pergunta, null)
+  if (body.nonstop !== undefined && body.nonstop !== null && typeof body.nonstop !== 'boolean') {
+    throw new HttpError(400, 'Diga se conseguiu nadar o contínuo sem parar.')
+  }
+  const nonstop = typeof body.nonstop === 'boolean' ? body.nonstop : null
+  if (body.difficulty === undefined || body.difficulty === null) return { difficulty: null, reason: null, nonstop }
   const { difficulty, reason } = body
   if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 10) {
     throw new HttpError(400, 'Diga de 1 a 10 como foi a série principal.')
   }
-  if (difficulty < FEEDBACK.motivoAPartirDe) return { difficulty, reason: null }
+  if (difficulty < FEEDBACK.motivoAPartirDe) return { difficulty, reason: null, nonstop }
   if (!FEEDBACK.motivos.includes(reason)) {
     throw new HttpError(400, 'Conte se foi difícil pela respiração ou pela força.')
   }
-  return { difficulty, reason }
+  return { difficulty, reason, nonstop }
 }
 
 function parseId(value) {
@@ -142,7 +147,7 @@ export function createSwimmingRoutes({
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   const completeTraining = db.prepare(`
-    UPDATE trainings SET completed_at = ?, difficulty = ?, difficulty_reason = ?
+    UPDATE trainings SET completed_at = ?, difficulty = ?, difficulty_reason = ?, nonstop_ok = ?
     WHERE id = ? AND user_id = ? AND completed_at IS NULL
   `)
 
@@ -268,14 +273,14 @@ export function createSwimmingRoutes({
       const user = requireUser(req)
       const trainingId = parseId(id)
       const comCorpo = (req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')
-      const { difficulty, reason } = readFeedback(comCorpo ? await readJson(req) : {})
-      if (completeTraining.run(new Date().toISOString(), difficulty, reason, trainingId, user.id).changes === 0) {
+      const { difficulty, reason, nonstop } = readFeedback(comCorpo ? await readJson(req) : {})
+      if (completeTraining.run(new Date().toISOString(), difficulty, reason, nonstop === null ? null : Number(nonstop), trainingId, user.id).changes === 0) {
         // Filtrar pelo usuário impede concluir o treino de outra pessoa
         if (!findTraining.get(trainingId, user.id)) throw new HttpError(404, 'Treino não encontrado.')
         throw new HttpError(409, 'Esse treino já foi concluído.')
       }
       // 3 treinos seguidos fora do esperado: os próximos treinos são refeitos
-      const reformulados = difficulty !== null ? onTrainingCompleted(user.id) : 0
+      const reformulados = difficulty !== null || nonstop !== null ? onTrainingCompleted(user.id) : 0
       sendJson(res, 200, { training: publicTraining(findTraining.get(trainingId, user.id)), reformulados })
     },
 

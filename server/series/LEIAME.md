@@ -466,13 +466,14 @@ Ao **concluir o treino**, o app pergunta:
 
 1. **Como foi a série principal?** de 1 (muito fácil) a 10 (muito difícil).
 2. **A partir de 8:** o que deixou mais difícil? **A respiração** (faltou ar) ou **a força** (os braços ficaram pesados).
+3. **Treino com nado contínuo:** você nadou os X m sem parar? (veja "Séries de teste")
 
 Vale para todos os níveis. A nota (e o motivo) aparece na página **Desempenho/Feedback**. Fica em `feedback` no `regras.json` (o 8 também está em `server/swimming.js`).
 
 **Como o feedback muda os treinos:** só depois de **3 treinos seguidos** fora do esperado (1 ou 2 podem ser do dia do atleta: dormiu mal, trabalhou muito, não comeu direito).
 
 - **Pesados:** os 3 com nota **8 ou mais**, sem o treino ser para isso (esforço esperado abaixo da nota). No **avançado**, que já está acostumado, só contam **9 e 10** (`pesadoAPartirDe`). Ao concluir o 3º, os **treinos já montados são refeitos**: 10% a menos de tempo na principal e os 2 primeiros sem A3. O atleta vê o aviso "ajustamos os próximos para você".
-- **Fáceis:** os 3 com nota 2 ou mais abaixo do esperado: refeitos com 10% a mais.
+- **Fáceis:** os 3 com nota 2 ou mais abaixo do esperado, **ou os 3 com nota 3 ou menos** (regra do treinador): refeitos com 10% a mais (`facilAteNota`).
 - **Faltou ar (respiração):** ele tem força, falta condicionamento. A principal prefere **repetições curtas (até 50 m) com mais repetições** (ex.: no lugar de 3 x 4 x 50, 3 x 6 x 50, evoluindo para 3 x 8 x 50 ou 2 x 8 x 50).
 - **Faltou força:** ele precisa empurrar mais água. A principal prefere **palmar e palmar + pull buoy** (sem pé de pato).
 - Os mesmos 3 treinos não ajustam duas vezes. O tempo da principal fica entre 60% e 110%.
@@ -618,7 +619,7 @@ Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m 
 
 - **Notação do treinador:** a saída é **`a/c`** (a cada), ex.: `4 x 100 m · A1 · CR · a/c 1'50"`. Sem tempos de referência, no lugar da saída vai o descanso: **`D20" de descanso`** (com o "de descanso" escrito, porque nem todo mundo sabe o que são as aspas). O intervalo entre as séries continua `c/2' de intervalo`.
 
-- **Perna (regra `perna.estilos`):** o card sempre diz o estilo da pernada: **um estilo** (ex.: `4 x 100 m PR · c/PÉ · CO`), **dois alternando a cada repetição** (ex.: `8 x 50 m PR · CR | BO`) ou **medley** (`MD`, quando a repetição fecha o medley na piscina: 100 m na de 25 m). Só entram os estilos que o atleta nada. **Perna com pé de pato: nada de peito nem medley** (com o pé de pato não dá para fazer a pernada de peito). Essa regra é só da perna: nadando (principal, velocidade) pode peito com pé de pato (perna de crawl ou de borboleta).
+- **Perna (regra `perna.estilos`):** o card sempre diz o estilo da pernada: **um estilo** (ex.: `4 x 100 m PR · c/PÉ · CO`), **dois alternando a cada repetição** (ex.: `8 x 50 m PR · CR | BO`), com uma linha explicando a ordem para não parecer ida de um e volta de outro (`Uma repetição de cada estilo, alternando: 1ª: 50 m CR · 2ª: 50 m BO · 3ª: 50 m CR · 4ª: 50 m BO · e assim por diante`) ou **medley** (`MD`, quando a repetição fecha o medley na piscina: 100 m na de 25 m). Só entram os estilos que o atleta nada. **Perna com pé de pato: nada de peito nem medley** (com o pé de pato não dá para fazer a pernada de peito). Essa regra é só da perna: nadando (principal, velocidade) pode peito com pé de pato (perna de crawl ou de borboleta).
 
 - **Regra da troca de estilo:** sempre que o estilo troca dentro de uma mesma série, as repetições são separadas por **barra vertical "|"**, para a troca ficar fácil de ver. Ex.: `1ª série: c/PÉ · A1 · BO/CR T/100 | CO | ME | CR · a/c 4'40"`. A barra "/" fica só dentro da repetição (BO/CR T/100 = 100 borboleta + 100 crawl) e nos tempos por distância (100 a/c 1'40" / 75 a/c 1'25").
 
@@ -648,6 +649,12 @@ A técnica fica **separada do gerador**, na pasta `server/tecnica/` (mais fácil
 - `regras.json`: onde entra e quanto.
 
 Como entra no treino:
+- **Fase da periodização** (regra do treinador, `porNivelEFase` no `regras.json` da técnica):
+  - **Semana de recuperação:** técnica para **todos** os níveis.
+  - **Iniciante:** Acumulação e Transição; **nunca na Realização**.
+  - **Intermediário:** na **Acumulação**; na **Transição em metade dos treinos**; nunca na Realização.
+  - **Avançado:** **só na Acumulação** (e na recuperação).
+  - Sem periodização (sem fase), conta como Acumulação.
 - **Num lugar só por treino:** no **aquecimento** (aula de 30 min ou mais) **ou** no **solto depois da velocidade** (45 min ou mais; treinar a técnica cansado ensina a manter o nado bom mesmo cansado). Nunca nos dois. Quando os dois servem, metade das vezes em cada (`chanceNoSolto`).
 - **Duas linhas:** o título e a série. Ex.:
   ```
@@ -661,6 +668,53 @@ Como entra no treino:
 - O mesmo educativo não se repete nos treinos seguintes.
 - A técnica conta na metragem e no tempo do treino. Se o treino passaria do tempo (a série principal já no mínimo), sai a técnica do solto e, se precisar, a do aquecimento.
 - Com um tempo novo (teste), o treino é reescrito e a técnica continua igual.
+
+### Séries de teste (o atleta vê "Nado contínuo")
+
+Só para o treinador: o atleta não sabe que é um teste.
+
+- **Quem recebe:** só o **iniciante** que tem prova alvo **mais longa** do que nada sem parar hoje (anamnese). Com várias provas na competição, vale a mais longa. No Específico não entra (ele já nada a distância da prova).
+- **O que é:** em cada treino (menos o dia do teste), antes da série principal, um nado contínuo em ritmo leve, no crawl (ou no estilo da prova, se for costas ou peito). Ele fica no lugar da 2ª série principal.
+- **Começo:** um passo acima do que o atleta nada hoje (quem nada "100 a 200 m" começa nos 150 m).
+- **Passos** (`regras.json` → `serieDeTeste`): +50 m até 400 m; +100 m até 1 km; +250 m até 2 km; +500 m acima disso. Nunca passa da prova, nem de 40% do tempo da aula.
+- **Sobe** um passo depois de **3 treinos seguidos** nessa distância nadados **sem parar** e **sem ficar pesado**.
+- **Desce** um passo se o atleta **precisou parar** (pergunta ao concluir o treino: "Você nadou os X m do nado contínuo sem parar?"), se deu **10 onde era para ser 8 ou 9**, ou se ficou **pesado 3 vezes seguidas**.
+- **Mantém** nos outros casos. Quando a distância muda, os próximos treinos são refeitos.
+- **Tempo da aula:** se o treino passar do tempo, saem a perna, o solto do meio e a velocidade, nessa ordem.
+
+### Série principal pela prova (modelo Geral)
+
+- **Prova no crawl** (triatlo, águas abertas ou livre na piscina): a série principal é **só crawl**. No **triatlo** e na **maratona aquática**, o **aquecimento** e a **velocidade** também são só de crawl.
+- **Prova num estilo** (costas, peito, borboleta): a principal fica nesse estilo e no crawl, e o "ME" é o estilo da prova. Com várias provas, entram os estilos de todas.
+- **Medley:** fica como antes (todos os estilos).
+- **Um estilo só:** a mistura de nados alterna o estilo com o crawl (nunca o mesmo seguido).
+
+### Nomes dos termos nos treinos
+
+- Na **1ª preparação** do atleta, os termos vão **por extenso** com a abreviação entre parênteses (ex.: "com pé de pato (c/PÉ)", "negativo (NEG)", "saída a cada 1'50\" (a/c)"). A partir da 2ª, só a abreviação.
+- A **abreviação é clicável** (azul, com sublinhado pontilhado) e abre a explicação do glossário, com o link para o glossário completo. Os termos ficam em `src/utils/terms.js`; as explicações, no `glossario.json`.
+
+### Modelo de treino: Geral ou Específico da prova
+
+O modelo **Específico da prova** fica separado do Geral, na pasta `server/especifico/`. Os dois só se encontram na escolha do modelo (a preparação guarda `model`).
+
+- **A competição** tem uma ou mais **provas** (até 6), cada uma com distância, estilo e meta (o tempo que quer fazer, opcional). A **1ª é a principal**: é para ela que os treinos são montados (o Específico, o RP e o limite usam a principal).
+- **Cada prova**:
+  - piscina: crawl 50 a 1500 m; costas, peito e borboleta 50, 100 e 200 m; medley 100 (só piscina de 25 m), 200 e 400 m;
+  - águas abertas (triatlo e maratona aquática): sempre crawl, de 250 m a 25 km;
+  - a meta precisa combinar com a distância (de 40" a 6' a cada 100 m).
+- **Quem pode usar o Específico:** quem tem prova alvo com distância e meta, e já nada a distância da prova sem parar (nas provas acima de 2 km, basta nadar mais de 2 km sem parar). Quem não pode fica no Geral, e o app diz o motivo.
+- **Onde escolher:** no "Gerar treinos" (no resumo) e no Perfil (Meu treino → Modelo de treino). Trocar no Perfil refaz os treinos que ainda não foram feitos.
+- **O que muda no treino** (só na **Transição** e na **Realização**; a Acumulação e a semana de recuperação ficam iguais às do Geral, e o dia do teste também):
+  - A **série principal** vira a **série da prova** (`series.json`), pelo grupo da distância (50, 100, 200, 400, fundo 800/1500, águas abertas até 10 km e maratona até 25 km) e pela fase (Transição: força e resistência específica; Realização: ritmo de prova).
+  - **No estilo da prova** (medley em repetições curtas: estilo a estilo, `BO|CO|PE|CR`). Borboleta: repetições até 100 m. Piscina de 50 m: 25 m vira 50 m e as séries de 75 m ficam de fora.
+  - **RP (ritmo de prova):** a meta dividida igualmente pela distância (200 m em 2'30" = **RP 37"5** a cada 50 m). Embaixo da série vai a explicação.
+  - **Limite da prova:** o treino inteiro até **15x** a distância nos 50 e 100 m e **10x** nas outras. Quando não cabe, nesta ordem: sai a perna; o aquecimento, o solto e a soltura ficam curtos (sem a técnica); a velocidade fica curta (ela continua em todas as provas); a série da prova diminui.
+  - A série também cabe no **tempo** da série principal do Geral (que já cai na Realização).
+  - **A1, A2 e A3** saem com o **a/c** pelo teste de 400 m, como no Geral (tempo do crawl x o fator do estilo + o descanso escrito na série; na Realização, o descanso maior). Com um tempo novo, o a/c é refeito; o RP continua pela meta. Sem tempos: o descanso no lugar do a/c.
+  - **Sobrou tempo da aula** (provas curtas, por causa do limite): entra a parte **"Saídas e técnica"** depois da série da prova, com o que couber nesta ordem: 6 x saída + 15 m forte, um educativo no estilo da prova (biblioteca de técnica) e, na piscina, 4 x virada forte. Ela **não conta** no limite de 15x/10x (`regras.json` → `complemento`).
+  - **Triatlo:** usa as séries pela distância (750 e 1500 m: as do fundo; 1,9 e 3,8 km: as de águas abertas).
+  - As séries e as regras ficam em `server/especifico/series.json` e `regras.json`; dá para acrescentar séries sem mexer no código.
 
 ### Teste de estresse
 

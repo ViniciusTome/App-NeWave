@@ -2,8 +2,9 @@
 // É a base do botão "Gerar treinos": as respostas ficam guardadas para o atleta
 // não repetir tudo, e a prova alvo é escolhida a cada vez que ele gera treinos.
 import { HttpError, readJson, sendJson } from './http.js'
-import { feedbackAdjustment, generateTrainings, legacyFields, lightenTraining, refreshTimes, seriesUsadas } from './generator.js'
+import { feedbackAdjustment, generateTrainings, legacyFields, lightenTraining, prepareAthlete, refreshTimes, seriesUsadas, testSeriesDistance } from './generator.js'
 import { timeTable } from './series/regras.js'
+import { MODELOS, nomeDaProva, podeUsarEspecifico, validarProvas } from './especifico/index.js'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -178,14 +179,22 @@ function validateCompetition(body) {
   if (!isValidCompetitionDate(body.date)) {
     throw new HttpError(400, 'Informe a data da competição, de hoje até dois anos à frente.')
   }
-  const event = typeof body.event === 'string' ? body.event.trim() : ''
-  if (event.length > 100) throw new HttpError(400, 'Descreva a prova em até 100 caracteres.')
+  const modality = oneOf(OPTIONS.modality, body.modality, 'Escolha a modalidade da competição.')
+  // As provas que vai nadar (distância, estilo e meta opcional); a 1ª é a principal
+  const { provas, erro } = validarProvas({ modality, events: body.events, distance: body.distance, stroke: body.stroke, goalHundredths: body.goalHundredths })
+  if (erro) throw new HttpError(400, erro)
+  const prova = provas[0]
 
   return {
     name,
     date: body.date,
-    modality: oneOf(OPTIONS.modality, body.modality, 'Escolha a modalidade da competição.'),
-    event,
+    modality,
+    // Nome das provas (ex.: "100 m livre, 200 m livre"), para as telas e as regras que leem o texto
+    event: provas.map((p) => nomeDaProva({ modality, ...p })).join(', '),
+    events: provas,
+    distance: prova.distance,
+    stroke: prova.stroke,
+    goalHundredths: prova.goalHundredths,
     // Sem escolher: C (não muda o treino). A e B: na semana da prova o volume diminui
     priority: oneOf(OPTIONS.priority, body.priority ?? 'C', 'Escolha a prioridade A, B ou C.'),
   }
@@ -214,8 +223,22 @@ const publicCompetition = (row) => ({
   date: row.date,
   modality: row.modality,
   event: row.event,
+  distance: row.distance ?? null,
+  stroke: row.stroke ?? null,
+  goalHundredths: row.goal_hundredths ?? null,
+  // Todas as provas da competição (a 1ª é a principal)
+  events: parseEvents(row),
   priority: row.priority,
 })
+
+function parseEvents(row) {
+  try {
+    if (row.events) return JSON.parse(row.events)
+  } catch {
+    // cai na prova única abaixo
+  }
+  return row.distance ? [{ distance: row.distance, stroke: row.stroke, goalHundredths: row.goal_hundredths ?? null }] : []
+}
 
 function parseId(value) {
   const id = Number(value)
@@ -267,8 +290,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   `)
   const findCompetition = db.prepare('SELECT * FROM competitions WHERE id = ? AND user_id = ?')
   const insertCompetition = db.prepare(`
-    INSERT INTO competitions (user_id, name, date, modality, event, priority, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO competitions (user_id, name, date, modality, event, distance, stroke, goal_hundredths, events, priority, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   const setPriority = db.prepare('UPDATE competitions SET priority = ? WHERE id = ? AND user_id = ?')
   // Só uma prova é a principal (A): a prova alvo. As outras que eram A viram importantes (B).
@@ -284,8 +307,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   )
   // Últimos treinos feitos com o feedback e o plano interno (para ajustar os próximos)
   const feedbackHistory = db.prepare(`
-    SELECT difficulty, difficulty_reason, plan FROM (
-      SELECT date, id, difficulty, difficulty_reason, plan FROM trainings
+    SELECT difficulty, difficulty_reason, plan, nonstop_ok FROM (
+      SELECT date, id, difficulty, difficulty_reason, plan, nonstop_ok FROM trainings
       WHERE user_id = ? AND completed_at IS NOT NULL AND plan IS NOT NULL
       ORDER BY date DESC, id DESC LIMIT 10
     ) ORDER BY date, id
@@ -344,8 +367,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     SELECT * FROM preparations WHERE user_id = ? ORDER BY id DESC LIMIT 1
   `)
   const insertPreparation = db.prepare(`
-    INSERT INTO preparations (user_id, goal, competition_id, created_at) VALUES (?, ?, ?, ?)
+    INSERT INTO preparations (user_id, goal, competition_id, model, created_at) VALUES (?, ?, ?, ?, ?)
   `)
+  const setModel = db.prepare('UPDATE preparations SET model = ? WHERE id = ? AND user_id = ?')
 
   // Tempo nos 400 m: o teste registrado tem preferência sobre o tempo informado na anamnese
   function time400Of(userId, profile) {
@@ -358,6 +382,11 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       return { hundredths: profile.reported400Hundredths, source: 'informado', date: null }
     }
     return null
+  }
+
+  const profileOf = (userId) => {
+    const row = findProfile.get(userId)
+    return row ? publicProfile(row) : null
   }
 
   function profileResponse(userId) {
@@ -393,7 +422,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     }
   }
   const readHistory = (userId) => feedbackHistory.all(userId)
-    .map((r) => ({ difficulty: r.difficulty, reason: r.difficulty_reason, plan: parsePlan(r.plan) }))
+    .map((r) => ({ difficulty: r.difficulty, reason: r.difficulty_reason, plan: parsePlan(r.plan), nonstop: r.nonstop_ok === null ? null : r.nonstop_ok === 1 }))
   const nextFactor = (userId, today) => parsePlan(nextPlan.get(userId, today)?.plan)?.fatorPrincipal ?? null
 
   // Monta (ou refaz) todos os treinos da periodização, de hoje até o fim, e guarda no
@@ -419,8 +448,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     const regra = rules.testeNaPeriodizacao
     const geracao = countPreparations.get(userId).total
     const aPartirDe = time400?.source === 'teste' ? regra?.aPartirDaGeracao?.tempoDoTeste ?? 1 : regra?.aPartirDaGeracao?.tempoInformado ?? 2
-    const provaDe400 = regra?.excecao?.modalidades?.includes(modalidade) &&
-      new RegExp(`\\b${regra.excecao.prova}\\b`).test(ativa?.competition?.event ?? '')
+    const provaDe400 = regra?.excecao?.modalidades?.includes(modalidade) && (ativa?.competition?.distance
+      ? ativa.competition.distance === Number(regra.excecao.prova)
+      : new RegExp(`\\b${regra.excecao.prova}\\b`).test(ativa?.competition?.event ?? ''))
     const testeNaTransicao = Boolean(regra && time400 && geracao >= aPartirDe && !provaDe400)
 
     let seriesAnteriores = []
@@ -437,6 +467,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       inicioDosTreinos: [firstTrainingDate.get(userId)?.date ?? today, today].sort()[0],
       periodizacao: {
         inicio, fim, testeNaTransicao, numeroInicial: countSince.get(userId, inicio, today).total + 1,
+        // 1ª preparação: nomes por extenso nos treinos (com a abreviação entre parênteses)
+        primeira: geracao <= 1,
         // Sem prova (condicionamento ou saúde): periodização padrão A-T-R
         semProva: !(ativa?.goal === 'competir' && ativa.competition),
         // As importantes (prioridade A ou B), menos a prova alvo
@@ -446,6 +478,14 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       },
       athlete: {
         ...profile, level: level.level, recemIntermediario: level.recemIntermediario, nivelAntesDaParada: level.nivelAntesDaParada, time400, modalidade,
+        // Modelo de treino e a prova alvo (distância, estilo e meta), para o Específico
+        modelo: ativa?.model ?? 'geral',
+        prova: ativa?.competition?.distance
+          ? { distancia: ativa.competition.distance, estilo: ativa.competition.stroke, metaCentesimos: ativa.competition.goalHundredths, modalidade }
+          : null,
+        // Todas as provas da competição alvo (os estilos da série principal; a mais longa
+        // é a distância que o atleta precisa conseguir nadar sem parar)
+        provas: (ativa?.competition?.events ?? []).map((e) => ({ distancia: e.distance, estilo: e.stroke, metaCentesimos: e.goalHundredths ?? null })),
       },
     }
   }
@@ -512,10 +552,14 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     if (!row) return null
     const competitionRow = row.competition_id ? findCompetition.get(row.competition_id, userId) : null
     const competition = competitionRow ? publicCompetition(competitionRow) : null
+    const especifico = podeUsarEspecifico({ goal: row.goal, competition, profile: profileOf(userId) })
     return {
       id: row.id,
       goal: row.goal,
       competition,
+      // Modelo de treino: Geral ou Específico da prova (só para quem pode usar)
+      model: especifico.ok ? row.model : 'geral',
+      especifico,
       createdAt: row.created_at,
       // Preparação ainda vale se não tem prova ou se a prova ainda não passou
       active: row.goal !== 'competir' || (competition !== null && competition.date >= today),
@@ -574,9 +618,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       if (body.priority === 'A') throw new HttpError(400, ONLY_ONE_TARGET)
       const c = validateCompetition(body)
       const id = insertCompetition.run(
-        user.id, c.name, c.date, c.modality, c.event, c.priority, new Date().toISOString(),
+        user.id, c.name, c.date, c.modality, c.event, c.distance, c.stroke, c.goalHundredths, JSON.stringify(c.events), c.priority, new Date().toISOString(),
       ).lastInsertRowid
-      sendJson(res, 201, { competition: { id: Number(id), ...c } })
+      sendJson(res, 201, { competition: publicCompetition(findCompetition.get(Number(id), user.id)) })
     },
 
     // PATCH /api/competitions/:id { priority: 'B' (importante) | 'C' (participação) }
@@ -738,9 +782,34 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     reformulateIfNeeded(userId, today = new Date().toISOString().slice(0, 10)) {
       const { profile, level } = profileResponse(userId)
       if (!profile || !level) return 0
-      const ajuste = feedbackAdjustment(rules, { ...profile, level: level.level }, readHistory(userId), nextFactor(userId, today))
-      if (ajuste.carga === 0 || countUpcomingGenerated.get(userId, today).total === 0) return 0
+      const historico = readHistory(userId)
+      const ajuste = feedbackAdjustment(rules, { ...profile, level: level.level }, historico, nextFactor(userId, today))
+      if (countUpcomingGenerated.get(userId, today).total === 0) return 0
+      // Nado contínuo (série de teste): subiu ou desceu um passo -> os próximos treinos mudam
+      const proximo = upcomingOrdered.all(userId, today, 6).map((r) => parsePlan(r.plan)).find((p) => p?.serieDeTeste)
+      let mudouContinuo = false
+      if (proximo?.serieDeTeste) {
+        const { athlete } = periodizationInput(userId, today)
+        const pace = (athlete.time400?.hundredths ?? 0) / 400 || null
+        mudouContinuo = testSeriesDistance(rules, prepareAthlete(rules, athlete), historico, pace)?.distancia !== proximo.serieDeTeste.distancia
+      }
+      if (ajuste.carga === 0 && !mudouContinuo) return 0
       return buildPeriodization(userId, today).trainings.length
+    },
+
+    // PATCH /api/preparations/current { model: 'geral' | 'especifico' } -> troca o modelo
+    // de treino da preparação atual e refaz os treinos que ainda não foram feitos
+    async changeModel(req, res) {
+      const user = requireUser(req)
+      const { model } = await readJson(req)
+      oneOf(MODELOS, model, 'Escolha o modelo de treino: Geral ou Específico da prova.')
+      const today = readToday(req)
+      const atual = preparationResponse(user.id, today)
+      if (!atual?.active) throw new HttpError(409, 'Use "Gerar treinos" para escolher a prova alvo antes.')
+      if (model === 'especifico' && !atual.especifico.ok) throw new HttpError(400, atual.especifico.motivo)
+      setModel.run(model, atual.id, user.id)
+      const refeitos = countUpcomingGenerated.get(user.id, today).total > 0 ? buildPeriodization(user.id, today).trainings.length : 0
+      sendJson(res, 200, { preparation: preparationResponse(user.id, today), refeitos })
     },
 
     // GET /api/preparations/current?today=AAAA-MM-DD -> preparação mais recente (ou null)
@@ -772,7 +841,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
           if (body.competition) {
             const c = validateCompetition({ ...body.competition, priority: 'A' })
             competitionId = Number(
-              insertCompetition.run(user.id, c.name, c.date, c.modality, c.event, 'A', now).lastInsertRowid,
+              insertCompetition.run(user.id, c.name, c.date, c.modality, c.event, c.distance, c.stroke, c.goalHundredths, JSON.stringify(c.events), 'A', now).lastInsertRowid,
             )
             demoteOtherTargets.run(user.id, competitionId)
           } else {
@@ -793,7 +862,12 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
           demoteOtherTargets.run(user.id, null)
         }
 
-        insertPreparation.run(user.id, goal, competitionId, now)
+        const model = oneOf(MODELOS, body.model ?? 'geral', 'Escolha o modelo de treino: Geral ou Específico da prova.')
+        if (model === 'especifico') {
+          const pode = podeUsarEspecifico({ goal, competition: competitionId ? publicCompetition(findCompetition.get(competitionId, user.id)) : null, profile: profileOf(user.id) })
+          if (!pode.ok) throw new HttpError(400, pode.motivo)
+        }
+        insertPreparation.run(user.id, goal, competitionId, model, now)
         db.exec('COMMIT')
       } catch (err) {
         db.exec('ROLLBACK')

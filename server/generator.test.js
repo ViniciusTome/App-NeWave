@@ -298,7 +298,7 @@ test('a série principal sempre tem um jeito de nadar, e os tipos nunca se mistu
     assert.ok(aLevels.length === 0 || aLevels.length === p.intensidades.valores.length, p.intensidades.valores.join())
     assert.equal(p.intensidades.tipo === 'intensidades', aLevels.length > 0)
   }
-  assert.deepEqual([...tipos].sort(), ['AC', 'NEG', 'POS', 'finalForte', 'intensidades'])
+  assert.deepEqual([...tipos].sort(), ['AC', 'NEG', 'POS', 'finalForte', 'intensidades', 'saiChe'])
 })
 
 test('A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM)', () => {
@@ -692,7 +692,9 @@ test('iniciante com equipamento: aviso para descansar o intervalo', () => {
   assert.ok(comAviso.length > 0, 'nenhum aviso')
   for (const p of comAviso) {
     assert.match(p.texto, /a\/c /)
-    assert.match(p.aviso, /descanse o tempo de descanso/)
+    // Descanso pela distância: 25 m 20"; 50 e 100 m 20" a 30"; 200 m 40" a 50"; 400 m 1'
+    assert.match(p.aviso, /descanse (de 20 segundos|de 20 a 30 segundos|de 40 a 50 segundos|de 1 minuto) nos \d+ m/)
+    assert.doesNotMatch(p.aviso, /10"/)
   }
   // Avançado não recebe o aviso
   assert.ok([1, 2, 3].flatMap((seed) => gerar(avancado, seed)).flatMap((t) => t.partes).every((p) => !p.aviso))
@@ -1485,4 +1487,109 @@ test('A3 seguido: só na mesma semana, uma vez por semana, em até 35% das seman
     assert.ok(semanas.size <= Math.floor(0.35 * new Set(treinos.map((t) => semanaDe(t.date))).size))
   }
   assert.ok(pares > 0, 'nenhum A3 seguido: a regra deixa acontecer às vezes')
+})
+
+test('feedback: 3 treinos seguidos com nota 3 ou menos deixam os próximos mais difíceis', () => {
+  const plan = (esforcoEsperado) => ({ esforcoEsperado, fatorPrincipal: 1 })
+  const atleta = { level: 'intermediario', continuousDistance: '1000_2000' }
+  // Esperado 4 (A1) com notas 3: antes não mudava (só 2 abaixo); agora é fácil
+  const historico = [3, 3, 3].map((difficulty) => ({ difficulty, plan: plan(4) }))
+  assert.equal(feedbackAdjustment(rules, atleta, historico).carga, 1)
+  // Um com 4: não
+  assert.equal(feedbackAdjustment(rules, atleta, [3, 4, 3].map((difficulty) => ({ difficulty, plan: plan(4) }))).carga, 0)
+})
+
+test('prova no crawl (triatlo, águas abertas, livre): a série principal é só crawl', () => {
+  const comEstilos = { ...avancado, strokes: ['crawl', 'costas', 'peito', 'borboleta'], bestStroke: 'peito' }
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-03-20', testeNaTransicao: false, numeroInicial: 1, provas: [] }
+  for (const athlete of [{ ...comEstilos, modalidade: 'triatlo' }, { ...comEstilos, modalidade: 'piscina_25', prova: { distancia: 200, estilo: 'crawl', metaCentesimos: null } }]) {
+    for (const seed of [1, 2]) {
+      const treinos = generateTrainings({ rules, library, athlete, today: '2026-11-23', random: seeded(seed), periodizacao })
+      for (const p of treinos.flatMap((t) => t.partes).filter((x) => x.parte === 'principal')) {
+        assert.doesNotMatch(p.texto, /· (CO|PE|BO|MD|ME)\b|estilo|medley/i, p.texto)
+      }
+    }
+  }
+  // Prova de peito: o "melhor estilo" da principal é o peito
+  const peito = { ...comEstilos, bestStroke: 'costas', modalidade: 'piscina_25', prova: { distancia: 100, estilo: 'peito', metaCentesimos: null } }
+  const linhas = [1, 2, 3].flatMap((seed) => generateTrainings({ rules, library, athlete: peito, today: '2026-11-23', random: seeded(seed), periodizacao }))
+    .flatMap((t) => t.partes).filter((x) => x.parte === 'principal').map((p) => p.texto).join('\n')
+  assert.match(linhas, /PE|ME/)
+  assert.doesNotMatch(linhas, /\b(CO|BO|MD)\b|medley/)
+})
+
+test('triatlo e maratona aquática: aquecimento e velocidade também de crawl', () => {
+  const athlete = { ...avancado, strokes: ['crawl', 'costas', 'peito', 'borboleta'], bestStroke: 'peito', modalidade: 'triatlo' }
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-03-20', testeNaTransicao: false, numeroInicial: 1, provas: [] }
+  const partes = [1, 2].flatMap((seed) => generateTrainings({ rules, library, athlete, today: '2026-11-23', random: seeded(seed), periodizacao }))
+    .flatMap((t) => t.partes).filter((p) => ['aquecimento', 'velocidade'].includes(p.parte))
+  for (const p of partes) assert.doesNotMatch(p.texto.split('\n')[0], /\b(CO|PE|BO|MD|ME)\b|estilo|medley/, p.texto)
+})
+
+test('condicionamento com prova alvo: tem Transição e Realização (sem prova, fica na Acumulação)', () => {
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '100_200',
+    strokes: ['crawl'], equipment: [], time400: null, modalidade: 'triatlo',
+  }
+  const fases = (semProva) => new Set(generateTrainings({
+    rules, library, athlete: iniciante, today: '2026-11-23', random: seeded(1),
+    periodizacao: { inicio: '2026-11-23', fim: '2027-03-20', testeNaTransicao: false, numeroInicial: 1, provas: [], semProva },
+  }).map((t) => t.plano.fase))
+  const comProva = fases(false)
+  assert.ok(comProva.has('transicao') && comProva.has('realizacao'), [...comProva].join(','))
+  assert.deepEqual([...fases(true)].filter((f) => f !== 'acumulacao' && f !== 'recuperacao'), [])
+})
+
+test('séries de teste: o nado contínuo cresce aos poucos até a distância da prova', async () => {
+  const { testSeriesDistance } = await import('./generator.js')
+  const atleta = { level: 'iniciante', continuousDistance: '100_200', provas: [{ distancia: 750, estilo: 'crawl' }] }
+  // Começa um passo acima do que nada hoje (100 m -> 150 m)
+  assert.deepEqual(testSeriesDistance(rules, atleta, []), { distancia: 150, alvo: 750 })
+  // Já nada a distância da prova: não precisa
+  assert.equal(testSeriesDistance(rules, { ...atleta, continuousDistance: '1000_2000' }, []), null)
+  const feito = (distancia, difficulty, nonstop = true, esforcoEsperado = 6) => ({ difficulty, nonstop, plan: { esforcoEsperado, serieDeTeste: { distancia } } })
+  // 3 seguidos sem parar e no esforço de sempre: sobe (+50 até 400 m; +100 até 1 km)
+  assert.equal(testSeriesDistance(rules, atleta, [feito(150, 6), feito(150, 5), feito(150, 6)]).distancia, 200)
+  assert.equal(testSeriesDistance(rules, atleta, [feito(400, 6), feito(400, 5), feito(400, 6)]).distancia, 500)
+  // Só 2: mantém
+  assert.equal(testSeriesDistance(rules, atleta, [feito(150, 6), feito(150, 6)]).distancia, 150)
+  // Não nadou sem parar: desce um passo na hora
+  assert.equal(testSeriesDistance(rules, atleta, [feito(300, 6), feito(300, 6, false)]).distancia, 250)
+  // 10 onde era 8 ou 9: desce; 10 num treino de 6 não é esse caso (conta como pesado)
+  assert.equal(testSeriesDistance(rules, atleta, [feito(300, 10, true, 8)]).distancia, 250)
+  assert.equal(testSeriesDistance(rules, atleta, [feito(300, 10, true, 6)]).distancia, 300)
+  // 3 seguidos pesados: desce
+  assert.equal(testSeriesDistance(rules, atleta, [feito(300, 9), feito(300, 8), feito(300, 9)]).distancia, 250)
+  // Nunca passa da prova
+  assert.equal(testSeriesDistance(rules, atleta, [feito(700, 5), feito(700, 5), feito(700, 5)]).distancia, 750)
+  // No treino: "Nado contínuo" antes da série principal, e fica no plano
+  const iniciante = {
+    level: 'iniciante', sessionMinutes: 45, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: '100_200',
+    strokes: ['crawl'], equipment: [], time400: null, modalidade: 'triatlo', provas: [{ distancia: 750, estilo: 'crawl' }],
+  }
+  const treinos = generateTrainings({
+    rules, library, athlete: iniciante, today: '2026-11-23', random: seeded(1),
+    periodizacao: { inicio: '2026-11-23', fim: '2027-03-20', testeNaTransicao: false, numeroInicial: 1, provas: [], semProva: false },
+  })
+  for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
+    const i = t.partes.findIndex((p) => p.parte === 'continuo')
+    assert.ok(i >= 0, t.date)
+    assert.equal(t.partes[i + 1]?.parte, 'principal')
+    assert.match(t.partes[i].texto, /^150 m · CR · sem parar/)
+    assert.equal(t.plano.serieDeTeste.distancia, 150)
+    assert.doesNotMatch(t.partes[i].texto + t.partes[i].titulo + t.partes[i].observacao, /teste/i) // o atleta não sabe
+  }
+})
+
+test('perna com dois estilos: o card explica que alterna a cada repetição', () => {
+  const athlete = { ...avancado, strokes: ['crawl', 'costas'], bestStroke: 'costas' }
+  const pernas = [1, 2, 3, 4, 5].flatMap((seed) => gerar(athlete, seed)).flatMap((t) => t.partes).filter((p) => p.parte === 'perna')
+  const duas = pernas.filter((p) => / \| /.test(p.texto.split('\n')[0]))
+  assert.ok(duas.length > 0, 'nenhuma perna com dois estilos')
+  for (const p of duas) {
+    const [, a, b] = /· (\w+) \| (\w+)/.exec(p.texto)
+    assert.match(p.texto, new RegExp(`\\nUma repetição de cada estilo, alternando: 1ª: \\d+ m ${a} · 2ª: \\d+ m ${b}`), p.texto)
+  }
+  // Um estilo só: sem a explicação
+  assert.ok(pernas.filter((p) => !/ \| /.test(p.texto)).every((p) => !/alternando/.test(p.texto)))
 })

@@ -66,7 +66,7 @@ async function atleta(base, i) {
 
     // Provas: uma importante, uma de participação, a alvo
     const prova = (name, dias, priority) => api('/api/competitions', {
-        method: 'POST', cookie, body: { name, date: daqui(dias), modality: 'piscina_25', event: '200 m livre', ...(priority && { priority }) },
+        method: 'POST', cookie, body: { name, date: daqui(dias), modality: 'piscina_25', distance: 200, stroke: 'crawl', ...(priority && { priority }) },
     })
     const importante = (await prova('Importante', 30, 'B')).body.competition
     const participacao = (await prova('Participação', 45)).body.competition

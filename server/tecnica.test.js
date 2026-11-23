@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { generateTrainings, refreshTimes } from './generator.js'
 import { loadLibrary } from './series/index.js'
 import { loadRules } from './series/regras.js'
-import { estadoDaTecnica, loadTecnica, montarTecnica, validarTecnica } from './tecnica/index.js'
+import { chanceNaFase, estadoDaTecnica, loadTecnica, montarTecnica, parteDaTecnica, validarTecnica } from './tecnica/index.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -152,4 +152,34 @@ test('técnica: um nível só vai só para esse nível; mais de um nível (ou ne
   assert.ok([...doAvancado].some((id) => String(porId.get(id).niveis) === 'avancado'))
   // As do treinador.json com "soPara" (ex.: apneia, respiração 9x1) não vão para o iniciante
   assert.ok(![...doIniciante].some((id) => porId.get(id).soPara && !porId.get(id).soPara.includes('iniciante')))
+})
+
+test('técnica por fase: iniciante fora da Realização; intermediário na Acumulação e metade da Transição; avançado só na Acumulação', () => {
+  const tecnica = loadTecnica()
+  const esperado = {
+    iniciante: { acumulacao: 1, transicao: 1, recuperacao: 1, realizacao: 0 },
+    intermediario: { acumulacao: 1, transicao: 0.5, recuperacao: 1, realizacao: 0 },
+    avancado: { acumulacao: 1, transicao: 0, recuperacao: 1, realizacao: 0 },
+  }
+  for (const [nivel, fases] of Object.entries(esperado)) {
+    for (const [fase, chance] of Object.entries(fases)) assert.equal(chanceNaFase(tecnica.regras, nivel, fase), chance, `${nivel} ${fase}`)
+    assert.equal(chanceNaFase(tecnica.regras, nivel, null), 1, `${nivel} sem fase = Acumulação`)
+  }
+  // Na prática (60 min, com o solto depois da velocidade): metade da Transição do intermediário
+  let seed = 7
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  const conta = (level, fase) => {
+    let com = 0
+    for (let i = 0; i < 400; i++) {
+      if (parteDaTecnica({ tecnica, athlete: { level, fase, sessionMinutes: 60 }, soltoDepoisDaVelocidade: true, random })) com++
+    }
+    return com / 400
+  }
+  assert.equal(conta('avancado', 'acumulacao'), 1)
+  for (const fase of ['transicao', 'realizacao']) assert.equal(conta('avancado', fase), 0, fase)
+  assert.equal(conta('avancado', 'recuperacao'), 1)
+  assert.ok(Math.abs(conta('intermediario', 'transicao') - 0.5) < 0.1)
+  assert.equal(conta('intermediario', 'realizacao'), 0)
+  assert.equal(conta('iniciante', 'transicao'), 1)
+  assert.equal(conta('iniciante', 'realizacao'), 0)
 })

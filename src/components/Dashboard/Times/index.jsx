@@ -37,12 +37,13 @@ export const Times = () => {
     return (
         <div className={styles.times}>
             <header>
-                <h2>Tempos</h2>
+                <h2>Tempos do crawl</h2>
                 <p className={styles.descriptionTest}>
                     {dados?.time400
-                        ? `Baseado no teste de 400 metros (${formatSwimTime(dados.time400.hundredths)})`
-                        : 'Baseado no teste de 400 metros'}
+                        ? `Baseado no teste de 400 metros crawl (${formatSwimTime(dados.time400.hundredths)})`
+                        : 'Baseado no teste de 400 metros crawl'}
                 </p>
+                <p className={styles.descriptionTest}>Valem para o crawl. Nos outros estilos o tempo é maior (os treinos já fazem essa conta).</p>
             </header>
             {erro && <p className={styles.message} role='alert'>{erro}</p>}
             {dados && !tabela && (
