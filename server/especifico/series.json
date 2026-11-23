@@ -1,4 +1,8 @@
 [
+  { "id": "e-t-a1-8x50", "grupos": ["50", "100", "200"], "fases": ["transicao"], "blocos": [{ "rep": 8, "dist": 50, "ritmo": "A1", "descanso": 15 }] },
+  { "id": "e-t-a1-6x100", "grupos": ["100", "200", "400"], "fases": ["transicao"], "blocos": [{ "rep": 6, "dist": 100, "ritmo": "A1", "descanso": 15 }] },
+  { "id": "e-t-a1-4x200", "grupos": ["400", "fundo"], "fases": ["transicao"], "blocos": [{ "rep": 4, "dist": 200, "ritmo": "A1", "descanso": 20 }] },
+  { "id": "e-t-a1-3x400", "grupos": ["fundo", "aguas"], "fases": ["transicao"], "blocos": [{ "rep": 3, "dist": 400, "ritmo": "A1", "descanso": 30 }] },
   { "id": "e50-t-a2-8x50", "grupos": ["50"], "fases": ["transicao"], "blocos": [{ "rep": 8, "dist": 50, "ritmo": "A2", "descanso": 20 }] },
   { "id": "e50-t-a2-3x100", "grupos": ["50"], "fases": ["transicao"], "blocos": [{ "rep": 3, "dist": 100, "ritmo": "A2", "descanso": 20 }] },
   { "id": "e100-t-a2-6x100", "grupos": ["100"], "fases": ["transicao"], "blocos": [{ "rep": 6, "dist": 100, "ritmo": "A2", "descanso": 20 }] },

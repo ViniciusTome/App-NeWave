@@ -1620,8 +1620,8 @@ export function generateTrainings({
     // Série de teste: o nado contínuo que vai crescendo até a distância da prova
     // (no Específico o atleta já nada a distância da prova: não precisa)
     // Só para o iniciante (regra do treinador)
-    // Específico: a sequência A3/A2 dos treinos da Transição
-    const estadoEspecifico = { transicao: 0 }
+    // Específico: a conta das intensidades dos treinos da Transição (A3, A2, A1)
+    const estadoEspecifico = {}
     const serieDeTeste = periodizacao && !periodizacao.semProva && athlete.modelo !== 'especifico' && athlete.level === 'iniciante'
         ? testSeriesDistance(rules, athlete, historico, pace) : null
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino

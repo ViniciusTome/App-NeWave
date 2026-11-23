@@ -250,6 +250,29 @@ export function textoDaSerie(s, prova, saida = null) {
 }
 
 const INTENSIDADE = { RP: 'A3', max: 'A3', A3: 'A3', A2: 'A2', A1: 'A1' }
+// Intensidade do próximo treino da Transição, pela proporção (ex.: A3 55%, A2 35%, A1 10%):
+// a que está mais atrás da sua parte até agora, sem depender de sorte. Um treino A2 ou A1
+// sempre vem depois de um A3 (nunca dois mais leves seguidos). Sem `estado`, sorteado.
+const INTENSIDADES = ['A3', 'A2', 'A1']
+function intensidadeDoTreino(proporcao, estado, random) {
+    if (!estado) {
+        let r = random()
+        for (const i of INTENSIDADES) {
+            r -= proporcao[i] ?? 0
+            if (r < 0) return i
+        }
+        return 'A3'
+    }
+    estado.contagem ??= { A3: 0, A2: 0, A1: 0 }
+    const feitos = INTENSIDADES.reduce((t, i) => t + estado.contagem[i], 0) + 1
+    let escolha = INTENSIDADES.reduce((melhor, i) =>
+        ((proporcao[i] ?? 0) * feitos - estado.contagem[i] > (proporcao[melhor] ?? 0) * feitos - estado.contagem[melhor] ? i : melhor), 'A3')
+    if (escolha !== 'A3' && estado.anterior && estado.anterior !== 'A3') escolha = 'A3'
+    estado.contagem[escolha]++
+    estado.anterior = escolha
+    return escolha
+}
+
 // A intensidade da série: a mais forte dos blocos (RP e máx contam como A3)
 const intensidadeDaSerie = (serie) => serie.blocos.map((b) => INTENSIDADE[b.ritmo]).sort().at(-1)
 
@@ -278,12 +301,9 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
         .filter(Boolean)
         .map((s) => ajustarRitmoDeProva(s, prova, regras))
     if (todas.length === 0) return partes
-    // Transição (regra do treinador): 60% dos treinos em A3 e 40% em A2, na sequência
-    // A3, A2, A3, A2, A3 (de novo...). Sem a sequência (`estado`), sorteado.
+    // Transição (regra do treinador): 55% dos treinos em A3, 35% em A2 e 10% em A1
     const naTransicao = athlete.fase === 'transicao' ? regras.intensidadeNaTransicao : null
-    let alvo = null
-    if (naTransicao?.sequencia && estado) alvo = naTransicao.sequencia[(estado.transicao++) % naTransicao.sequencia.length]
-    else if (naTransicao) alvo = random() < naTransicao.A3 ? 'A3' : 'A2'
+    const alvo = naTransicao ? intensidadeDoTreino(naTransicao, estado, random) : null
     const daIntensidade = alvo ? todas.filter((s) => intensidadeDaSerie(s) === alvo) : []
     const candidatas = daIntensidade.length > 0 ? daIntensidade : todas
     const menor = Math.min(...candidatas.map(volumeDe))
