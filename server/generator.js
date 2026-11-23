@@ -332,12 +332,54 @@ function butterflyRule(rules, serie, variations) {
 
 // Velocidade escrita como "livre": o atleta precisa saber o que nadar. Sorteia o estilo
 // entre os que ele nada (crawl com mais chance) e escreve no card (CR, CO, PE, BO).
+// Perna com pé de pato: nada de peito (nem medley, que tem perna de peito): com o pé
+// de pato não dá para fazer a pernada de peito. Nadando (principal, velocidade) pode:
+// dá para nadar peito com perna de crawl ou de borboleta.
+const temPeito = (nado) => Boolean(nado) && (nado === 'peito' || /medley/.test(nado))
+const comPeDePato = (material) => (material ?? []).includes('pe_de_pato')
+
 export function withSpeedStroke(rules, variation, athlete, random = Math.random) {
     if (variation.nado !== 'livre' || variation.nados || variation.porSerie || variation.nadoAbrev) return variation
     const pesoCrawl = rules.saidas?.velocidade?.pesoDoCrawl ?? 2
     const nados = (athlete.strokes?.length ? athlete.strokes : ['crawl']).map((n) => ({ item: n, peso: n === 'crawl' ? pesoCrawl : 1 }))
     const nado = weightedPick(nados, random)
     return { ...variation, nadoAbrev: NADO_ABREV[nado] ?? nado }
+}
+
+// Perna: o card diz o estilo (regras.perna.estilos). Um estilo só, dois alternando
+// a cada repetição ("CR | CO") ou medley ("MD", quando a repetição fecha o medley na
+// piscina). Com pé de pato, nada de peito (nem medley, que tem peito).
+export function withLegStroke(rules, variation, athlete, random = Math.random) {
+    if (variation.nadoAbrev || variation.nados || variation.porSerie) return variation
+    if (variation.nado && variation.nado !== 'livre') {
+        // Escrita num estilo (ex.: "400 perna com pé de pato" de crawl): o card mostra
+        return NADO_ABREV[variation.nado] ? { ...variation, nadoAbrev: NADO_ABREV[variation.nado] } : variation
+    }
+    const cfg = rules.perna?.estilos
+    if (!cfg) return variation
+    const comPe = comPeDePato(variation.material)
+    const pode = (n) => !(comPe && temPeito(n))
+    const nados = (athlete.strokes?.length ? athlete.strokes : ['crawl']).filter(pode)
+    if (nados.length === 0) return { ...variation, nadoAbrev: 'CR' }
+    const pesoDo = (n) => (n === 'crawl' ? cfg.pesoDoCrawl ?? 1 : 1)
+    const um = () => weightedPick(nados.map((n) => ({ item: n, peso: pesoDo(n) })), random)
+    const distancia = variation._distancia ?? null
+    const piscina = athlete.poolLength ?? 25
+    const fechaMedley = ['crawl', 'costas', 'peito', 'borboleta'].every((n) => (athlete.strokes ?? []).includes(n)) &&
+        !comPe && distancia !== null && distancia % (4 * piscina) === 0
+    const formatos = [
+        { item: 'um', peso: cfg.formatos.um },
+        // (dois alternando só com mais de uma repetição: num tiro único não tem como)
+        ...(nados.length >= 2 && (variation._repeticoes ?? 2) > 1 ? [{ item: 'dois', peso: cfg.formatos.dois }] : []),
+        ...(fechaMedley ? [{ item: 'medley', peso: cfg.formatos.medley }] : []),
+    ]
+    const formato = weightedPick(formatos, random)
+    if (formato === 'medley') return { ...variation, nadoAbrev: 'MD' }
+    const primeiro = um()
+    if (formato === 'um') return { ...variation, nadoAbrev: NADO_ABREV[primeiro] }
+    const resto = nados.filter((n) => n !== primeiro)
+    const segundo = weightedPick(resto.map((n) => ({ item: n, peso: pesoDo(n) })), random)
+    return { ...variation, nadoAbrev: `${NADO_ABREV[primeiro]} | ${NADO_ABREV[segundo]}` }
 }
 
 // Série escrita como "livre" (sem estilo misturado): é crawl, e o card mostra "CR"
@@ -531,8 +573,9 @@ const intervalAbbrev = (faixa) =>
 // série tem a descrição de cada série (1ª série, 2ª série...), o estilo e o tempo vão nela.
 export function cardText(serie, variation, intervalo = null, intensidades = null, saidas = null) {
     const c = intervalAbbrev(intervalo)
-    const nadoDaSerie = variation.nadoAbrev ?? (variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
-        ? null : abbreviate(variation.texto.slice(serie.texto.length).split(' · ')[1] ?? ''))
+    const nadoDaSerie = variation.nadoAbrev ?? (variation.nadoTexto ? abbreviate(variation.nadoTexto) : null) ??
+        (variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
+            ? null : abbreviate(variation.texto.slice(serie.texto.length).split(' · ')[1] ?? ''))
     // Material igual em todas as séries: vai no cabeçalho, uma vez só
     const seriesIguais = variation.series?.every((m) => m.join('+') === variation.series[0].join('+'))
     const materialDaSerie = ['serie_inteira', 'obrigatorio'].includes(variation.padrao) || seriesIguais
@@ -602,7 +645,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
         return linhas.join('\n')
     }
 
-    const base = abbreviate(withMeters(serie.texto))
+    const base = abbreviate(withMeters(variation.textoDaSerie ?? serie.texto))
     const porSerie = materialPorSerie || variation.nados || variation.porSerie || (I?.unidade === 'serie' ? I.valores : null)
     if (!porSerie) {
         if (porRepeticao) {
@@ -901,6 +944,15 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         // Série principal "livre": é crawl, e o card diz isso (CR)
         if (parte === 'velocidade') escolha.variation = withSpeedStroke(rules, escolha.variation, athlete, random)
         if (parte === 'principal') escolha.variation = withCrawl(escolha.variation)
+        if (parte === 'perna') {
+            const distancia = Math.max(...escolha.serie.blocos.map((b) => b.distancia))
+            const repeticoes = escolha.serie.blocos.reduce((s, b) => s + (b.vezes ?? 1) * b.repeticoes, 0)
+            const { _distancia, _repeticoes, ...comEstilo } = withLegStroke(rules,
+                { ...escolha.variation, _distancia: distancia, _repeticoes: repeticoes }, athlete, random)
+            void _distancia
+            void _repeticoes
+            escolha.variation = comEstilo
+        }
         // (2x), (3x), (4x)...: um material diferente em cada série, sem repetir em seguida
         escolha.variation = rotateSetMaterials(rules, parte, escolha.serie, escolha.variation, escolha.intensidades, athlete, random)
         // Intervalo entre as séries (Acumulação 1: maior)

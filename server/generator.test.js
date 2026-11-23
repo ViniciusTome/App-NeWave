@@ -960,9 +960,12 @@ test('feedback: os próximos treinos menores; sem A3 nos 2 primeiros quando foi 
   const treinos = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), historico })
   assert.ok(treinos.every((t) => t.plano.fatorPrincipal === 0.9 && t.plano.carga === -1))
   for (const t of treinos.slice(0, 2)) assert.notEqual(t.plano.intensidade, 'A3')
-  const normais = gerar(avancado)
+  // (vários sorteios: um só pode cair numa série maior por acaso)
+  const seeds = [1, 2, 3, 4, 5, 6]
+  const menores = seeds.flatMap((seed) => generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(seed), historico }))
+  const normais = seeds.flatMap((seed) => gerar(avancado, seed))
   const metros = (ts) => ts.reduce((s, t) => s + t.plano.metrosPrincipal, 0)
-  assert.ok(metros(treinos) < metros(normais), `${metros(treinos)} >= ${metros(normais)}`)
+  assert.ok(metros(menores) < metros(normais), `${metros(menores)} >= ${metros(normais)}`)
 })
 
 test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () => {
@@ -1390,3 +1393,28 @@ test('borboleta dividida no card: "BO/CO T/100" na repetição de 200', () => {
     for (const t of trocas) assert.equal(t, `T/${metade}`, l)
   }
 })
+
+test('perna: o card diz o estilo (um, dois alternando ou medley); com pé de pato, nada de peito', () => {
+  const formatos = { um: 0, dois: 0, medley: 0 }
+  const QUATRO_PERNA = { ...avancado, sessionMinutes: 90, bestStroke: 'peito', equipment: ['pe_de_pato', 'palmar', 'pull_buoy'] }
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    for (const t of gerar(QUATRO_PERNA, seed)) {
+      for (const p of t.partes.filter((x) => x.parte === 'perna')) {
+        assert.match(p.texto, /\b(CR|CO|PE|BO|MD)\b/, p.texto)
+        const comPe = /c\/PÉ(?! de)/.test(p.texto)
+        // Com pé de pato: nem peito nem medley
+        if (comPe) assert.ok(!/· (PE|MD)\b|\| PE\b/.test(p.texto), p.texto)
+        if (/ \| /.test(p.texto)) formatos.dois++
+        else if (/· MD\b/.test(p.texto)) formatos.medley++
+        else formatos.um++
+      }
+    }
+  }
+  assert.ok(formatos.um > 0 && formatos.dois > 0, JSON.stringify(formatos))
+  // Sem pé de pato: o medley e o peito podem entrar
+  const semPe = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap((seed) => gerar({ ...QUATRO_PERNA, equipment: [] }, seed))
+    .flatMap((t) => t.partes.filter((x) => x.parte === 'perna').map((p) => p.texto))
+  assert.ok(semPe.some((tx) => /\bMD\b/.test(tx)), semPe.join('\n'))
+  assert.ok(semPe.some((tx) => /\bPE\b/.test(tx)), semPe.join('\n'))
+})
+

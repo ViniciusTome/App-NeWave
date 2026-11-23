@@ -601,6 +601,8 @@ Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m 
 
 ### Como a série aparece no card
 
+- **Perna (regra `perna.estilos`):** o card sempre diz o estilo da pernada: **um estilo** (ex.: `4 x 100 m PR · c/PÉ · CO`), **dois alternando a cada repetição** (ex.: `8 x 50 m PR · CR | BO`) ou **medley** (`MD`, quando a repetição fecha o medley na piscina: 100 m na de 25 m). Só entram os estilos que o atleta nada. **Perna com pé de pato: nada de peito nem medley** (com o pé de pato não dá para fazer a pernada de peito). Essa regra é só da perna: nadando (principal, velocidade) pode peito com pé de pato (perna de crawl ou de borboleta).
+
 - **Regra da troca de estilo:** sempre que o estilo troca dentro de uma mesma série, as repetições são separadas por **barra vertical "|"**, para a troca ficar fácil de ver. Ex.: `1ª série: c/PÉ · A1 · BO/CR T/100 | CO | ME | CR · cd 4'40"`. A barra "/" fica só dentro da repetição (BO/CR T/100 = 100 borboleta + 100 crawl) e nos tempos por distância (100 cd 1'40" / 75 cd 1'25").
 
 O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, MD, ME, NAD, c/PÉ, c/PALM, BOIA, SNK, PARA, PR), e o "m" entra depois das distâncias. Cada card tem um botão **Glossário** que mostra só os termos usados naquele treino; no **ME**, mostra o melhor estilo do atleta.

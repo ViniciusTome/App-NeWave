@@ -22,6 +22,13 @@
       ]
     }
   },
+  "perna": {
+    "estilos": {
+      "_comentario": "A perna diz o estilo no card: um estilo só (ex.: CO), dois alternando a cada repetição (ex.: CR | BO) ou medley (MD, quando a repetição fecha o medley na piscina). Perna com pé de pato: nada de peito nem medley (com o pé de pato não dá para fazer a pernada de peito). Nadando (principal, velocidade) pode: peito com perna de crawl ou de borboleta.",
+      "formatos": { "um": 5, "dois": 3, "medley": 2 },
+      "pesoDoCrawl": 2
+    }
+  },
   "misturaDeNados": {
     "_comentario": "Séries com estilos misturados: nunca o mesmo estilo duas repetições seguidas (ex.: ME, BO, ME, BO). O crawl entra em cerca de 'parteDeCrawl' das repetições, por nível (o resto em estilo). Em 'variacao.chance' das séries a parte de crawl é a de 'variacao.parteDeCrawl' (avançado: 0 = 100% em estilo; intermediário: 30%). 'borboletaDividida': repetição longa demais para borboleta inteira vira metade borboleta, metade costas ou crawl (BO/CO, BO/CR), bom para o medley.",
     "partes": ["principal"],

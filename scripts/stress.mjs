@@ -203,6 +203,12 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
             }
         }
 
+        for (const p of t.partes.filter((x) => x.parte === 'perna')) {
+            confere('Perna com o estilo escrito (CR, CO, PE, BO, MD)', /\b(CR|CO|PE|BO|MD)\b/.test(p.texto), () => `${quem}: ${p.texto}`)
+            const semTroca = p.texto.replace(/\(no lugar do PE[^)]*\)/, '')
+            confere('Perna com pé de pato: sem peito nem medley', !/c\/PÉ(?! de)/.test(p.texto) || !/\b(PE|MD)\b/.test(semTroca),
+                () => `${quem}: ${p.texto}`)
+        }
         for (const p of principais) {
             for (const l of p.texto.split('\n')) {
                 confere('Linha da principal na ordem: como nada · intensidade · estilo · tempo', ordemDaLinha(l), () => `${quem}: ${l}`)

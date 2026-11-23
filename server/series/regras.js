@@ -703,6 +703,8 @@ export function seriesVariations(rules, parte, serie, athlete) {
             variations.push({
                 ...strokeInfo, padrao: 'fixo', material,
                 texto: [base, nadoTexto, `com ${materialText(material)}`].join(' · '),
+                // O card monta o texto da série sem o material antigo e com o nado
+                textoDaSerie: `${base} com ${materialText(material)}`, nadoTexto,
             })
             continue
         }
