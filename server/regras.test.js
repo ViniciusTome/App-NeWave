@@ -352,26 +352,83 @@ const draws = (id, athlete, n = 2000) => {
   return Array.from({ length: n }, () => drawMixedStrokes(rules, 'principal', principalSerie(id), athlete, random))
 }
 
-test('mistura de nados: (4x) 3 x 200 com medley, melhor estilo e estilos, sem crawl', () => {
-  const formatos = new Set()
-  for (const mistura of draws('pri-4x3x200', avancadoCompleto)) {
+test('mistura de nados: nunca o mesmo estilo seguido; crawl em cerca de 30%; às vezes 100% estilo', () => {
+  let crawl = 0
+  let total = 0
+  let soEstilo = 0
+  for (const mistura of draws('pri-4x4x100', avancadoCompleto)) {
     assert.equal(mistura.porSerie.length, 4)
     for (const serie of mistura.porSerie) {
-      assert.equal(serie.length, 3)
-      assert.ok(serie.every((n) => ['borboleta', 'costas', 'peito', 'medley'].includes(n)), serie.join())
-      const [a, b, c] = serie
-      if (a === b && b === c) formatos.add('igual')
-      else if (a === c && a !== b) formatos.add('espelhado')
-      else if (new Set(serie).size === 3) formatos.add('diferentes')
-      else assert.fail(`formato inválido: ${serie.join(', ')}`)
+      assert.equal(serie.length, 4)
+      serie.slice(1).forEach((n, k) => assert.notEqual(n, serie[k], serie.join(', ')))
+      assert.ok(serie.every((n) => ['crawl', 'borboleta', 'costas', 'peito', 'medley'].includes(n)), serie.join())
+      crawl += serie.filter((n) => n === 'crawl').length
+      total += serie.length
+      if (!serie.includes('crawl')) soEstilo++
     }
   }
-  assert.deepEqual([...formatos].sort(), ['diferentes', 'espelhado', 'igual'])
+  // 75% das séries com 30% de crawl e 25% sem crawl: ~22%
+  const parte = crawl / total
+  assert.ok(parte > 0.17 && parte < 0.3, `crawl: ${parte}`)
+  assert.ok(soEstilo > 0, 'nenhuma série 100% em estilo')
+})
+
+test('mistura de nados do intermediário: metade crawl; às vezes 70% estilo e 30% crawl', () => {
+  let crawl = 0
+  let total = 0
+  let soEstilo = 0
+  let comTrinta = 0
+  for (const mistura of draws('pri-4x4x100', { ...avancadoCompleto, level: 'intermediario' })) {
+    for (const serie of mistura.porSerie) {
+      serie.slice(1).forEach((n, k) => assert.notEqual(n, serie[k], serie.join(', ')))
+      const c = serie.filter((n) => n === 'crawl').length
+      crawl += c
+      total += serie.length
+      if (c === 0) soEstilo++
+      if (c === 1) comTrinta++
+    }
+  }
+  // 75% das séries com 50% de crawl e 25% com 30%: ~45%
+  const parte = crawl / total
+  assert.ok(parte > 0.4 && parte < 0.5, `crawl: ${parte}`)
+  assert.ok(comTrinta > 0, 'nenhuma série com menos crawl')
+  assert.ok(soEstilo < comTrinta / 3, `séries sem crawl: ${soEstilo}`)
+})
+
+test('borboleta dividida: repetição de 200 vira BO/CO ou BO/CR (100 de cada)', () => {
+  const nados = new Set(draws('pri-4x3x200', { ...avancadoCompleto, poolLength: 25 }, 500).flatMap((m) => m.porSerie.flat()))
+  assert.ok(nados.has('borboleta/costas') && nados.has('borboleta/crawl'), [...nados].join())
+  assert.ok(!nados.has('borboleta'))
+  // Duas repetições com borboleta nunca ficam seguidas (BO/CO | BO/CR)
+  for (const m of draws('pri-4x3x200', { ...avancadoCompleto, poolLength: 25, bestStroke: 'borboleta' }, 500)) {
+    for (const serie of m.porSerie) {
+      serie.slice(1).forEach((n, k) => assert.ok(!(n.startsWith('borboleta') && serie[k].startsWith('borboleta')), serie.join(' | ')))
+    }
+  }
+  // Quem não nada borboleta não ganha a dividida
+  const semBo = new Set(draws('pri-4x3x200', { ...avancadoCompleto, strokes: ['crawl', 'costas', 'peito'] }, 200).flatMap((m) => m.porSerie.flat()))
+  assert.ok(![...semBo].some((n) => n.startsWith('borboleta')))
+  // 100 de borboleta cabem inteiros: nada de dividida
+  const cem = new Set(draws('pri-4x4x100', avancadoCompleto, 300).flatMap((m) => m.porSerie.flat()))
+  assert.ok(![...cem].some((n) => n.includes('/')))
+})
+
+test('borboleta na principal: só até 100 m, mais rara', () => {
+  // 200: sem borboleta (nem para o avançado)
+  for (const mistura of draws('pri-4x3x200', avancadoCompleto, 300)) {
+    assert.ok(!mistura.porSerie.flat().includes('borboleta')) // inteira não (só a dividida, BO/CO)
+  }
+  // 100: entra, mas menos que os outros estilos
+  const contagem = {}
+  for (const mistura of draws('pri-4x4x100', { ...avancadoCompleto, bestStroke: null })) {
+    for (const n of mistura.porSerie.flat()) contagem[n] = (contagem[n] ?? 0) + 1
+  }
+  assert.ok(contagem.borboleta > 0 && contagem.borboleta < contagem.costas && contagem.borboleta < contagem.peito, JSON.stringify(contagem))
 })
 
 test('mistura de nados: o texto mostra cada série', () => {
   const [mistura] = draws('pri-4x3x200', avancadoCompleto, 1)
-  assert.match(mistura.texto, /^\(4x\) 3 x 200 · 1ª série [a-z, ]+; 2ª série [a-z, ]+; 3ª série [a-z, ]+; 4ª série [a-z, ]+$/)
+  assert.match(mistura.texto, /^\(4x\) 3 x 200 · 1ª série [a-z, /]+; 2ª série [a-z, /]+; 3ª série [a-z, /]+; 4ª série [a-z, /]+$/)
 })
 
 test('mistura de nados: o melhor estilo aparece mais', () => {
@@ -379,7 +436,7 @@ test('mistura de nados: o melhor estilo aparece mais', () => {
   for (const mistura of draws('pri-4x3x200', avancadoCompleto)) {
     for (const n of mistura.porSerie.flat()) contagem[n] = (contagem[n] ?? 0) + 1
   }
-  for (const outro of ['borboleta', 'peito', 'medley']) {
+  for (const outro of ['peito', 'medley']) {
     assert.ok(contagem.costas > contagem[outro], JSON.stringify(contagem))
   }
 })
@@ -420,10 +477,11 @@ test('mistura de nados: precisa de pelo menos dois nados para misturar', () => {
 
 test('mistura de nados: sem melhor estilo na anamnese, vale a ordem de velocidade', () => {
   const semResposta = { ...avancadoCompleto, bestStroke: null }
-  const [mistura] = draws('pri-4x3x200', semResposta, 1)
+  const [mistura] = draws('pri-4x4x100', semResposta, 1)
   assert.equal(mistura.melhorEstilo, 'borboleta')
-  const [intermediario] = draws('pri-4x3x200', { ...semResposta, level: 'intermediario' }, 1)
-  assert.equal(intermediario.melhorEstilo, 'costas') // borboleta de 200 não vale para ele
+  // Repetições de 200: borboleta não entra na principal, então vale o seguinte
+  const [de200] = draws('pri-4x3x200', semResposta, 1)
+  assert.equal(de200.melhorEstilo, 'costas')
 })
 
 // ---------- 150 m: estilo, medley sem crawl, melhor estilo e medley ----------
@@ -720,7 +778,7 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.material.perna.semMaterial = 'nunca' }, 'material.perna.semMaterial'],
     [(r) => { r.material.perna.pesoComMaterial = 0 }, 'material.perna.pesoComMaterial'],
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
-    [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
+    [(r) => { r.misturaDeNados.parteDeCrawl.avancado = 3 }, 'misturaDeNados.parteDeCrawl'],
     [(r) => { r.descansos.iniciante['50'] = [40, 25] }, 'descansos.iniciante.50'],
     [(r) => { r.intensidades.A1.esforco.iniciante = [60, 120] }, 'intensidades.A1.esforco.iniciante'],
     [(r) => { r.tabelaDeTempos['100'].divisor = 0 }, 'tabelaDeTempos.100.divisor'],

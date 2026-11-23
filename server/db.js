@@ -138,6 +138,19 @@ export function openDatabase(path) {
   if (!trainingCols.includes('difficulty')) db.exec('ALTER TABLE trainings ADD COLUMN difficulty INTEGER')
   if (!trainingCols.includes('difficulty_reason')) db.exec('ALTER TABLE trainings ADD COLUMN difficulty_reason TEXT')
   if (!trainingCols.includes('plan')) db.exec('ALTER TABLE trainings ADD COLUMN plan TEXT')
+  // Tempo informado na anamnese também vira um registro na evolução dos tempos
+  // ("anamnese"); os outros vêm do "+ Teste"
+  const testColumns = db.prepare('PRAGMA table_info(tests)').all().map((col) => col.name)
+  if (!testColumns.includes('origin')) db.exec('ALTER TABLE tests ADD COLUMN origin TEXT')
+  // Quem já tinha informado o tempo na anamnese (antes disso existir): o tempo entra na
+  // evolução, com a data da última vez que salvou a anamnese. Uma vez só.
+  db.exec(`
+    INSERT INTO tests (user_id, distance, time_hundredths, date, created_at, origin)
+    SELECT p.user_id, 400, p.reported_400_hundredths, substr(p.updated_at, 1, 10), p.updated_at, 'anamnese'
+    FROM athlete_profiles p
+    WHERE p.reported_400_hundredths IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM tests t WHERE t.user_id = p.user_id AND t.distance = 400)
+  `)
   // Falta: o atleta disse que não fez o treino (a pergunta aparece quando ele abre o app)
   if (!trainingCols.includes('missed_at')) db.exec('ALTER TABLE trainings ADD COLUMN missed_at TEXT')
 

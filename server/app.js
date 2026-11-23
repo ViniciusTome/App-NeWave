@@ -331,6 +331,7 @@ export function createApp({
     ['DELETE', '/api/tests/:id', swimming.removeTest],
     ['GET', '/api/trainings', swimming.getTrainings],
     ['GET', '/api/trainings/upcoming', swimming.getUpcomingTrainings],
+    ['GET', '/api/trainings/periodization', swimming.getPeriodization],
     ['GET', '/api/trainings/pending', swimming.getPendingTrainings],
     ['POST', '/api/trainings/:id/missed', swimming.missTraining],
     ['POST', '/api/trainings/generate', athlete.generate],

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChoiceGroup } from '../ChoiceGroup'
-import { api } from '../../services/api'
+import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
     CONTINUOUS_DISTANCE, EQUIPMENT, POOL_LENGTH, RECENT_BREAK, SESSION_MINUTES,
     MEDLEY, STROKES, STROKES_WITH_MEDLEY, SWIMMING_SINCE, WEEK_DAYS,
@@ -223,6 +223,9 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
                 },
             })
             onSaved(result)
+            // O tempo nos 400 m vai para a evolução dos tempos e para os treinos
+            notifyAthleteChanged()
+            notifyTrainingsChanged()
         } catch (err) {
             setError(err.message)
             setSaving(false)

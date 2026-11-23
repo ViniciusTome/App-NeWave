@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, emAdaptacaoDaBorboleta, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, strokeFactor, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -180,7 +180,7 @@ test('série com material ou nado mudando entre as séries: uma linha por série
     porSerie: [['medley', 'peito', 'medley'], ['costas', 'medley', 'costas'], ['costas', 'costas', 'costas'], ['costas', 'peito', 'medley']],
   }
   assert.equal(cardText(pri, mistura, { min: 120, max: 120 }),
-    "(4x) 3 x 200 m · c/2' de intervalo\n1ª série: MD / PE / MD\n2ª série: ME / MD / ME\n3ª série: ME\n4ª série: ME / PE / MD")
+    "(4x) 3 x 200 m · c/2' de intervalo\n1ª série: MD | PE | MD\n2ª série: ME | MD | ME\n3ª série: ME\n4ª série: ME | PE | MD")
   // Iniciante: intervalo de 2' a 3'
   assert.match(cardText(pri, mistura, { min: 120, max: 180 }), /^\(4x\) 3 x 200 m · c\/2' a 3' de intervalo\n/)
 })
@@ -730,7 +730,7 @@ test('sem tempos de referência: o teste de 400 m só depois de 1 mês de treino
   // O resto da aula: séries com pé de pato em ritmo leve para recuperar
   const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
   assert.ok(recuperar.length > 0)
-  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · CR · c\/PÉ · ritmo leve/)
+  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · ritmo leve .* · CR · c\/\d+" de descanso/)
   assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
   // Quem não nada 400 m sem parar não faz o teste (condicionamento)
   for (const continuousDistance of ['ate_50', '100_200', '200_400']) {
@@ -982,10 +982,13 @@ test('periodização: cada etapa muda o treino', () => {
   assert.ok([...principais('transicao1'), ...principais('transicao2')].some((p) => /A3|AC\)|fo\)/.test(p.texto)))
   const media = (e) => daEtapa(e).reduce((s, t) => s + t.plano.fatorPrincipal, 0) / daEtapa(e).length
   assert.ok(media('realizacao') < media('acumulacao2'))
-  // Realização: o avançado faz a velocidade nos 25 m a cada 25"
-  const velocidade = daEtapa('realizacao').flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade'))
+  // Transição: o avançado aperta a velocidade nos 25 m a cada 25"; na Realização, cd 30"
+  const velocidadeDa = (...etapas) => etapas.flatMap((e) => daEtapa(e)).flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade'))
   // (de crawl; nos outros estilos o tempo de nado é maior)
-  assert.ok(velocidade.filter((p) => /25 m.*· CR ·/.test(p.texto)).every((p) => /cd 25"/.test(p.texto)))
+  const crawl25 = (lista) => lista.filter((p) => /^\d+ x 25 m.*· CR · cd/.test(p.texto))
+  assert.ok(crawl25(velocidadeDa('transicao1', 'transicao2')).length > 0)
+  assert.ok(crawl25(velocidadeDa('transicao1', 'transicao2')).every((p) => /cd 25"/.test(p.texto)))
+  assert.ok(crawl25(velocidadeDa('realizacao')).every((p) => !/cd 25"/.test(p.texto)))
   // Semana de recuperação: só ritmo leve, volume baixo, sem velocidade
   for (const t of daEtapa('recuperacao')) {
     assert.ok(!t.partes.some((p) => p.parte === 'velocidade'))
@@ -1195,4 +1198,128 @@ test('cd dos estilos bate com a experiência do treinador (avançado): 100 a cad
   assert.ok(Math.abs(cd(100, 1) - 90) <= 5, `crawl 100: ${cd(100, 1)}`)
   assert.ok(Math.abs(cd(100, medley) - 120) <= 5, `estilo 100: ${cd(100, medley)}`)
   assert.ok(Math.abs(cd(200, medley) - 240) <= 10, `estilo 200: ${cd(200, medley)}`)
+})
+
+// Ordem de cada linha da série principal: como nada · intensidade · estilo · tempo
+const ordemDaLinha = (l) => {
+  const pos = (re) => { const m = re.exec(l); return m ? m.index : -1 }
+  const posicoes = [
+    pos(/(?:^|: | · )(NAD|c\/(?:PÉ|PALM|BOIA|SNK|PARA)[^·]*)(?= ·|$)/),
+    pos(/ · (A[123]|\([^)]*\)|ritmo (leve|moderado|forte)[^·]*)(?= ·|$)/),
+    pos(/ · (CR|CO|PE|BO|MD|ME)\b/),
+    pos(/ · (\d+ )?(cd \d|c\/\d+"( a \d+")? de descanso)/),
+  ].filter((p) => p >= 0)
+  return posicoes.every((p, i) => i === 0 || p > posicoes[i - 1])
+}
+
+test('regra: cada linha da principal segue a ordem como nada · intensidade · estilo · tempo', () => {
+  let linhas = 0
+  for (const athlete of [avancado, { ...avancado, time400: null }, { ...avancado, level: 'intermediario' }]) {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      for (const p of gerar(athlete, seed).flatMap((t) => t.partes).filter((x) => x.parte === 'principal')) {
+        for (const l of p.texto.split('\n')) {
+          linhas++
+          assert.ok(ordemDaLinha(l), `${l}\n(${p.texto})`)
+        }
+        // Com a descrição de cada série, o estilo e o tempo vão nela (não no cabeçalho)
+        const [cabecalho, ...resto] = p.texto.split('\n')
+        if (resto.some((l) => /^\dª série:/.test(l))) {
+          assert.ok(!/ · (CR|CO|PE|BO|MD|ME)\b| · cd \d/.test(cabecalho), p.texto)
+        }
+      }
+    }
+  }
+  assert.ok(linhas > 100)
+})
+
+test('regra da borboleta na principal: até 100 m, de preferência com pé de pato, quase nunca com palmar + boia', () => {
+  let comBorboleta = 0
+  let comPalmarBoia = 0
+  let comPe = 0
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    for (const t of gerar({ ...avancado, sessionMinutes: 90 }, seed)) {
+      for (const p of t.partes.filter((x) => x.parte === 'principal')) {
+        for (const l of p.texto.split('\n').filter((x) => /\bBO\b/.test(x))) {
+          comBorboleta++
+          if (/c\/PALM \+ BOIA/.test(l)) comPalmarBoia++
+          if (/c\/PÉ/.test(l)) comPe++
+        }
+        if (/\bBO\b(?!\/)/.test(p.texto)) {
+          const maior = Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1])))
+          assert.ok(maior <= 100, p.texto)
+        }
+      }
+    }
+  }
+  assert.ok(comBorboleta > 5, `borboleta em ${comBorboleta} linhas`)
+  assert.ok(comPalmarBoia / comBorboleta < 0.1, `${comPalmarBoia} de ${comBorboleta} com palmar + boia`)
+  assert.ok(comPe / comBorboleta > 0.4, `${comPe} de ${comBorboleta} com pé de pato`)
+})
+
+test('avançado voltando de parada: borboleta da principal bem rara e curta nos primeiros meses', () => {
+  const contar = (athlete, inicio) => {
+    let linhas = 0
+    let longas = 0
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const treinos = generateTrainings({ rules, library, athlete, today: '2026-11-23', inicioDosTreinos: inicio, random: seeded(seed) })
+      for (const t of treinos.filter((x) => x.date < '2026-12-20')) {
+        for (const p of t.partes.filter((x) => x.parte === 'principal' && /\bBO\b(?!\/)/.test(x.texto))) {
+          linhas += (p.texto.match(/\bBO\b/g) ?? []).length
+          const maior = Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1])))
+          if (maior > 50) longas++
+        }
+      }
+    }
+    return { linhas, longas }
+  }
+  const base = { ...avancado, sessionMinutes: 90 }
+  const normal = contar({ ...base, recentBreak: 'nao' }, '2026-11-23')
+  const voltando = contar({ ...base, recentBreak: '1_6m' }, '2026-11-23')
+  const depois = contar({ ...base, recentBreak: '1_6m' }, '2026-09-01')
+  const inicio2meses = '2026-10-22'
+  assert.equal(voltando.longas, 0, 'nada de borboleta acima de 50 m')
+  assert.ok(voltando.linhas < normal.linhas / 2, `voltando ${voltando.linhas} x normal ${normal.linhas}`)
+  assert.ok(depois.linhas > voltando.linhas, 'depois da adaptação a borboleta volta')
+  // Quem caiu de nível (parado mais de 6 meses) também conta como avançado voltando: 2 meses
+  assert.equal(contar({ ...base, level: 'intermediario', nivelAntesDaParada: 'avancado', recentBreak: 'mais_6m' }, inicio2meses).longas, 0)
+})
+
+test('avançado voltando com borboleta de melhor estilo: um pouco menos de borboleta só no primeiro mês', () => {
+  const contar = (athlete, inicio) => {
+    let reps = 0
+    let longas = 0
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      for (const t of generateTrainings({ rules, library, athlete, today: '2026-11-23', inicioDosTreinos: inicio, random: seeded(seed) }).filter((x) => x.date < '2026-12-20')) {
+        for (const p of t.partes.filter((x) => x.parte === 'principal' && /\b(BO|ME)\b(?!\/)/.test(x.texto))) {
+          reps += (p.texto.match(/\b(BO|ME)\b/g) ?? []).length
+          if (Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) > 100) longas++
+        }
+      }
+    }
+    return { reps, longas }
+  }
+  const base = { ...avancado, bestStroke: 'borboleta', sessionMinutes: 90 }
+  const normal = contar({ ...base, recentBreak: 'nao' }, '2026-11-23')
+  const voltando = contar({ ...base, recentBreak: 'mais_6m', nivelAntesDaParada: 'avancado' }, '2026-11-23')
+  assert.equal(voltando.longas, 0)
+  assert.ok(voltando.reps < normal.reps * 0.8, `voltando ${voltando.reps} x normal ${normal.reps}`)
+  assert.ok(voltando.reps > 0, 'continua tendo um pouco de borboleta')
+  // Passado o primeiro mês, volta ao normal (mesmo parado mais de 6 meses)
+  const generator = { rules, athlete: { ...base, recentBreak: 'mais_6m', nivelAntesDaParada: 'avancado' } }
+  assert.equal(emAdaptacaoDaBorboleta(generator.rules, generator.athlete, '2026-11-01', '2026-11-29'), true)
+  assert.equal(emAdaptacaoDaBorboleta(generator.rules, generator.athlete, '2026-11-01', '2026-12-02'), false)
+  assert.equal(emAdaptacaoDaBorboleta(generator.rules, { ...generator.athlete, bestStroke: 'costas' }, '2026-11-01', '2026-12-02'), true)
+})
+
+test('borboleta dividida no card: "BO/CO T/100" na repetição de 200', () => {
+  const linhas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap((seed) => gerar({ ...avancado, sessionMinutes: 90 }, seed))
+    .flatMap((t) => t.partes.filter((p) => p.parte === 'principal'))
+    .flatMap((p) => p.texto.split('\n').map((l) => ({ l, serie: p.serieTexto })))
+    .filter(({ l }) => /BO\/(CO|CR)/.test(l))
+  assert.ok(linhas.length > 0, 'nenhuma borboleta dividida')
+  for (const { l, serie } of linhas) {
+    const metade = Math.max(...[...serie.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) / 2
+    const trocas = [...l.matchAll(/BO\/(?:CO|CR)( T\/\d+)?/g)].map((m) => m[1]?.trim())
+    for (const t of trocas) assert.equal(t, `T/${metade}`, l)
+  }
 })

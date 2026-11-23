@@ -472,10 +472,10 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
   |---|---|---|
   | Acumulação 1 | 14 a 45 | Séries aeróbicas A1/A2 (sem A3, AC, NEG, POS, final forte), descanso maior entre as repetições (+10"); o intervalo entre as séries continua 2' |
   | Acumulação 2 | 14 a 45 | Séries aeróbicas A1/A2, intervalos ajustados (os normais) |
-  | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 85% |
-  | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 85% |
+  | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 85%; velocidade do avançado nos 25 m cd 25" |
+  | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 85%; velocidade do avançado nos 25 m cd 25" |
   | Semana de recuperação | 7 | Depois de cada Transição: só ritmo leve, volume 60%, sem velocidade |
-  | Realização | 6 a 8 | Ritmo de prova e velocidade: mais AC e final forte, volume caindo de 85% no 1º treino a 60% no último, velocidade do avançado nos 25 m cd 25". **Só uma semana:** com duas, o atleta perde condicionamento e sofre mais na volta aos treinos |
+  | Realização | 6 a 8 | Ritmo de prova e velocidade: mais AC e final forte, volume caindo de 85% no 1º treino a 60% no último, **Só uma semana:** com duas, o atleta perde condicionamento e sofre mais na volta aos treinos |
 
   - **Montada de trás para frente**, como o treinador faz: primeiro a **Realização** (antes da prova), depois a **semana de recuperação**, a **Transição** e a **Acumulação**, repetindo o ciclo do nível até encaixar tudo (`periodizacao.ciclo`):
     - **Iniciante e intermediário:** **duas Acumulações para cada Transição** (A1-A2-T).
@@ -544,7 +544,7 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 - **Iniciante com equipamento:** a saída não diminui com pé de pato ou palmar. O card mostra um aviso: se fizer muito abaixo do tempo proposto, descanse o tempo de descanso antes da próxima.
 - **AC (acima do melhor):** nos 400, melhor tempo do teste + o AC. Nas outras distâncias, o melhor tempo é **estimado pela tabela de percentuais** a partir do A1: melhor = tempo do A1 ÷ (1 + (100 − esforço do A1) ÷ 100). Ex. (avançado, A1 a 75%): 100 m A1 1'30" → melhor 1'12"; 10 AC = 1'22" + 25" = **cd 1'45"**.
 - **NEG, POS e final forte:** tempo do A2 + **20" a 30"** (usa 25") nos 50 e 100 m. Nas outras distâncias, a tabela de descanso.
-- **Velocidade:** avançado nos 25 m **cd 30"** (25" na Realização). Nos outros casos: o tempo forte (melhor dos 50 estimado, proporcional à distância) **+ 20" a 30" de descanso**; sem tempo, `c/20" a 30" de descanso`. **Nunca 1/1.**
+- **Velocidade:** avançado nos 25 m **cd 30"** (25" na Transição, para apertar mais). Nos outros casos: o tempo forte (melhor dos 50 estimado, proporcional à distância) **+ 20" a 30" de descanso**; sem tempo, `c/20" a 30" de descanso`. **Nunca 1/1.**
 - **Estilo da velocidade:** a série "livre" vai com o estilo escrito no card (CR, CO, PE, BO), sorteado entre os que o atleta nada (crawl com o dobro de chance). As que têm medley ou estilos continuam com eles.
 - **Grupos** (ex.: 3x(1x100; 2x75; 3x50; 4x25)): cada distância com a sua saída. Se a saída é a mesma em todas as séries, vai na linha da distância; se muda, vai na linha de cada série (`100 cd 1'45" / 75 cd 1'30" / ...`).
 
@@ -552,6 +552,15 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 
 - **O card sempre diz o estilo.** Série principal "livre" é de crawl: o card mostra **CR**. Séries com estilos misturados mostram os estilos de cada série (ME, PE, MD...). Na velocidade, o estilo é sorteado entre os que o atleta nada.
 - **cd dos estilos:** os tempos da tabela são do crawl (teste de 400 m). Nos estilos **o descanso é o mesmo** e só o tempo de nado é maior: tempo do crawl × `saidas.fatorDoEstilo`: **+35% para todos os estilos** (costas, borboleta, peito, medley e estilos misturados). Calibrado com a experiência do treinador (avançado): 100 de estilo a cada 2'00" contra 1'30" no crawl, e 200 a cada 4'00" contra 3'10" a 3'20". Série que mistura estilos: vale o mais lento, para todas as repetições caberem.
+- **Mistura de nados com material:** cada série da mistura também ganha o seu material (NAD, c/PÉ, c/PALM...), seguindo a rotação de material entre as séries.
+- **Estilos misturados (regra `misturaDeNados`):** numa série com vários estilos, **nunca o mesmo estilo duas vezes seguidas** (ME | BO | BO | ME está errado; ME | BO | ME | BO está certo). Duas repetições com borboleta também não ficam seguidas (BO/CO T/100 | BO/CR T/100 está errado). A parte de crawl depende do nível (`parteDeCrawl`):
+  - **Avançado:** cerca de 70% em estilo e 30% em crawl. Em cerca de 1 de cada 4 séries (`variacao`) a série sai **100% em estilo**.
+  - **Intermediário (e iniciante):** metade em estilo e metade em crawl. Em cerca de 1 de cada 4 séries, 70% em estilo e 30% em crawl.
+- **Borboleta dividida (`borboletaDividida`):** quando a repetição é longa demais para a borboleta inteira (ex.: 200 m), ela vira **metade borboleta e metade costas ou crawl**: "BO/CO T/100", "BO/CR T/100" (100 de borboleta + 100 do outro, trocando aos 100 m). Bom para treinar o medley e não sobrecarrega. A metade de borboleta segue os mesmos limites (até 100 m; na adaptação de quem volta de parada, até 50 m) e precisa fechar na piscina.
+- **Borboleta (regra `borboleta`):** na série principal a borboleta é **mais rara** (`pesoNaPrincipal` 0.4) e só em repetições de **até 100 m** (`maiorRepeticaoNaPrincipal`). Quando tem borboleta, o material preferido é o **pé de pato**; com **palmar + boia** quase nunca (`evitarMaterial`). Não é proibido, só raro. Na **velocidade** a borboleta continua livre.
+- **Avançado voltando de parada (regra `borboleta.voltandoDaParada`):** o corpo precisa se acostumar antes de muita borboleta ou de tiros longos (ex.: 3 x 200 borboleta). Para quem é avançado (ou era, antes de cair de nível) e ficou parado: nos primeiros **30 dias** (parado de 1 a 6 meses) ou **60 dias** (parado mais de 6 meses) a borboleta na principal fica **bem rara** (`pesoNaPrincipal` 0.1) e só em repetições de **até 50 m**. Depois disso volta ao normal.
+  - **Se a borboleta for o melhor estilo** (`seForOMelhorEstilo`): o atleta aguenta mais, mas no retorno ainda pode ser demais. Só no **primeiro mês** (para qualquer tempo parado), **um pouco menos** de borboleta (metade do normal) e repetições de até **100 m**.
+  - Quando o melhor estilo não cabe numa série (ex.: borboleta de 200), o card escreve o estilo que vai ser nadado, e não "ME".
 - **Medley na anamnese:** a opção "Medley (os quatro)" marca os quatro estilos de uma vez.
 
 ### Remarcar o teste
@@ -559,6 +568,8 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 No card do teste de 400 m tem **"Não vou conseguir ir: remarcar o teste"**. O atleta escolhe outro dia (o app sugere os próximos dias de treino; de preferência na semana seguinte) ou qualquer data futura. Se nesse dia já tem treino, os dois trocam de dia (o "Treino N" de cada dia fica); se não tem, o teste só muda de data.
 
 ### Tempo novo nos treinos já montados
+
+- **Tempo da anamnese:** o tempo nos 400 m que o atleta informa na anamnese também entra na **evolução dos tempos** (marcado como "anamnese") e nos treinos já montados. Ele continua contando como tempo *informado* (não é teste): o teste registrado pelo "+ Teste" vale mais. Salvar a anamnese de novo com o mesmo tempo não duplica. Apagar esse tempo da evolução tira ele também da anamnese.
 
 Quando o atleta registra um **teste de 400 m** (ou apaga um), os treinos que ele **ainda não fez** são reescritos com os tempos atuais: o **cd**, o ritmo (A1, A2, A3 no lugar de "ritmo leve...") e a saída da velocidade. **As séries, o material e as intensidades não mudam.** Para isso, cada treino guarda no plano interno como cada parte foi montada (`plano.montagem`).
 
@@ -588,11 +599,15 @@ Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m 
 
 ### Como a série aparece no card
 
+- **Regra da troca de estilo:** sempre que o estilo troca dentro de uma mesma série, as repetições são separadas por **barra vertical "|"**, para a troca ficar fácil de ver. Ex.: `1ª série: c/PÉ · A1 · BO/CR T/100 | CO | ME | CR · cd 4'40"`. A barra "/" fica só dentro da repetição (BO/CR T/100 = 100 borboleta + 100 crawl) e nos tempos por distância (100 cd 1'40" / 75 cd 1'25").
+
 O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, MD, ME, NAD, c/PÉ, c/PALM, BOIA, SNK, PARA, PR), e o "m" entra depois das distâncias. Cada card tem um botão **Glossário** que mostra só os termos usados naquele treino; no **ME**, mostra o melhor estilo do atleta.
 
-- Quando o material ou o nado muda entre as séries de um `(2x)`, `(4x)`: cabeçalho e **uma linha por série** (`1ª série: NAD · MD / PE / MD`).
-- Pirâmides e grupos: **uma metragem por linha**, com o material do bloco.
-- O intervalo entre as séries da série principal vai no cabeçalho (`c/2'`).
+- **Regra da ordem** (em toda linha da série principal): **como vai nadar** (NAD, c/PÉ, c/PALM...) · **a intensidade** (A1, A2, A3, NEG, POS, AC...) · **o(s) estilo(s)** (CR, CO, PE, BO, MD, ME) · **por último o tempo** (cd ou o descanso). Ex.: `1ª série: c/PÉ · A2 · PE / ME · cd 2'25"`.
+- **Quando a série tem a descrição de cada série** (1ª série, 2ª série...), o estilo e o tempo vão nela, não no cabeçalho. O cabeçalho fica com a série, o material igual em todas e o intervalo: `(3x) 4 x 100 m · c/2' de intervalo`.
+- Quando o material ou o nado muda entre as séries de um `(2x)`, `(4x)`: cabeçalho e **uma linha por série**.
+- Pirâmides e grupos: **uma metragem por linha**, com o material do bloco (e, se cada distância tem a sua intensidade, a intensidade, o estilo e o tempo na mesma linha).
+- O intervalo entre as séries da série principal vai no cabeçalho (`c/2' de intervalo`).
 
 Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
 
@@ -628,6 +643,4 @@ Cada regra aparece como OK ou FALHA, com exemplos do que falhou. Rode depois de 
 - **Material e estilo juntos** (ex.: peito com pé de pato): depende da fase da preparação. Vai entrar nas regras das fases do ATR.
 - **Saída com pé de pato/palmar no intermediário e avançado:** hoje não muda com o material.
 - **Séries de técnica:** completar o dia do teste (e outros treinos) com técnica.
-- **Velocidade com cd 25":** quando forçar mais (ex.: na fase de Realização).
 - **Melhor estilo pelos testes**: comparar os tempos de cada estilo (hoje os testes não guardam o estilo).
-- **Mistura de nados com material**: por enquanto a mistura sai sem material (material + estilo depende da fase).

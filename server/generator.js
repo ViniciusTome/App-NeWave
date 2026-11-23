@@ -213,6 +213,8 @@ export function strokeFactor(rules, variation, i = 0, athlete = {}, serie = null
     const de = (nado) => {
         if (!nado || nado === 'livre') return 1
         if (fatores[nado] !== undefined) return fatores[nado]
+        // Dividida (ex.: "borboleta/costas"): vale o mais lento
+        if (nado.includes('/')) return Math.max(...nado.split('/').map(de))
         if (/medley|estilo/.test(nado)) return fatores.medley ?? 1
         return 1
     }
@@ -248,6 +250,42 @@ function ajustarAoA1(rules, valores, saidas, saidaA1, fase, distancia) {
         if (!porIntensidade && saidaA1 - s <= igualarAte) return saidaA1
         return s
     })
+}
+
+// Borboleta na série principal (regra do treinador): de preferência com pé de pato;
+// com palmar + pull buoy, bem rara; só em repetições curtas (até 100 m) e mais rara
+// que os outros estilos. Na velocidade pode à vontade.
+// Avançado voltando de uma parada: nos primeiros 1 ou 2 meses (regras.borboleta.voltandoDaParada)
+// a borboleta da principal fica bem rara e só em repetições curtas, para o corpo se acostumar.
+export function emAdaptacaoDaBorboleta(rules, athlete, inicioDosTreinos, date) {
+    const cfg = adaptacaoDaBorboleta(rules, athlete)
+    const dias = cfg?.diasDeAdaptacao?.[athlete.recentBreak]
+    if (!dias || !rules.borboleta.voltandoDaParada.niveis.includes(athlete.nivelAntesDaParada ?? athlete.level)) return false
+    return daysBetween(inicioDosTreinos, date) < dias
+}
+// Borboleta como melhor estilo: adaptação mais leve e só no primeiro mês
+const adaptacaoDaBorboleta = (rules, athlete) => {
+    const cfg = rules.borboleta?.voltandoDaParada
+    return athlete.bestStroke === 'borboleta' && cfg?.seForOMelhorEstilo ? cfg.seForOMelhorEstilo : cfg
+}
+function rulesVoltando(rules, athlete, inicioDosTreinos, date) {
+    if (!emAdaptacaoDaBorboleta(rules, athlete, inicioDosTreinos, date)) return rules
+    const { pesoNaPrincipal, maiorRepeticaoNaPrincipal } = adaptacaoDaBorboleta(rules, athlete)
+    return { ...rules, borboleta: { ...rules.borboleta, pesoNaPrincipal, maiorRepeticaoNaPrincipal } }
+}
+
+const temBorboletaInteira = (v) => v.nado === 'borboleta' || v.nados?.includes('borboleta') || v.porSerie?.flat().includes('borboleta')
+const temBorboleta = (v) => v.nado === 'borboleta' || v.nados?.includes('borboleta') || v.porSerie?.flat().some((n) => n === 'borboleta' || n.startsWith('borboleta/'))
+function butterflyRule(rules, serie, variations) {
+    const cfg = rules.borboleta
+    if (!cfg) return variations
+    const evitar = (m) => (cfg.evitarMaterial ?? []).some((e) => e.every((x) => m.includes(x)))
+    return variations
+        // A dividida (BO/CO) já vem do sorteio com só metade da repetição em borboleta
+        .filter((v) => !temBorboletaInteira(v) || serie.maiorDistancia <= cfg.maiorRepeticaoNaPrincipal)
+        .map((v) => (temBorboleta(v)
+            ? { ...v, peso: (v.peso ?? 1) * cfg.pesoNaPrincipal * (evitar(v.material) && v.padrao === 'serie_inteira' ? 0.1 : 1) }
+            : v))
 }
 
 // Velocidade escrita como "livre": o atleta precisa saber o que nadar. Sorteia o estilo
@@ -289,12 +327,21 @@ export function rotateSetMaterials(rules, parte, serie, variation, intensidades,
     const comecaNadando = random() * 100 < (cfg.comecarNadando?.[athlete.level] ?? 0)
     const soBracos = (m) => m.includes('palmar') && !m.includes('pe_de_pato')
     const forca = parte === 'principal' && athlete.foco === 'forca'
+    // Série com borboleta (principal): evita palmar + pull buoy e prefere pé de pato
+    const borboletaNa = (i) => parte === 'principal' && (variation.nado === 'borboleta' ||
+        variation.nados?.[i] === 'borboleta' || variation.porSerie?.[i]?.some((n) => n === 'borboleta' || n.startsWith('borboleta/')))
+    const evitarNaBorboleta = (m) => (rules.borboleta?.evitarMaterial ?? []).some((e) => e.every((x) => m.includes(x)))
     // Ordem de preferência de cada série: a 1ª nadando (iniciante e intermediário quase
     // sempre); depois, vai colocando material (faltou força: palmar e palmar + pull buoy)
     const preferencia = (i) => {
-        const lista = embaralha(permitidas(i))
+        let lista = embaralha(permitidas(i))
+        if (borboletaNa(i)) {
+            const semEvitar = lista.filter((m) => !evitarNaBorboleta(m))
+            if (semEvitar.length > 0 && random() < 0.9) lista = semEvitar
+        }
         const peso = (m) => (i === 0 && comecaNadando && m.length === 0 ? -3 : 0) +
-            (i > 0 && m.length === 0 ? (random() < 0.8 ? 2 : 0) : 0) + (forca && soBracos(m) && random() < 0.8 ? -2 : 0)
+            (i > 0 && m.length === 0 ? (random() < 0.8 ? 2 : 0) : 0) + (forca && soBracos(m) && random() < 0.8 ? -2 : 0) +
+            (borboletaNa(i) && m.includes('pe_de_pato') ? -2.5 : 0)
         return lista.sort((a, b) => peso(a) - peso(b))
     }
     // Procura uma combinação em que nenhuma série repete o material da anterior. Só
@@ -436,6 +483,9 @@ const intervalAbbrev = (faixa) =>
 //     2ª série: c/PÉ · ME / MD / ME
 // - Pirâmides e grupos: uma metragem por linha, com o material do bloco.
 // `intervalo` = { min, max } do intervalo entre as séries (ou null).
+// Ordem do que vai em cada linha (o treinador lê assim): como vai nadar (NAD, c/PÉ...),
+// a intensidade (A1, A2, NEG...), o(s) estilo(s) e por último o tempo (cd). Quando a
+// série tem a descrição de cada série (1ª série, 2ª série...), o estilo e o tempo vão nela.
 export function cardText(serie, variation, intervalo = null, intensidades = null, saidas = null) {
     const c = intervalAbbrev(intervalo)
     const nadoDaSerie = variation.nadoAbrev ?? (variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
@@ -448,9 +498,24 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     // Como nadar: A1/A2/A3 como estão; AC, NEG, POS e final forte entre parênteses
     const I = intensidades
     const fmt = (v) => (/^A\d$/.test(v) || /^ritmo /.test(v) ? v : `(${v})`)
-    // Intensidade com a saída (quando dá para calcular): "A1 · cd 1'30\""
-    const comSaida = (v, i) => [fmt(v), saidas?.[i] ? marcaText(saidas[i]) : null].filter(Boolean).join(' · ')
-    const sequencia = I ? (I.valores.every((v) => v === I.valores[0]) ? comSaida(I.valores[0], 0) : I.valores.map(fmt).join(' / ')) : null
+    const cdDe = (i) => (Array.isArray(saidas) && saidas[i] ? marcaText(saidas[i]) : null)
+    // A série toda num ritmo só: a intensidade e o tempo uma vez
+    const todasIguais = I && I.valores.every((v) => v === I.valores[0])
+    const intensidadeToda = I ? (todasIguais ? fmt(I.valores[0]) : I.valores.map(fmt).join(' / ')) : null
+    const cdTodo = I ? (todasIguais ? cdDe(0) : null) : cdDe(0)
+    // Os estilos de cada série (mistura) ou o da série toda
+    const nadosDa = (i) => {
+        if (variation.porSerie) {
+            // O melhor estilo aparece como ME
+            const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME'
+                : n.includes('/') ? `${n.split('/').map((x) => NADO_ABREV[x] ?? x).join('/')} T/${variation.trocaACada}`
+                    : NADO_ABREV[n] ?? n))
+            return daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' | ')
+        }
+        if (variation.nados) return NADO_ABREV[variation.nados[i]] ?? variation.nados[i]
+        return nadoDaSerie
+    }
+    const linha = (...partes) => partes.filter(Boolean).join(' · ')
     // Série simples com um ritmo por repetição e saídas: uma linha por repetição
     const porRepeticao = I?.unidade === 'repeticao' && Array.isArray(saidas) && saidas.some(Boolean)
     // Grupos: a saída de cada distância (igual em todas as séries -> vai na linha do bloco)
@@ -461,74 +526,59 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     // Pirâmides e grupos
     if (serie.blocos.length > 1) {
         const linhas = []
-        // O estilo vai no cabeçalho: "(3x) · CR · c/2' de intervalo"
-        const cabecalho = [(serie.vezes ?? 1) > 1 ? `(${serie.vezes}x)` : null, nadoDaSerie, c].filter(Boolean).join(' · ')
+        const porSerieNoGrupo = I?.unidade === 'serie'
+        const cabecalho = linha((serie.vezes ?? 1) > 1 ? `(${serie.vezes}x)` : null, !I ? nadoDaSerie : null, c)
         if (cabecalho) linhas.push(cabecalho)
         const alternada = variation.padrao === 'piramide_alternada'
         serie.blocos.forEach((bloco, i) => {
             const vezes = bloco.vezes > 1 ? `(${bloco.vezes}x) ` : ''
-            let linha = `${vezes}${bloco.repeticoes} x ${bloco.distancia} m`
             const material = variation.porBloco?.[i]
-            if (material?.length > 0) linha += ` · ${materialAbbrev(material)}`
-            else if (alternada) linha += ' · NAD'
-            if (I?.unidade === 'bloco') linha += ` · ${comSaida(I.valores[i], i)}`
-            else if (blocoIgual?.[i] && !saidaNaSerie) linha += ` · ${marcaText(blocoIgual[i])}`
-            linhas.push(linha)
+            const comoNada = material?.length > 0 ? materialAbbrev(material) : alternada ? 'NAD' : null
+            const base = `${vezes}${bloco.repeticoes} x ${bloco.distancia} m`
+            // Pirâmide com uma intensidade por distância: tudo na linha da distância
+            if (I?.unidade === 'bloco') linhas.push(linha(base, comoNada, fmt(I.valores[i]), nadoDaSerie, cdDe(i)))
+            else linhas.push(linha(base, comoNada, blocoIgual?.[i] && !saidaNaSerie ? marcaText(blocoIgual[i]) : null))
         })
-        const resto = [materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null].filter(Boolean).join(' · ')
-        if (resto) linhas.push(resto)
+        // A série toda num ritmo: material, intensidade e estilo numa linha
+        if (I?.unidade === 'serie_toda' || (!porSerieNoGrupo && I?.unidade !== 'bloco')) {
+            const resto = linha(materialDaSerie, I ? intensidadeToda : null, I ? nadoDaSerie : null)
+            if (resto) linhas.push(resto)
+        } else if (porSerieNoGrupo && materialDaSerie) {
+            linhas.push(materialDaSerie)
+        }
         // Grupo repetido com intensidade por série
-        if (I?.unidade === 'serie') {
+        if (porSerieNoGrupo) {
             I.valores.forEach((v, i) => {
                 const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
                 // Saídas diferentes em cada série: "100 cd 1'55" / 75 cd 1'25""
                 const cds = saidaNaSerie ? serie.blocos.map((b, j) => (porBloco[j][i] ? `${b.distancia} ${marcaText(porBloco[j][i])}` : null))
                     .filter(Boolean).join(' / ') : null
-                linhas.push(`${ORDINAIS[i]} série: ${[material, fmt(v), cds].filter(Boolean).join(' · ')}`)
+                linhas.push(`${ORDINAIS[i]} série: ${linha(material, fmt(v), nadosDa(i), cds)}`)
             })
         }
         return linhas.join('\n')
     }
 
     const base = abbreviate(withMeters(serie.texto))
-    // Sem intensidade (velocidade): a saída, quando tem
-    const cd = !I && Array.isArray(saidas) && saidas[0] ? marcaText(saidas[0]) : null
     const porSerie = materialPorSerie || variation.nados || variation.porSerie || (I?.unidade === 'serie' ? I.valores : null)
     if (!porSerie) {
-        // Sem intensidade (velocidade): a saída, quando tem
-        if (!I) {
-            // O estilo (velocidade) logo depois da série: "8 x 25 m forte · CR · c/PÉ"
-            const texto = abbreviate(withMeters(variation.texto))
-            const comNado = variation.nadoAbrev ? texto.replace(base, `${base} · ${variation.nadoAbrev}`) : texto
-            return [comNado, cd, c].filter(Boolean).join(' · ')
-        }
         if (porRepeticao) {
             // 5 x 400 m · c/PÉ + PALM
-            // 1º: A1 · cd 6'50"
-            const cabecalho = [base, nadoDaSerie, materialDaSerie, c].filter(Boolean).join(' · ')
-            return [cabecalho, ...I.valores.map((v, i) => `${i + 1}º: ${comSaida(v, i)}`)].join('\n')
+            // 1º: A1 · CR · cd 6'50"
+            return [linha(base, materialDaSerie, c), ...I.valores.map((v, i) => `${i + 1}º: ${linha(fmt(v), nadoDaSerie, cdDe(i))}`)].join('\n')
         }
-        // Série simples com intensidade: na série toda ou repetição por repetição
-        return [base, nadoDaSerie, materialDaSerie, sequencia, c].filter(Boolean).join(' · ')
+        // Uma linha só: série · como nada · intensidade · estilo · tempo · intervalo
+        return linha(base, materialDaSerie, intensidadeToda, nadoDaSerie, cdTodo, c)
     }
 
-    // Uma linha por série
-    const cabecalho = [base, nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null, cd, c]
-        .filter(Boolean).join(' · ')
+    // Uma linha por série: como nada · intensidade · estilo(s) · tempo
     const linhas = porSerie.map((_, i) => {
         const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
-        const intensidade = I?.unidade === 'serie' ? comSaida(I.valores[i], i) : null
-        let nados = null
-        if (variation.porSerie) {
-            // O melhor estilo aparece como ME
-            const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME' : NADO_ABREV[n] ?? n))
-            nados = daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' / ')
-        } else if (variation.nados) {
-            nados = NADO_ABREV[variation.nados[i]] ?? variation.nados[i]
-        }
-        return `${ORDINAIS[i]} série: ${[material, intensidade, nados].filter(Boolean).join(' · ')}`
+        const intensidade = I ? fmt(I.unidade === 'serie' ? I.valores[i] : I.valores[0]) : null
+        const cd = I?.unidade === 'serie' ? cdDe(i) : cdTodo
+        return `${ORDINAIS[i]} série: ${linha(material, intensidade, nadosDa(i), cd)}`
     })
-    return [cabecalho, ...linhas].join('\n')
+    return [linha(base, materialDaSerie, c), ...linhas].join('\n')
 }
 
 const ORDINAIS = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª', '7ª', '8ª', '9ª', '10ª']
@@ -681,6 +731,8 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
         // Série adaptada com os 75 m: só com pé de pato
         const serve = (v) => variationFits(v, athlete) && (!serie.exigePe || v.material.includes('pe_de_pato'))
         let variations = seriesVariations(rules, parte, serie, athlete).filter(serve)
+        // Borboleta na principal: só até 100 m, mais rara, e quase nunca com palmar + pull buoy
+        if (parte === 'principal') variations = butterflyRule(rules, serie, variations)
         const mistura = drawMixedStrokes(rules, parte, serie, athlete, random)
         if (mistura && serve(mistura)) variations.push(mistura)
         if (primeiraPrincipal && !semAlternar) {
@@ -1347,7 +1399,7 @@ export function generateTrainings({
         if (testeNaTransicao) testeDaPeriodizacao = true
         const partes = testeSemTempo || testeNaTransicao
             ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
-            : buildTraining({ rules, library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
+            : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
         partes.forEach((p) => delete p._montagem)

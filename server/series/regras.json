@@ -23,10 +23,32 @@
     }
   },
   "misturaDeNados": {
+    "_comentario": "Séries com estilos misturados: nunca o mesmo estilo duas repetições seguidas (ex.: ME, BO, ME, BO). O crawl entra em cerca de 'parteDeCrawl' das repetições, por nível (o resto em estilo). Em 'variacao.chance' das séries a parte de crawl é a de 'variacao.parteDeCrawl' (avançado: 0 = 100% em estilo; intermediário: 30%). 'borboletaDividida': repetição longa demais para borboleta inteira vira metade borboleta, metade costas ou crawl (BO/CO, BO/CR), bom para o medley.",
     "partes": ["principal"],
     "minimoDeSeries": 3,
-    "formatos": ["igual", "espelhado", "diferentes"],
-    "pesoMelhorEstilo": 2
+    "pesoMelhorEstilo": 2,
+    "parteDeCrawl": { "iniciante": 0.5, "intermediario": 0.5, "avancado": 0.3 },
+    "variacao": { "chance": 0.25, "parteDeCrawl": { "iniciante": 0.3, "intermediario": 0.3, "avancado": 0 } },
+    "borboletaDividida": { "com": ["costas", "crawl"] }
+  },
+  "borboleta": {
+    "_comentario": "Na série principal a borboleta é mais rara ('pesoNaPrincipal') e só em repetições de até 'maiorRepeticaoNaPrincipal' m; de preferência com pé de pato e quase nunca com palmar + pull buoy. Na velocidade pode à vontade.",
+    "pesoNaPrincipal": 0.4,
+    "maiorRepeticaoNaPrincipal": 100,
+    "evitarMaterial": [["palmar", "pull_buoy"]],
+    "voltandoDaParada": {
+      "_comentario": "Avançado que ficou parado: o corpo se acostuma primeiro. Nos primeiros dias de treino (por tempo parado), borboleta bem rara na principal e só em repetições curtas. Na velocidade continua livre.",
+      "niveis": ["avancado"],
+      "diasDeAdaptacao": { "1_6m": 30, "mais_6m": 60 },
+      "pesoNaPrincipal": 0.1,
+      "maiorRepeticaoNaPrincipal": 50,
+      "seForOMelhorEstilo": {
+        "_comentario": "Borboleta é o melhor estilo: aguenta mais, mas no retorno ainda pode ser demais. Só no primeiro mês, um pouco menos de borboleta (metade do normal) e repetições de até 100 m.",
+        "diasDeAdaptacao": { "1_6m": 30, "mais_6m": 30 },
+        "pesoNaPrincipal": 0.2,
+        "maiorRepeticaoNaPrincipal": 100
+      }
+    }
   },
   "segundaPrincipal": {
     "alternarCrawlEEstilo": true
@@ -178,12 +200,12 @@
       "transicao1": {
         "nome": "Transição 1", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Especificidade: resistência mista, A3 e aeróbica intensa",
-        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85
+        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "velocidadeAvancado25": 25
       },
       "transicao2": {
         "nome": "Transição 2", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Força específica, resistência mista e aeróbica intensa",
-        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "foco": "forca"
+        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "foco": "forca", "velocidadeAvancado25": 25
       },
       "recuperacao": {
         "nome": "Semana de recuperação", "fase": "recuperacao", "dias": [7, 7],
@@ -193,7 +215,7 @@
       "realizacao": {
         "nome": "Realização", "fase": "realizacao", "dias": [6, 8],
         "objetivo": "Ritmo de prova e velocidade: baixo volume e alta intensidade. Só uma semana (6 a 8 dias): com duas, o atleta perde condicionamento e sofre mais na volta aos treinos",
-        "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": [0.85, 0.6], "velocidadeAvancado25": 25
+        "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": [0.85, 0.6]
       }
     }
   },

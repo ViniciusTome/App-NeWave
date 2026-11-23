@@ -12,7 +12,7 @@
       { "sigla": "Intervalo", "detectar": false, "explicacao": "Pausa maior, entre uma série e outra (ex.: entre as séries de um (3x))." },
       { "sigla": "Pirâmide", "detectar": false, "explicacao": "Série com metragens diferentes, uma embaixo da outra (ex.: 1 x 400 m, 2 x 200 m, 4 x 100 m, 8 x 50 m)." },
       { "sigla": "Ida / volta", "explicacao": "Ida é a primeira piscina, volta é a de retorno. Ex.: indo crawl, voltando estilo." },
-      { "sigla": "T/25", "nome": "Trocando a cada 25 m", "explicacao": "Troca o nado a cada 25 metros. Também pode ser T/50 (a cada 50 m) ou T/100 (a cada 100 m)." }
+      { "sigla": "T/25", "nome": "Trocando a cada 25 m", "detectar": "T\\/\\d+", "explicacao": "Troca o nado a cada 25 metros. Também pode ser T/50 (a cada 50 m) ou T/100 (a cada 100 m)." }
     ]
   },
   {
@@ -22,6 +22,7 @@
       { "sigla": "CO", "nome": "Costas", "explicacao": "Nado de costas." },
       { "sigla": "PE", "nome": "Peito", "explicacao": "Nado de peito. Atenção: \"c/PÉ\" é \"com pé de pato\"." },
       { "sigla": "BO", "nome": "Borboleta", "explicacao": "Nado borboleta." },
+      { "sigla": "BO/CO, BO/CR", "nome": "Borboleta dividida", "detectar": "BO\\/(CO|CR|PE)", "explicacao": "Metade da repetição em borboleta e a outra metade no outro nado (ex.: 200 m BO/CO T/100 = 100 borboleta + 100 costas, trocando aos 100 m). Bom para treinar o medley sem sobrecarregar com a distância toda em borboleta." },
       { "sigla": "MD", "nome": "Medley", "explicacao": "Os quatro nados na ordem: borboleta, costas, peito e crawl. Em 150 m é sem crawl: borboleta, costas e peito." },
       { "sigla": "Medley alternado", "explicacao": "Cada repetição num nado, na ordem do medley (ex.: 8 x 25 m medley = 25 borboleta, 25 costas, 25 peito, 25 crawl, e de novo)." },
       { "sigla": "ME", "nome": "Melhor estilo", "explicacao": "O estilo em que você é mais rápido, sem contar o crawl (borboleta, costas ou peito). É o que você marcou na anamnese." },

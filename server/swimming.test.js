@@ -63,6 +63,7 @@ test('sem login, nenhuma rota de dados funciona', async () => {
     ['GET', '/api/trainings'],
     ['POST', '/api/trainings', { date: '2025-10-01', warmUp: '200 crawl' }],
     ['GET', '/api/trainings/upcoming'],
+    ['GET', '/api/trainings/periodization'],
     ['POST', '/api/trainings/1/complete'],
   ]
   for (const [method, path, body] of calls) {

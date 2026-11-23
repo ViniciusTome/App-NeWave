@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '../../Modal'
-import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../../services/api'
+import { api, ATHLETE_CHANGED, notifyAthleteChanged, notifyTrainingsChanged } from '../../../services/api'
 import { formatDate, formatSecondsDiff, formatSwimTime } from '../../../utils/format'
 import { AddTestForm } from './AddTestForm'
 import { TimesChart } from './TimesChart'
@@ -12,17 +12,21 @@ export const EvolutionOfTheTimes = () => {
     const [chosenDistance, setChosenDistance] = useState(null)
     const [openModal, setOpenModal] = useState(null) // 'add' | 'list' | null
 
+    // Recarrega quando os dados do atleta mudam (ex.: tempo informado na anamnese)
     useEffect(() => {
         let cancelled = false
-        api('/tests')
+        const load = () => api('/tests')
             .then(({ tests }) => {
                 if (!cancelled) setTests(tests)
             })
             .catch((err) => {
                 if (!cancelled) setLoadError(err.message)
             })
+        load()
+        window.addEventListener(ATHLETE_CHANGED, load)
         return () => {
             cancelled = true
+            window.removeEventListener(ATHLETE_CHANGED, load)
         }
     }, [])
 
@@ -193,7 +197,10 @@ export const EvolutionOfTheTimes = () => {
                                 <tr key={t.id}>
                                     <td>{formatDate(t.date)}</td>
                                     <td>{t.distance} m</td>
-                                    <td>{formatSwimTime(t.timeHundredths)}</td>
+                                    <td>
+                                        {formatSwimTime(t.timeHundredths)}
+                                        {t.origin === 'anamnese' && <span className={styles.origin}> (anamnese)</span>}
+                                    </td>
                                     <td>
                                         <button type='button' className={styles.deleteButton} onClick={() => handleDelete(t)}>
                                             Apagar
