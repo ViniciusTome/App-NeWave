@@ -76,7 +76,7 @@ function blockRest(rules, bloco, athlete) {
     return descanso
 }
 
-// Realização: descansos 20 a 30% maiores (usa o meio, 25%), arredondados para
+// Realização: descansos 30 a 40% maiores (usa o meio, 35%), arredondados para
 // múltiplo de 5 (regras.periodizacao.etapas.realizacao.descansoMaior)
 function restOfPhase(athlete, descanso) {
     const faixa = athlete.descansoMaior

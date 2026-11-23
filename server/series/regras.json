@@ -215,7 +215,7 @@
       "realizacao": {
         "nome": "Realização", "fase": "realizacao", "dias": [6, 8],
         "objetivo": "Ritmo de prova e velocidade: baixo volume e alta intensidade. Só uma semana (6 a 8 dias): com duas, o atleta perde condicionamento e sofre mais na volta aos treinos",
-        "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": [0.85, 0.6], "descansoMaior": [0.2, 0.3]
+        "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": [0.85, 0.6], "descansoMaior": [0.3, 0.4]
       }
     }
   },

@@ -522,19 +522,19 @@ test('saída = tempo da intensidade + descanso, de 5 em 5 segundos', () => {
   assert.equal(saidaFor(rules, { level: 'avancado' }, { distancia: 100 }, 'A1'), null)
 })
 
-test('Realização: descansos 20 a 30% maiores (25%), arredondados de 5 em 5', () => {
+test('Realização: descansos 30 a 40% maiores (35%), arredondados de 5 em 5', () => {
   const realizacao = rules.periodizacao.etapas.realizacao.descansoMaior
-  assert.deepEqual(realizacao, [0.2, 0.3])
+  assert.deepEqual(realizacao, [0.3, 0.4])
   const base = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   const naR = { ...base, descansoMaior: realizacao }
-  // 100 m A1: 1'30" + 25" de descanso = 1'55"; na Realização 25" x 1,25 = 31,25 -> 30": 2'00"
+  // 100 m A1: 1'30" + 25" de descanso = 1'55"; na Realização 25" x 1,35 = 33,75 -> 35": 2'05"
   assert.equal(saidaFor(rules, base, { distancia: 100 }, 'A1'), 115)
-  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'A1'), 120)
-  // 400 com 30 AC: 1' de descanso -> 1'15": 7'30" -> 7'45"
-  assert.equal(saidaFor(rules, naR, { distancia: 400 }, '30 AC'), 465)
-  // NEG/POS nos 100: 25" -> 30"
-  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'NEG') - saidaFor(rules, base, { distancia: 100 }, 'NEG'), 5)
-  // Sem tempos: o descanso escrito também cresce (iniciante A3: 30" -> 40")
+  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'A1'), 125)
+  // 400 com 30 AC: 1' de descanso -> 81" -> 1'20": 7'30" -> 7'50"
+  assert.equal(saidaFor(rules, naR, { distancia: 400 }, '30 AC'), 470)
+  // NEG/POS nos 100: 25" -> 35"
+  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'NEG') - saidaFor(rules, base, { distancia: 100 }, 'NEG'), 10)
+  // Sem tempos: o descanso escrito também cresce (iniciante A3: 30" -> 40,5 -> 40")
   assert.equal(descansoFor(rules, { level: 'iniciante' }, { distancia: 100 }, 'A3'), 30)
   assert.equal(descansoFor(rules, { level: 'iniciante', descansoMaior: realizacao }, { distancia: 100 }, 'A3'), 40)
   // Velocidade: o avançado nos 25 m (cd 30") descansa mais: cd 35"
@@ -554,7 +554,7 @@ test('Realização no gerador: as saídas ficam maiores que na Transição', () 
   const daEtapa = (e) => plano.filter((t) => t.plano.etapa === e)
   assert.ok(daEtapa('realizacao').length > 0)
   const montagem = daEtapa('realizacao').flatMap((t) => t.plano.montagem).filter(Boolean)
-  assert.ok(montagem.every((m) => m.dia.descansoMaior?.[0] === 0.2), 'o dia da Realização guarda a regra (para atualizar o tempo depois)')
+  assert.ok(montagem.every((m) => m.dia.descansoMaior?.[0] === 0.3), 'o dia da Realização guarda a regra (para atualizar o tempo depois)')
 })
 
 test('texto da saída', () => {
