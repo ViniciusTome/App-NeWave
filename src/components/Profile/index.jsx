@@ -4,7 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { api, ATHLETE_CHANGED } from '../../services/api'
 import { daysUntil, daysUntilText, competitionLabel } from '../../utils/athlete'
 import { todayIso } from '../../utils/format'
-import logo from '../../assets/logoBranco.png'
+import logo from '../../assets/logoBranco.svg'
 
 export const Profile = () => {
 

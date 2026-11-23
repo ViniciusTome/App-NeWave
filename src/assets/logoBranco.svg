@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="NeWave">
+  <circle cx="80" cy="36" r="10" fill="#ffffff"/>
+  <path d="M18 66 C34 38 58 30 92 52" fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M12 82 C26 72 40 92 56 82 S84 72 100 82 S112 86 112 86" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+  <path d="M12 100 C26 90 40 110 56 100 S84 90 100 100 S112 104 112 104" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+</svg>
