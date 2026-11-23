@@ -10,7 +10,7 @@ import {
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
 import {
-  drawIntensities, intervalBetweenSets, intervalRangeFor, loadRules, partsForLevel, seriesVariations, strokeCategory,
+  drawIntensities, intervalBetweenSets, intervalRangeFor, loadRules, partsForLevel, restFor, seriesVariations, strokeCategory,
   timeTable,
 } from './series/regras.js'
 
@@ -254,10 +254,11 @@ test('o intervalo entra no tempo estimado e aparece no card', () => {
   const pace = 90
   const variation = { material: [] }
   const athleteAv = { level: 'avancado' }
-  // (2x) 10 x 100 = 10 x 100 + 2' + 10 x 100: o intervalo soma ~2' no lugar de um descanso de 25"
+  // (2x) 10 x 100 = 10 x 100 + 2' + 10 x 100: o intervalo soma ~2' no lugar de um descanso
+  // de 20" (avançado, série de crawl)
   const comIntervalo = estimateSeconds(rules, 'principal', principalDe('pri-2x10x100'), variation, athleteAv, pace)
   const semIntervalo = estimateSeconds(rules, 'principal', principalDe('pri-16x100'), variation, athleteAv, pace) / 16 * 20
-  assert.ok(Math.abs(comIntervalo - semIntervalo - (120 - 25)) < 1, `${comIntervalo} x ${semIntervalo}`)
+  assert.ok(Math.abs(comIntervalo - semIntervalo - (120 - 20)) < 1, `${comIntervalo} x ${semIntervalo}`)
 
   for (const [nome, athlete] of casos) {
     for (const treino of gerar(athlete, 2)) {
@@ -515,8 +516,10 @@ test('rota: gera, salva no carrossel e substitui os agendados que não foram fei
 test('saída = tempo da intensidade + descanso, de 5 em 5 segundos', () => {
   // Teste de 400 em 6'00": 100 m A1 = 1'30", A2 = 1'28", A3 = 1'26"
   const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
-  // Avançado: descanso do 100 pela tabela de distância (20" a 30" -> 25")
-  assert.deepEqual(['A1', 'A2', 'A3'].map((v) => saidaFor(rules, avancado, { distancia: 100 }, v)), [115, 115, 110])
+  // Avançado, série de crawl: descanso do 100 pela tabela do crawl (20")
+  assert.deepEqual(['A1', 'A2', 'A3'].map((v) => saidaFor(rules, avancado, { distancia: 100 }, v)), [110, 110, 105])
+  // Série de estilo: o descanso da tabela geral (20" a 30" -> 25"); o tempo de nado x 1,35
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, 'A1', 1.35), 145)
   // 400 com 30 AC: melhor (6'00") + 30" + 1' de descanso = 7'30"
   assert.equal(saidaFor(rules, avancado, { distancia: 400 }, '30 AC'), 450)
   // Iniciante: descanso pela intensidade (A1 10", A2 15", A3 30")
@@ -531,9 +534,11 @@ test('Realização: descansos 30 a 40% maiores (35%), arredondados de 5 em 5', (
   assert.deepEqual(realizacao, [0.3, 0.4])
   const base = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   const naR = { ...base, descansoMaior: realizacao }
-  // 100 m A1: 1'30" + 25" de descanso = 1'55"; na Realização 25" x 1,35 = 33,75 -> 35": 2'05"
-  assert.equal(saidaFor(rules, base, { distancia: 100 }, 'A1'), 115)
-  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'A1'), 125)
+  // 100 m A1 de crawl: 1'30" + 20" = 1'50"; na Realização 20" x 1,35 = 27 -> 25": 1'55"
+  assert.equal(saidaFor(rules, base, { distancia: 100 }, 'A1'), 110)
+  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'A1'), 115)
+  // 200 m A1 de crawl: 40" -> 54 -> 55" (15" a mais)
+  assert.equal(saidaFor(rules, naR, { distancia: 200 }, 'A1') - saidaFor(rules, base, { distancia: 200 }, 'A1'), 15)
   // 400 com 30 AC: 1' de descanso -> 81" -> 1'20": 7'30" -> 7'50"
   assert.equal(saidaFor(rules, naR, { distancia: 400 }, '30 AC'), 470)
   // NEG/POS nos 100: 25" -> 35"
@@ -578,9 +583,10 @@ test('na acumulação, A2/A3 perto do A1 ficam com a saída do A1; na transiçã
   const I = { unidade: 'repeticao', valores: ['A1', 'A2', 'A1', 'A3'] }
   const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   // Sem fase definida vale a acumulação
-  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I), [115, 115, 115, 115])
-  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I, 'acumulacao'), [115, 115, 115, 115])
-  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I, 'transicao'), [115, 115, 115, 110])
+  // (crawl: 20" de descanso nos 100)
+  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I), [110, 110, 110, 110])
+  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I, 'acumulacao'), [110, 110, 110, 110])
+  assert.deepEqual(saidasDaSerie(rules, avancado, serie, I, 'transicao'), [110, 110, 110, 105])
 })
 
 test('iniciante: a saída do A3 fica no máximo 20" acima da do A1', () => {
@@ -605,10 +611,10 @@ test('AC em outras distâncias: melhor tempo estimado pela tabela de percentuais
   const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   // A1 do 100 = 1'30" a 75%: melhor = 90 ÷ 1,25 = 72"
   assert.equal(bestTimeFor(rules, avancado, 100), 72)
-  // 15 AC nos 100: 72 + 15 + 25" de descanso = 112 -> 1'50"
-  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '15 AC'), 110)
-  // 10 AC: 72 + 10 + 25" = 1'47" -> 1'45", mas fica no nível do 15 AC (descansa mais): 1'50"
-  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '10 AC'), 110)
+  // 15 AC nos 100 (crawl): 72 + 15 + 20" de descanso = 107 -> 1'45"
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '15 AC'), 105)
+  // 10 AC: 72 + 10 + 20" = 1'42" -> 1'40", mas fica no nível do 15 AC (descansa mais): 1'45"
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '10 AC'), 105)
   // Nos 400 vale o teste
   assert.equal(bestTimeFor(rules, avancado, 400), 360)
 })
@@ -669,7 +675,7 @@ test('grupos: cada distância com a sua saída', () => {
   assert.deepEqual(acumulacao.porBloco.map((col) => new Set(col).size), [1, 1, 1])
   const variation = { texto: '', material: [], padrao: 'livre' }
   const texto = cardText({ ...serie, texto: '' }, variation, null, I, acumulacao)
-  assert.match(texto, /1 x 100 m · cd 1'55"/)
+  assert.match(texto, /1 x 100 m · cd 1'50"/)
   // Transição: cada série com as suas saídas
   const transicao = saidasDaSerie(rules, avancado, serie, I, 'transicao')
   const texto2 = cardText({ ...serie, texto: '' }, variation, null, I, transicao)
@@ -1243,12 +1249,13 @@ test('série principal: o card sempre diz o estilo (CR na livre; os estilos de c
   }
 })
 
-test('cd dos estilos: o tempo de nado do crawl x o fator do estilo; o descanso é o mesmo', () => {
+test('cd dos estilos: o tempo de nado do crawl x o fator do estilo; o descanso da tabela geral', () => {
   const a = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   const crawl = saidaFor(rules, a, { distancia: 100 }, 'A1')
   const peito = saidaFor(rules, a, { distancia: 100 }, 'A1', rules.saidas.fatorDoEstilo.peito)
-  // 100 A1 = 1'30" de crawl; de peito (+35%) 2'01" + 25" de descanso -> 2'25"
-  assert.equal(crawl, 115)
+  // 100 A1 = 1'30" de crawl + 20" (tabela do crawl) = 1'50"; de peito (+35%) 2'01" + 25"
+  // de descanso (tabela geral) -> 2'25"
+  assert.equal(crawl, 110)
   assert.equal(peito, 145)
   // Série que mistura estilos: vale o mais lento
   const variation = { nado: 'misto', porSerie: [['costas', 'peito'], ['crawl']] }
@@ -1418,3 +1425,21 @@ test('perna: o card diz o estilo (um, dois alternando ou medley); com pé de pat
   assert.ok(semPe.some((tx) => /\bPE\b/.test(tx)), semPe.join('\n'))
 })
 
+
+test('descanso do avançado nas séries só de crawl (tabela do treinador)', () => {
+  const crawl = { 50: 17.5, 100: 20, 150: 30, 200: 40, 300: 50, 400: 60, 800: 120 }
+  for (const [d, s] of Object.entries(crawl)) {
+    const { min, max } = restFor(rules, 'avancado', Number(d), true)
+    assert.equal((min + max) / 2, s, `${d} m`)
+  }
+  // 50 m: 15" a 20"
+  assert.deepEqual(restFor(rules, 'avancado', 50, true), { min: 15, max: 20 })
+  // Fora da série de crawl, a tabela geral continua (100 m: 20" a 30")
+  assert.deepEqual(restFor(rules, 'avancado', 100), { min: 20, max: 30 })
+  // Os outros níveis não mudam
+  assert.deepEqual(restFor(rules, 'intermediario', 100, true), restFor(rules, 'intermediario', 100))
+  // No cd: 200 m A1 de crawl = tempo do A1 + 40"
+  const a = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  const a1de200 = saidaFor(rules, a, { distancia: 200 }, 'A1')
+  assert.equal(a1de200 % 5, 0)
+})

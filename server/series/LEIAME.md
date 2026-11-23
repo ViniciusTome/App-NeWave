@@ -425,6 +425,21 @@ Descanso padrão de cada repetição, em segundos, `[mínimo, máximo]`, por ní
 - Distâncias que não estão na tabela ficam entre as vizinhas, arredondadas de 5 em 5 segundos. Ex.: 150 m do avançado = 30" a 35".
 - Abaixo de 50 m e acima de 800 m vale o valor da ponta (ex.: 1.500 m = 2').
 - Uma série com `descanso` escrito no bloco usa o que está escrito.
+
+**Avançado nas séries só de crawl (regra `descansosCrawl`, do treinador):**
+
+| Repetição | Descanso |
+|---|---|
+| 50 m | 15" a 20" |
+| 100 m | 20" |
+| 150 m | 30" |
+| 200 m | 40" |
+| 300 m | 50" |
+| 400 m | 1' |
+| 800 m | 2' |
+
+- Vale só quando a série (ou aquela série de um "(4x)") é toda de crawl. Série com estilo ou misturada usa a tabela de cima.
+- Ex. (teste em 6'00"): 100 m A1 de crawl = 1'30" + 20" = **cd 1'50"**; de peito, 2'01" + 25" = cd 2'25".
 - A velocidade usa a **saída** (veja o intervalo entre as séries), não esta tabela.
 
 ### Quem nada até 100 m sem parar

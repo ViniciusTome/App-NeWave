@@ -56,14 +56,15 @@ function paceFactor(rules, intensidade, athlete) {
 // Descanso de uma repetição: o escrito no bloco; senão, para iniciante e recém
 // intermediário, o da intensidade; para os outros, o da tabela por distância.
 // Dentro da faixa, o meio (PROVISÓRIO).
-function blockRest(rules, bloco, athlete) {
+// `soCrawl`: série só de crawl (o avançado tem a tabela de descanso do crawl)
+function blockRest(rules, bloco, athlete, soCrawl = false) {
     if (bloco.descanso !== undefined) return bloco.descanso
     const meio = (f) => (f[0] + f[1]) / 2
     const intensidade = intensityName(rules, bloco.trechos ? bloco.trechos[0].intensidade : bloco.intensidade)
     let descanso
     if (intensidade && usesIntensityRest(rules, athlete)) descanso = meio(rules.intensidades[intensidade].descanso)
     else {
-        const { min, max } = restFor(rules, athlete.level, bloco.distancia)
+        const { min, max } = restFor(rules, athlete.level, bloco.distancia, soCrawl)
         descanso = (min + max) / 2
     }
     // Quem nada pouco sem parar (até 400 m) descansa pelo menos 20 a 30 segundos
@@ -129,7 +130,7 @@ export function saidaFor(rules, athlete, bloco, valor, fator = 1) {
     const regra = rules.saidas?.negPosFinalForte
     const descanso = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
-        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : 'A3') }, athlete)
+        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : 'A3') }, athlete, fator === 1)
     const saida = saidaComDescanso(athlete, nado, descanso)
     // Quanto mais perto do 100%, maior o descanso: o AC abaixo da referência (ex.: 5 AC)
     // fica com a saída do 15 AC (nada mais rápido e descansa mais)
@@ -165,13 +166,13 @@ export function saidaVelocidade(rules, athlete, bloco, fator = 1) {
 
 // Sem tempos de referência (sem teste de 400 m) não dá para montar a saída:
 // no lugar dela vai o descanso entre as repetições ("c/20\" de descanso").
-export function descansoFor(rules, athlete, bloco, valor) {
+export function descansoFor(rules, athlete, bloco, valor, fator = 1) {
     const intensidade = /^A[123]$/.test(valor ?? '') ? valor : null
     const ritmoLivre = valor === 'NEG' || valor === 'POS' || / NAD x 25 fo$/.test(valor ?? '')
     const regra = rules.saidas?.negPosFinalForte
     const segundos = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
-        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : (valor ? 'A3' : bloco.intensidade)) }, athlete)
+        : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : (valor ? 'A3' : bloco.intensidade)) }, athlete, fator === 1)
     // (o solto não muda na Realização)
     return Math.max(5, de5em5(intensityName(rules, bloco.intensidade) === 'solto' && !valor ? segundos : restOfPhase(athlete, segundos)))
 }
@@ -179,10 +180,10 @@ const descansoText = (segundos) =>
     `c/${segundos >= 60 ? minutosCurto(segundos) : `${segundos}"`} de descanso`
 
 // Os descansos de cada parte com intensidade, no mesmo formato das saídas
-function descansosDaSerie(rules, athlete, serie, intensidades) {
+function descansosDaSerie(rules, athlete, serie, intensidades, fator = 1) {
     if (!intensidades) return null
     const { unidade, valores } = intensidades
-    const marca = (b, v) => descansoText(descansoFor(rules, athlete, b, v))
+    const marca = (b, v) => descansoText(descansoFor(rules, athlete, b, v, fator))
     if (unidade === 'bloco') return serie.blocos.map((b, i) => marca(b, valores[i]))
     if (serie.blocos.length > 1) return { porBloco: serie.blocos.map((b) => valores.map((v) => marca(b, v))) }
     return valores.map((v) => marca(serie.blocos[0], v))
@@ -490,7 +491,7 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
         const daTabela = athlete.tabela && !bloco.trechos
             ? repSeconds(rules, athlete.tabela, bloco.distancia, bloco.intensidade) : null
         const nado = (daTabela ?? (bloco.distancia / 100) * pace * ritmo) * fator
-        const base = blockRest(rules, bloco, athlete)
+        const base = blockRest(rules, bloco, athlete, fator === 1)
         const descanso = intensityName(rules, bloco.intensidade) === 'solto' ? base : restOfPhase(athlete, base)
         const vezes = bloco.vezes ?? 1
         total += vezes * bloco.repeticoes * (nado + descanso)
@@ -1021,7 +1022,7 @@ export function renderPart(rules, athlete, montagem) {
         const [de, ate] = (rules.saidas?.velocidade?.descanso ?? [20, 30]).map((x) => restOfPhase(doDia, x))
         saidas = parte === 'velocidade'
             ? (saidas?.[0] ? saidas : [`c/${de}" a ${ate}" de descanso`])
-            : descansosDaSerie(rules, doDia, serie, intensidades)
+            : descansosDaSerie(rules, doDia, serie, intensidades, strokeFactor(rules, variation, null, doDia, serie))
     }
     return { texto: cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas), aviso }
 }

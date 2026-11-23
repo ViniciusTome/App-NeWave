@@ -316,6 +316,10 @@
     "intermediario": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60], "800": [120, 120] },
     "avancado": { "50": [15, 30], "100": [20, 30], "200": [40, 40], "400": [60, 60], "800": [120, 120] }
   },
+  "descansosCrawl": {
+    "_comentario": "Descanso entre as repetições nas séries só de crawl (regra do treinador). Nas séries com estilo (ou misturadas) vale a tabela 'descansos'. Dentro da faixa, o meio; distâncias que não estão na tabela ficam entre as vizinhas.",
+    "avancado": { "50": [15, 20], "100": [20, 20], "150": [30, 30], "200": [40, 40], "300": [50, 50], "400": [60, 60], "800": [120, 120] }
+  },
   "intervalos": {
     "principal": {
       "porNivel": { "iniciante": [120, 180], "intermediario": [120, 120], "avancado": [120, 120] }

@@ -885,8 +885,10 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
 // (ex.: 150 m entre o 100 e o 200), arredondadas de 5 em 5 segundos. Abaixo da
 // menor e acima da maior distância da tabela, vale a da ponta.
 // Séries com "descanso" escrito no próprio bloco usam o que está escrito.
-export function restFor(rules, nivel, distancia) {
-    const tabela = Object.entries(rules.descansos[nivel])
+// `soCrawl`: série só de crawl (tabela 'descansosCrawl' do nível, quando existe)
+export function restFor(rules, nivel, distancia, soCrawl = false) {
+    const fonte = (soCrawl && rules.descansosCrawl?.[nivel]) || rules.descansos[nivel]
+    const tabela = Object.entries(fonte)
         .map(([d, faixa]) => [Number(d), faixa])
         .sort((a, b) => a[0] - b[0])
     const arredonda = (s) => Math.round(s / 5) * 5
