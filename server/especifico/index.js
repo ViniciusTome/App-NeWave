@@ -160,6 +160,48 @@ function adaptar(serie, { prova, poolLength }, regras) {
 
 const volumeDe = (s) => (s.vezes ?? 1) * s.blocos.reduce((t, b) => t + b.rep * b.dist, 0)
 
+// Valor da tabela pela distância da prova (chave = até essa distância)
+const pelaDistancia = (tabela, distancia) => {
+    const chave = Object.keys(tabela).map(Number).sort((a, b) => a - b).find((k) => distancia <= k)
+    return tabela[chave ?? Object.keys(tabela).at(-1)]
+}
+export const volumeMaximoEmRP = (regras, distancia) => pelaDistancia(regras.ritmoDeProva.volumeMaximo, distancia)
+const emRitmoDeProva = (b) => b.ritmo === 'RP' || b.ritmo === 'max'
+const volumeEmRP = (s) => (s.vezes ?? 1) * s.blocos.filter(emRitmoDeProva).reduce((t, b) => t + b.rep * b.dist, 0)
+
+// Ritmo de prova (regra do treinador): pouco volume em RP/máx e descanso proporcional ao
+// tiro (o tempo da repetição x o fator da prova). Ex.: 200 m -> no máximo 600 m em RP.
+function ajustarRitmoDeProva(serie, prova, regras) {
+    const cfg = regras.ritmoDeProva
+    if (!cfg || !serie.blocos.some(emRitmoDeProva)) return serie
+    const fator = pelaDistancia(cfg.descanso.fator, prova.distancia)
+    const de5em5 = (x) => Math.round(x / 5) * 5
+    let s = {
+        ...serie,
+        blocos: serie.blocos.map((b) => {
+            if (!emRitmoDeProva(b) || b.quebrado) return b
+            const tiro = ritmoDeProva(prova, b.dist) * (b.ritmo === 'max' ? regras.ritmos.max : 1)
+            const proporcional = Math.min(cfg.descanso.maximo, Math.max(cfg.descanso.minimo, de5em5(tiro * fator)))
+            // Máximo: nunca menos que o descanso escrito na série (tiro forte descansa bem)
+            return { ...b, descanso: b.ritmo === 'max' ? Math.max(b.descanso, proporcional) : proporcional }
+        }),
+        ...((serie.vezes ?? 1) > 1 && { intervalo: Math.max(serie.intervalo ?? 0, cfg.intervaloMinimo ?? 0) }),
+    }
+    // Volume em RP: menos séries; depois menos repetições no maior bloco em RP
+    const maximo = pelaDistancia(cfg.volumeMaximo, prova.distancia)
+    while (volumeEmRP(s) > maximo) {
+        if ((s.vezes ?? 1) > 1) {
+            s = { ...s, vezes: s.vezes - 1 }
+            continue
+        }
+        const i = s.blocos.reduce((m, b, k) => (emRitmoDeProva(b) && (m < 0 || b.rep * b.dist > s.blocos[m].rep * s.blocos[m].dist) ? k : m), -1)
+        if (s.blocos[i].rep > 1) s = { ...s, blocos: s.blocos.map((b, k) => (k === i ? { ...b, rep: b.rep - 1 } : b)) }
+        else if (s.blocos.length > 1) s = { ...s, blocos: s.blocos.filter((_, k) => k !== i) }
+        else break
+    }
+    return s
+}
+
 // Segundos de nado de cada repetição: RP pela meta; A1/A2/A3 pelo ritmo do atleta (teste de 400 m)
 function segundosDaRep(b, prova, pace, regras) {
     const rp = ritmoDeProva(prova, b.dist)
@@ -232,6 +274,7 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
         .filter((s) => !s.material || (athlete.equipment ?? []).includes(s.material))
         .map((s) => adaptar(s, { prova, poolLength: athlete.poolLength }, regras))
         .filter(Boolean)
+        .map((s) => ajustarRitmoDeProva(s, prova, regras))
     if (candidatas.length === 0) return partes
     const menor = Math.min(...candidatas.map(volumeDe))
 

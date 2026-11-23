@@ -17,9 +17,11 @@
   { "id": "e100-r-6x50", "grupos": ["100"], "fases": ["realizacao"], "blocos": [{ "rep": 6, "dist": 50, "ritmo": "RP", "descanso": 60 }] },
   { "id": "e100-r-4x75", "grupos": ["100"], "fases": ["realizacao"], "blocos": [{ "rep": 4, "dist": 75, "ritmo": "RP", "descanso": 90 }] },
 
-  { "id": "e200-t-10x100", "grupos": ["200"], "fases": ["transicao"], "blocos": [{ "rep": 10, "dist": 100, "ritmo": "RP", "descanso": 20 }] },
+  { "id": "e200-t-10x100", "grupos": ["200"], "fases": ["transicao"], "blocos": [{ "rep": 10, "dist": 100, "ritmo": "A3", "descanso": 20 }] },
+  { "id": "e200-t-3x4x50", "grupos": ["200"], "fases": ["transicao"], "vezes": 3, "intervalo": 180, "blocos": [{ "rep": 4, "dist": 50, "ritmo": "RP", "descanso": 30 }] },
+  { "id": "e200-r-2x4x50", "grupos": ["200"], "fases": ["realizacao", "transicao"], "vezes": 2, "intervalo": 180, "blocos": [{ "rep": 4, "dist": 50, "ritmo": "RP", "descanso": 30 }] },
   { "id": "e200-t-6x150", "grupos": ["200"], "fases": ["transicao"], "blocos": [{ "rep": 6, "dist": 150, "ritmo": "A3", "descanso": 30 }] },
-  { "id": "e200-t-3x4x100", "grupos": ["200", "400"], "fases": ["transicao"], "vezes": 3, "intervalo": 180, "blocos": [{ "rep": 4, "dist": 100, "ritmo": "RP", "descanso": 15 }] },
+  { "id": "e200-t-3x4x100", "grupos": ["400"], "fases": ["transicao"], "vezes": 3, "intervalo": 180, "blocos": [{ "rep": 4, "dist": 100, "ritmo": "RP", "descanso": 15 }] },
   { "id": "e200-t-4x200", "grupos": ["200"], "fases": ["transicao"], "blocos": [{ "rep": 4, "dist": 200, "ritmo": "A3", "descanso": 60 }] },
   { "id": "e200-t-3x2x200", "grupos": ["200", "400"], "fases": ["transicao"], "vezes": 3, "intervalo": 180, "blocos": [{ "rep": 2, "dist": 200, "ritmo": "A3", "descanso": 30 }] },
   { "id": "e200-t-2x200x4x50", "grupos": ["200"], "fases": ["transicao"], "vezes": 2, "intervalo": 120, "blocos": [{ "rep": 1, "dist": 200, "ritmo": "A3", "descanso": 30 }, { "rep": 4, "dist": 50, "ritmo": "RP", "descanso": 20 }] },
