@@ -11,18 +11,23 @@ const MOTIVOS = [
     { value: 'forca', label: 'A força (os braços ficaram pesados)' },
 ]
 
+const SIM_NAO = [{ value: true, label: 'Sim, sem parar' }, { value: false, label: 'Não, precisei parar' }]
+
 // Perguntas ao concluir o treino, mostradas na janela flutuante.
-// `onSubmit({ difficulty, reason })` conclui o treino com as respostas.
-export const CompleteTraining = ({ onSubmit, submitting, error }) => {
+// `onSubmit({ difficulty, reason, nonstop })` conclui o treino com as respostas.
+// Treino com nado contínuo: pergunta também se conseguiu nadar sem parar.
+export const CompleteTraining = ({ training = null, onSubmit, submitting, error }) => {
     const [difficulty, setDifficulty] = useState(null)
     const [reason, setReason] = useState(null)
+    const [nonstop, setNonstop] = useState(null)
+    const continuo = training?.partes?.find((p) => p.parte === 'continuo') ?? null
     const precisaMotivo = difficulty !== null && difficulty >= PERGUNTAR_MOTIVO_A_PARTIR_DE
-    const pronto = difficulty !== null && (!precisaMotivo || reason !== null)
+    const pronto = difficulty !== null && (!precisaMotivo || reason !== null) && (!continuo || nonstop !== null)
 
     const handleSubmit = (event) => {
         event.preventDefault()
         if (!pronto) return
-        onSubmit({ difficulty, ...(precisaMotivo && { reason }) })
+        onSubmit({ difficulty, ...(precisaMotivo && { reason }), ...(continuo && { nonstop }) })
     }
 
     return (
@@ -43,6 +48,15 @@ export const CompleteTraining = ({ onSubmit, submitting, error }) => {
                     options={MOTIVOS}
                     value={reason}
                     onChange={setReason}
+                />
+            )}
+            {continuo && (
+                <ChoiceGroup
+                    label={`Você nadou os ${continuo.metros} m do nado contínuo sem parar?`}
+                    hint='Precisar parar não tem problema: os próximos treinos se ajustam a você.'
+                    options={SIM_NAO}
+                    value={nonstop}
+                    onChange={setNonstop}
                 />
             )}
             {error && <p className={styles.error} role='alert'>{error}</p>}

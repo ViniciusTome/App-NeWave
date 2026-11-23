@@ -153,6 +153,8 @@ export const goalTimeText = (hundredths) => {
 
 // Nome da prova (distância e estilo): "200 m costas", "1,5 km"
 export function raceName(competition) {
+    // Várias provas: "100 m livre, 200 m livre"
+    if (competition.events?.length > 1) return competition.events.map((e) => raceName({ ...e, modality: competition.modality, events: null })).join(', ')
     if (!competition.distance) return competition.event
     if (!POOL_MODALITIES.includes(competition.modality)) return distanceText(competition.distance)
     const stroke = competition.stroke === 'crawl' ? 'livre' : labelOf(RACE_STROKES, competition.stroke).toLowerCase()

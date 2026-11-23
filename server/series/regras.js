@@ -822,7 +822,9 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
         ? regra.borboletaDividida.com.filter((s) => has.has(s)).map((s) => `borboleta/${s}`)
         : []
     const nados = [...estilos, ...divididas, ...(medleyPools.length > 0 ? ['medley'] : [])]
-    if (nados.length < 2) return null
+    // Um estilo só (ex.: quem nada crawl e peito, ou a prova é de peito): alterna com o crawl
+    const crawlCabe = has.has('crawl') && bloco.distancia <= limitFor(rules, 'crawl', athlete.level)
+    if (nados.length < (crawlCabe ? 1 : 2)) return null
 
     const melhor = bestStrokeOf(athlete, estilos)
     // Melhor estilo aparece mais; borboleta, menos (a dividida conta como borboleta)

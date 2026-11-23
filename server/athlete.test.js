@@ -795,3 +795,42 @@ test('prova com distância, estilo e meta; o modelo Específico só para quem po
   assert.equal((await api('/api/preparations/current', { cookie })).body.preparation.model, 'geral')
   assert.equal((await api('/api/preparations/current', { method: 'PATCH', cookie, body: { model: 'especifico' } })).status, 400)
 })
+
+test('várias provas na mesma competição: a 1ª é a principal', async () => {
+  const cookie = await userFor('preparacao')
+  const events = [{ distance: 200, stroke: 'crawl', goalHundredths: 14000 }, { distance: 100, stroke: 'crawl' }, { distance: 50, stroke: 'costas' }]
+  const res = await api('/api/competitions', { method: 'POST', cookie, body: { ...sampleCompetition, name: 'Várias', events } })
+  assert.equal(res.status, 201)
+  const c = res.body.competition
+  assert.equal(c.event, '200 m livre, 100 m livre, 50 m costas')
+  assert.deepEqual([c.distance, c.stroke, c.goalHundredths], [200, 'crawl', 14000])
+  assert.equal(c.events.length, 3)
+  assert.equal(c.events[2].goalHundredths, null)
+  // Repetida, inválida ou demais: não
+  for (const ruim of [[events[0], events[0]], [events[0], { distance: 300, stroke: 'crawl' }], Array.from({ length: 7 }, (_, i) => ({ distance: [50, 100, 200, 400, 800, 1500][i % 6], stroke: i < 6 ? 'crawl' : 'costas' }))]) {
+    assert.equal((await api('/api/competitions', { method: 'POST', cookie, body: { ...sampleCompetition, events: ruim } })).status, 400)
+  }
+  // A prova antiga (uma só) também aparece na lista
+  const uma = await api('/api/competitions', { method: 'POST', cookie, body: { ...sampleCompetition, name: 'Uma' } })
+  assert.deepEqual(uma.body.competition.events, [{ distance: 200, stroke: 'crawl', goalHundredths: null }])
+})
+
+test('nado contínuo: "precisei parar" ao concluir faz os próximos treinos voltarem um passo', async () => {
+  const cookie = await userFor('feedback')
+  await saveProfile(cookie, { ...sampleProfile, continuousDistance: '200_400', reported400Hundredths: 48000 })
+  const hoje = daysFromToday(0)
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...sampleCompetition, name: 'Triatlo', modality: 'triatlo', distance: 1500 } } })
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const lista = async () => (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings.filter((t) => !t.completed && t.partes)
+  const continuoDe = (t) => t.partes.find((p) => p.parte === 'continuo')
+  const todos = await lista()
+  const primeiro = todos.find(continuoDe)
+  assert.equal(continuoDe(primeiro).metros, 250) // nada 200 m: começa em 250
+  // Pergunta precisa ser sim ou não
+  assert.equal((await api(`/api/trainings/${primeiro.id}/complete`, { method: 'POST', cookie, body: { difficulty: 5, nonstop: 'talvez' } })).status, 400)
+  const res = await api(`/api/trainings/${primeiro.id}/complete`, { method: 'POST', cookie, body: { difficulty: 5, nonstop: false } })
+  assert.equal(res.status, 200)
+  assert.ok(res.body.reformulados > 0)
+  const depois = (await lista()).find(continuoDe)
+  assert.equal(continuoDe(depois).metros, 200)
+})

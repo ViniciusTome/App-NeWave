@@ -153,6 +153,8 @@ export function openDatabase(path) {
   `)
   // Falta: o atleta disse que não fez o treino (a pergunta aparece quando ele abre o app)
   if (!trainingCols.includes('missed_at')) db.exec('ALTER TABLE trainings ADD COLUMN missed_at TEXT')
+  // Nado contínuo (série de teste): 1 = nadou sem parar; 0 = precisou parar; null = não tinha
+  if (!trainingCols.includes('nonstop_ok')) db.exec('ALTER TABLE trainings ADD COLUMN nonstop_ok INTEGER')
 
   // Pergunta "Qual é o seu melhor estilo?" chegou depois: bancos antigos não têm a coluna
   const profileColumns = db.prepare('PRAGMA table_info(athlete_profiles)').all().map((col) => col.name)
@@ -174,6 +176,8 @@ export function openDatabase(path) {
   if (!competitionColumns.includes('distance')) db.exec('ALTER TABLE competitions ADD COLUMN distance INTEGER')
   if (!competitionColumns.includes('stroke')) db.exec('ALTER TABLE competitions ADD COLUMN stroke TEXT')
   if (!competitionColumns.includes('goal_hundredths')) db.exec('ALTER TABLE competitions ADD COLUMN goal_hundredths INTEGER')
+  // Várias provas na mesma competição (JSON); a 1ª é a principal (fica também nas colunas acima)
+  if (!competitionColumns.includes('events')) db.exec('ALTER TABLE competitions ADD COLUMN events TEXT')
   const preparationColumns = db.prepare('PRAGMA table_info(preparations)').all().map((col) => col.name)
   if (!preparationColumns.includes('model')) db.exec("ALTER TABLE preparations ADD COLUMN model TEXT NOT NULL DEFAULT 'geral'")
 

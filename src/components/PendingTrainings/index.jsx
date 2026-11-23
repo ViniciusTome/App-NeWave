@@ -99,7 +99,7 @@ export const PendingTrainings = () => {
                     <button type='button' className={styles.primary} onClick={() => setOpen(false)}>Entendi</button>
                 </div>
             ) : feedbackFor ? (
-                <CompleteTraining onSubmit={completeOne} submitting={saving} error={error} />
+                <CompleteTraining training={feedbackFor} onSubmit={completeOne} submitting={saving} error={error} />
             ) : one ? (
                 <div className={styles.box}>
                     <p><strong>{pending[0].title}</strong> · {dayText(pending[0].date)}</p>

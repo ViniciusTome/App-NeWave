@@ -132,7 +132,7 @@ export const Carousel = () => {
                 onClose={() => setCompletingTraining(null)}
                 title='Como foi o treino?'
             >
-                <CompleteTraining onSubmit={handleComplete} submitting={completing} error={completeError} />
+                <CompleteTraining training={completingTraining} onSubmit={handleComplete} submitting={completing} error={completeError} />
             </Modal>
             {hasTrainings && trainings.length > 1 && (
                 <div className={styles.buttons}>

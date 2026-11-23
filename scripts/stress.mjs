@@ -7,7 +7,7 @@
 // Uso:  node scripts/stress.mjs [quantidade de perfis] [semente]
 //       ex.: node scripts/stress.mjs 600 7
 import { computeLevel } from '../server/athlete.js'
-import { feedbackAdjustment, generateTrainings, planStages, refreshTimes, trainingDates } from '../server/generator.js'
+import { feedbackAdjustment, generateTrainings, planStages, prepareAthlete, refreshTimes, testSeriesDistance, trainingDates } from '../server/generator.js'
 import { loadLibrary } from '../server/series/index.js'
 import { loadRules } from '../server/series/regras.js'
 import { chanceNaFase, loadTecnica } from '../server/tecnica/index.js'
@@ -64,9 +64,11 @@ function perfil(i) {
     const fim = comProva ? addDays(HOJE, dias) : addDays(HOJE, rules.periodizacao.semanasSemProva * 7 - 1)
     const provas = comProva && random() < 0.4 ? [addDays(HOJE, Math.floor(dias / 2))] : []
     const evento = comProva ? um(['200 m livre', '400 m livre', '1,5 km', '100 m peito']) : ''
+    // Provas da competição alvo (metade das vezes cadastradas com a distância)
+    const provasDaCompeticao = comProva && random() < 0.5 ? [{ distancia: um([100, 200, 400, 750, 1500, 3000]), estilo: 'crawl' }] : []
     return {
         nome: `atleta ${i + 1}`,
-        athlete: { ...anamnese, level, recemIntermediario, time400, modalidade: comProva ? um(['triatlo', 'piscina_25', 'piscina_50', 'maratona_aquatica']) : null },
+        athlete: { ...anamnese, level, recemIntermediario, time400, provas: provasDaCompeticao, modalidade: comProva ? um(['triatlo', 'piscina_25', 'piscina_50', 'maratona_aquatica']) : null },
         periodizacao: {
             inicio: HOJE, fim, provas, semProva: !comProva,
             testeNaTransicao: Boolean(time400) && random() < 0.6, evento,
@@ -123,6 +125,20 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
     confere('Gera todos os treinos da periodização (até a prova / 8 semanas)', treinos.length === esperadas.length,
         () => `${quem}: ${treinos.length} de ${esperadas.length}`)
     confere('Gera rápido (menos de 1,5 s por atleta)', ms < 1500, () => `${quem}: ${Math.round(ms)} ms`)
+
+    // Séries de teste (o atleta vê "Nado contínuo"): prova mais longa do que nada sem parar ->
+    // em todo treino (menos o dia do teste), antes da principal, um passo acima do que nada hoje
+    const alvo = Math.max(0, ...(a.provas ?? []).map((p) => p.distancia))
+    const ritmo = (a.time400?.hundredths ?? { iniciante: 54000, intermediario: 42000, avancado: 33000 }[a.level]) / 400
+    const precisa = !periodizacao.semProva && Boolean(testSeriesDistance(rules, prepareAthlete(rules, a), [], ritmo))
+    for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
+        const i = t.partes.findIndex((p) => p.parte === 'continuo')
+        confere('Nado contínuo só para quem tem prova mais longa do que nada sem parar', (i >= 0) === precisa, () => `${quem}: alvo ${alvo} ${t.date}`)
+        if (i < 0) continue
+        confere('Nado contínuo antes da série principal, até a distância da prova (e o que cabe na aula)', t.partes[i + 1]?.parte === 'principal' &&
+            t.partes[i].metros <= alvo && t.plano.serieDeTeste?.distancia === t.partes[i].metros && t.partes[i].minutos <= minutosDoTreino * 0.45 + 1,
+        () => `${quem}: ${t.partes.map((p) => `${p.parte}:${p.metros}`).join(' ')}`)
+    }
 
     // Técnica: aquecimento (a partir de 30 min) e solto depois da velocidade (a partir de 45 min);
     // só educativos do nível, com o material e nos estilos do atleta
@@ -226,7 +242,7 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
 
         // Tempo do treino
         confere('Treino cabe na aula (até 20% a mais; iniciante até 50 min)', t.minutos <= minutosDoTreino * 1.2 + 1,
-            () => `${quem} ${t.date}: ${t.minutos} min para ${minutosDoTreino}`)
+            () => `${quem} ${t.date}: ${t.minutos} min para ${minutosDoTreino} ${t.partes.map((p) => `${p.parte}:${p.minutos}`).join(" ")}`)
         confere('Treino tem aquecimento e série principal (ou teste)', ordem.includes('aquecimento') && (principais.length > 0 || ehTeste),
             () => `${quem} ${t.date}: ${ordem.join(', ')}`)
 
@@ -420,7 +436,7 @@ function confereEspecifico(i) {
     const anamnese = { ...base.athlete, continuousDistance, poolLength: modalidade === 'piscina_50' ? 50 : base.athlete.poolLength }
     if (!podeUsarEspecifico({ goal: 'competir', competition: { distance: distancia, goalHundredths: prova.metaCentesimos }, profile: anamnese }).ok) return 0
     const { level, recemIntermediario } = computeLevel(anamnese, base.athlete.time400)
-    const athlete = { ...anamnese, level, recemIntermediario, modalidade, modelo: 'especifico', prova }
+    const athlete = { ...anamnese, level, recemIntermediario, modalidade, modelo: 'especifico', prova, provas: [prova] }
     const fim = addDays(HOJE, um([45, 60, 84, 120]))
     const treinos = generateTrainings({ rules, library, athlete, today: HOJE, random, periodizacao: { inicio: HOJE, fim, provas: [], semProva: false, testeNaTransicao: Boolean(athlete.time400) } })
     const quem = `${base.nome} (${level}, ${distancia} m ${estilo}, ${modalidade}, ${athlete.sessionMinutes} min)`

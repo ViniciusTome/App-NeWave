@@ -43,7 +43,7 @@ const SEM_PARAR = {
 
 export const NOMES_DAS_PARTES = {
     aquecimento: 'Aquecimento', velocidade: 'Velocidade', solto: 'Solto', principal: 'Série principal',
-    perna: 'Perna', soltura: 'Soltura', complemento: 'Saídas e técnica',
+    perna: 'Perna', soltura: 'Soltura', complemento: 'Saídas e técnica', continuo: 'Nado contínuo',
 }
 
 // ---------- Tempo estimado de uma série ----------
@@ -465,17 +465,22 @@ export function rotateSetMaterials(rules, parte, serie, variation, intensidades,
 
 // Iniciante com pé de pato ou palmar nada bem mais rápido que o tempo proposto:
 // a saída continua a mesma, com o aviso para descansar o intervalo de descanso.
-function avisoComEquipamento(rules, athlete, escolha, saidas) {
+function avisoComEquipamento(rules, athlete, escolha, saidas, serie = null) {
     const temSaida = Array.isArray(saidas) ? saidas.some(Boolean) : saidas?.porBloco?.some((c) => c.some(Boolean))
     if (athlete.level !== 'iniciante' || !temSaida) return null
     const v = escolha.variation
     const materiais = [v.material, ...(v.series ?? []), ...(v.porBloco ?? [])].flat()
     if (!materiais.some((m) => ['pe_de_pato', 'pe_de_pato_peito', 'palmar'].includes(m))) return null
-    const meio = (f) => (f[0] + f[1]) / 2
-    const usadas = [...new Set((escolha.intensidades?.valores ?? []).filter((x) => /^A[123]$/.test(x)))].sort()
-    const descansos = usadas.map((x) => `${meio(rules.intensidades[x].descanso)}" no ${x}`).join(', ')
-    return 'Com equipamento você pode chegar bem antes da saída (cd). Se fizer muito abaixo do tempo proposto, ' +
-        `descanse o tempo de descanso${descansos ? ` (${descansos})` : ''} antes da próxima.`
+    // Descanso pela distância da repetição (regra do treinador; com material eles nadam
+    // mais forte que o A3): 25 m 20"; 50 e 100 m 20" a 30"; 200 m 40" a 50"; 400 m 1'
+    const tabela = rules.avisoComMaterial?.descanso ?? {}
+    const distancias = [...new Set((serie?.blocos ?? []).map((b) => b.distancia))].sort((a, b) => a - b)
+    const textos = [...new Set(distancias.map((d) => {
+        const chave = Object.keys(tabela).map(Number).sort((a, b) => a - b).find((k) => d <= k)
+        return chave !== undefined ? `${tabela[chave]} nos ${d} m` : null
+    }).filter(Boolean))]
+    return 'Com equipamento você pode chegar bem antes da saída (a/c). Se fizer muito abaixo do tempo proposto, ' +
+        `descanse${textos.length ? ` ${textos.join(', ')}` : ' de 20 a 30 segundos'} antes da próxima.`
 }
 
 // Segundos que o atleta leva na série, com os descansos. `pace` = segundos por
@@ -732,6 +737,23 @@ export function adaptToDistance(rules, serie, athlete) {
 export const soRitmoLeve = (rules, athlete) => Boolean(rules.quemNadaPouco?.soRitmoLeve) &&
     (SEM_PARAR[athlete.continuousDistance] ?? Infinity) <= rules.quemNadaPouco.paraQuemNadaAte
 
+// O atleta, do jeito que a série principal enxerga: pela prova alvo (estilo da prova)
+const NO_CRAWL = ['triatlo', 'maratona_aquatica']
+export function athleteForMain(athlete) {
+    const provas = athlete.provas?.length ? athlete.provas : athlete.prova ? [athlete.prova] : []
+    const estilosDasProvas = provas.length ? [...new Set(provas.map((p) => p.estilo))] : NO_CRAWL.includes(athlete.modalidade) ? ['crawl'] : []
+    if (estilosDasProvas.length === 0 || estilosDasProvas.includes('medley')) return athlete
+    // Provas no crawl (triatlo, águas abertas, livre): só crawl. Provas num estilo: a principal
+    // fica nesses estilos e no crawl (o "ME" é o estilo da prova principal)
+    const estilos = estilosDasProvas.filter((e) => e !== 'crawl' && athlete.strokes?.includes(e))
+    const principal = provas[0]?.estilo
+    return {
+        ...athlete,
+        strokes: ['crawl', ...estilos],
+        bestStroke: estilos.includes(principal) ? principal : estilos[0] ?? null,
+    }
+}
+
 // O atleta pode fazer essa série? (distância sem parar, estilos, piscina, tempo de aula)
 function seriesFits(serie, athlete) {
     if (!serie.usos.includes('treino')) return false
@@ -901,16 +923,24 @@ const especificoDoApp = () => (especificoPadrao ??= loadEspecifico())
 
 function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1, tecnica = null, estadoTecnica = null }) {
     const leve = soRitmoLeve(rules, athlete) || Boolean(athlete.soLeve)
-    const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes).filter((p) => !leve || p !== 'velocidade')
+    let estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes).filter((p) => !leve || p !== 'velocidade')
+    // Com o nado contínuo (série de teste), ele fica no lugar da 2ª série principal
+    if (athlete.serieDeTeste) {
+        const primeira = estrutura.indexOf('principal')
+        estrutura = estrutura.filter((p, i) => p !== 'principal' || i === primeira)
+    }
     const pausas = estrutura.map((p) => pauseOf(rules, p)).filter(Boolean)
     const segundosLivres = (athlete.sessionMinutes - pausas.reduce((s, p) => s + p.minutos, 0)) * 60
     const somaPesos = estrutura.filter((p) => !pauseOf(rules, p)).reduce((s, p) => s + (TEMPO_DAS_PARTES[p] ?? 0), 0)
     const principais = estrutura.filter((p) => p === 'principal').length
 
     const escolhas = new Map() // posição na estrutura -> escolha
+    // A série principal segue a prova alvo: prova no crawl (triatlo, águas abertas, livre)
+    // só crawl; prova num estilo: ele é o "melhor estilo" da principal
+    const daPrincipal = athleteForMain(athlete)
     const escolher = (i, budget, primeiraPrincipal = null) => {
         const parte = estrutura[i]
-        const escolha = pickForPart({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal, bloqueadas })
+        const escolha = pickForPart({ rules, library, parte, budget, athlete: parte === 'principal' ? daPrincipal : athlete, pace, random, recentes, primeiraPrincipal, bloqueadas })
         if (escolha) {
             escolhas.set(i, escolha)
             recentes.add(escolha.serie.id)
@@ -937,6 +967,22 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             if (escolha.tecnica) usado += escolha.tecnica.segundos
         }
     })
+    // Nado contínuo (série de teste): antes da série principal, e o tempo dele sai da principal
+    let continuo = null
+    if (athlete.serieDeTeste) {
+        const { distancia } = athlete.serieDeTeste
+        const estilo = ['costas', 'peito'].includes(athlete.prova?.estilo) && athlete.strokes?.includes(athlete.prova.estilo) ? athlete.prova.estilo : 'crawl'
+        const fator = estilo === 'crawl' ? 1 : rules.saidas?.fatorDoEstilo?.[estilo] ?? 1.35
+        const segundos = Math.round((distancia / 100) * pace * (rules.serieDeTeste?.ritmo ?? 1.15) * fator)
+        const abrev = { crawl: 'CR', costas: 'CO', peito: 'PE' }[estilo]
+        continuo = {
+            parte: 'continuo', titulo: NOMES_DAS_PARTES.continuo, serieId: 'nado-continuo', serieTexto: `${distancia} m contínuo`,
+            texto: `${distancia} m · ${abrev} · sem parar, em ritmo leve`,
+            observacao: 'Nade a distância toda sem parar, no seu ritmo. Se precisar parar, tudo bem: conte isso ao concluir o treino.',
+            nado: estilo, material: [], metros: distancia, minutos: Math.round(segundos / 60),
+        }
+        usado += segundos
+    }
     // 2º a série principal fica com o tempo que sobrou (dividido se forem duas)
     // (o feedback e o condicionamento aumentam ou diminuem esse tempo: `fatorPrincipal`)
     const budgetPrincipal = (Math.max(0, segundosLivres - usado) / Math.max(principais, 1)) * fatorPrincipal
@@ -968,7 +1014,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
     if (tecnica) {
         const limite = Math.min(athlete.sessionMinutes, rules.niveis?.[athlete.level]?.maxMinutosDeTreino ?? Infinity) * 60 * 1.15
         let total = pausas.reduce((s, p) => s + p.minutos * 60, 0) +
-            [...escolhas.values()].reduce((s, e) => s + e.segundos + (e.tecnica?.segundos ?? 0), 0)
+            [...escolhas.values()].reduce((s, e) => s + e.segundos + (e.tecnica?.segundos ?? 0), 0) + (continuo ? continuo.minutos * 60 : 0)
         for (const parte of ['solto', 'aquecimento']) {
             if (total <= limite) break
             const escolha = [...escolhas.entries()].find(([i, e]) => estrutura[i] === parte && e.tecnica)?.[1]
@@ -983,6 +1029,10 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
     // Monta na ordem do treino
     const partes = []
     estrutura.forEach((parte, i) => {
+        if (parte === 'principal' && continuo) {
+            partes.push(continuo)
+            continuo = null
+        }
         const pausa = pauseOf(rules, parte)
         if (pausa) {
             partes.push({ parte, titulo: 'Hidratação', texto: pausa.texto, metros: 0, minutos: pausa.minutos })
@@ -1037,6 +1087,16 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             ...(escolha.tecnica && { _tecnica: escolha.tecnica.registro }),
         })
     })
+    // Com o nado contínuo, se o treino passar do tempo da aula, saem (nessa ordem) a perna,
+    // o solto do meio do treino e a velocidade
+    if (partes.some((p) => p.parte === 'continuo')) {
+        let lista = partes
+        for (const tirar of ['perna', 'solto', 'velocidade']) {
+            if (lista.reduce((t, p) => t + (p.minutos ?? 0), 0) <= athlete.sessionMinutes * 1.1) break
+            lista = lista.filter((p) => p.parte !== tirar)
+        }
+        return lista
+    }
     return partes
 }
 
@@ -1071,7 +1131,7 @@ export function renderPart(rules, athlete, montagem) {
     let saidas = parte === 'velocidade'
         ? (serie.blocos.length === 1 ? [saidaVelocidade(rules, doDia, serie.blocos[0], strokeFactor(rules, variation, 0, doDia, serie))] : null)
         : saidasDaSerie(rules, doDia, serie, intensidades, Boolean(montagem.dia?.saidaPorIntensidade), variation)
-    const aviso = avisoComEquipamento(rules, doDia, { variation, intensidades }, saidas)
+    const aviso = avisoComEquipamento(rules, doDia, { variation, intensidades }, saidas, serie)
     // Sem tempos de referência: o descanso no lugar da saída (velocidade: 20" a 30")
     if (!doDia.tabela) {
         // (na Realização, 30 a 40% a mais e de 5 em 5: 25" a 40")
@@ -1231,6 +1291,48 @@ function recentWindow(n) {
 export const seriesUsadas = (partes) => new Set(partes.flatMap((p) =>
     [p.serieId, p.serieTexto && `texto:${p.serieTexto}`, p.serieFamilia && `familia:${p.serieFamilia}`].filter(Boolean)))
 
+// ---------- Séries de teste (o atleta vê "Nado contínuo") ----------
+
+// Próximo passo acima / abaixo de uma distância (regras.serieDeTeste.passos)
+function passoDe(cfg, distancia) {
+    return (cfg.passos.find((p) => distancia < p.ate) ?? cfg.passos.at(-1)).passo
+}
+const subir = (cfg, d) => d + passoDe(cfg, d)
+const descer = (cfg, d) => Math.max(cfg.minimo ?? 50, d - passoDe(cfg, d - 1))
+
+// Distância do nado contínuo dos próximos treinos (ou null: não precisa). A prova mais
+// longa da competição alvo é o alvo; começa um passo acima do que nada hoje (anamnese).
+// Pelos treinos feitos (`historico`, do mais antigo ao mais novo) nessa distância:
+// - não nadou sem parar, ou deu 10 onde era 8 ou 9: desce um passo;
+// - 3 seguidos pesados: desce; 3 seguidos sem parar e sem ficar pesado: sobe.
+export function testSeriesDistance(rules, athlete, historico = [], pace = null) {
+    const cfg = rules.serieDeTeste
+    const provas = athlete.provas?.length ? athlete.provas : athlete.prova ? [athlete.prova] : []
+    let alvo = Math.max(0, ...provas.map((p) => p.distancia ?? 0))
+    // O contínuo cabe no treino: até `parteDaAula` do tempo da aula (a progressão para aí)
+    const segundosPor100 = (pace ?? DEFAULT_400[athlete.level ?? 'intermediario'] / 400) * (cfg?.ritmo ?? 1.15)
+    const cabe = Math.floor(((athlete.sessionMinutes ?? 60) * 60 * (cfg?.parteDaAula ?? 0.6)) / segundosPor100 * 100 / 50) * 50
+    if (athlete.sessionMinutes) alvo = Math.min(alvo, cabe)
+    const hoje = SEM_PARAR[athlete.continuousDistance] ?? Infinity
+    if (!cfg || !alvo || hoje >= alvo) return null
+    const feitos = historico.filter((t) => t.plan?.serieDeTeste?.distancia)
+    if (feitos.length === 0) return { distancia: Math.min(alvo, subir(cfg, hoje)), alvo }
+    const atual = feitos.at(-1).plan.serieDeTeste.distancia
+    const nessa = []
+    for (let k = feitos.length - 1; k >= 0 && feitos[k].plan.serieDeTeste.distancia === atual; k--) nessa.unshift(feitos[k])
+    const fb = rules.feedback ?? {}
+    const limite = fb.pesadoAPartirDe?.[athlete.level] ?? fb.pesadoAPartirDe?.padrao ?? 8
+    const ultimo = nessa.at(-1)
+    const falhou = ultimo.nonstop === false || (ultimo.difficulty === 10 && [8, 9].includes(ultimo.plan.esforcoEsperado))
+    const pesado = (t) => Number.isInteger(t.difficulty) && t.difficulty >= limite && (t.plan.esforcoEsperado ?? 0) < limite
+    const ultimos = nessa.slice(-(cfg.treinosParaSubir ?? 3))
+    const completos = ultimos.length === (cfg.treinosParaSubir ?? 3)
+    let distancia = atual
+    if (falhou || (completos && ultimos.every(pesado))) distancia = descer(cfg, atual)
+    else if (completos && ultimos.every((t) => t.nonstop !== false && Number.isInteger(t.difficulty) && !pesado(t))) distancia = subir(cfg, atual)
+    return { distancia: Math.min(alvo, distancia), alvo }
+}
+
 // Quem não nada 400 m sem parar está no condicionamento: sem teste, e a metragem
 // da principal vai aumentando devagar
 export const inConditioning = (rules, athlete) => Boolean(rules.condicionamento) &&
@@ -1266,7 +1368,9 @@ export function feedbackAdjustment(rules, athlete, historico = [], fatorDoProxim
     // Nota que conta como pesado: 8; o avançado, que já está acostumado, só 9 e 10
     const limite = cfg.pesadoAPartirDe?.[athlete.level] ?? cfg.pesadoAPartirDe?.padrao ?? cfg.perguntarMotivoAPartirDe
     const pesado = avaliados && seguidos.every((t) => t.difficulty >= limite && t.plan.esforcoEsperado < limite)
-    const facil = avaliados && seguidos.every((t) => t.difficulty <= t.plan.esforcoEsperado - cfg.diferencaParaFacil)
+    // Fácil: 2 ou mais abaixo do esperado, ou nota 3 ou menos (regra do treinador), nos 3 seguidos
+    const facil = avaliados && seguidos.every((t) => t.difficulty <= t.plan.esforcoEsperado - cfg.diferencaParaFacil ||
+        t.difficulty <= (cfg.facilAteNota ?? 0))
     // Já ajustado depois desses treinos: o próximo treino montado tem outra carga
     const ja = (t) => fatorDoProximo !== null &&
         (pesado ? fatorDoProximo < t.plan.fatorPrincipal - 1e-6 : fatorDoProximo > t.plan.fatorPrincipal + 1e-6)
@@ -1487,6 +1591,9 @@ export function generateTrainings({
     const recentes = recentWindow(4) // séries dos últimos 4 treinos perdem prioridade
     // Técnica: continua do passo em que o atleta parou (saídas, viradas)
     const estadoTecnica = estadoDaTecnica(historico)
+    // Série de teste: o nado contínuo que vai crescendo até a distância da prova
+    // (no Específico o atleta já nada a distância da prova: não precisa)
+    const serieDeTeste = periodizacao && !periodizacao.semProva && athlete.modelo !== 'especifico' ? testSeriesDistance(rules, athlete, historico, pace) : null
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino
     const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false
@@ -1530,7 +1637,8 @@ export function generateTrainings({
     return datas.map((date, i) => {
         // Etapa do dia (Acumulação 1, ..., Realização). Condicionamento: fica na Acumulação.
         const daData = faseDe ? faseDe(date) : { etapa: null, nome: null, fase: null, semanaDaFase: null }
-        const etapa = condicionamento && ['transicao', 'realizacao'].includes(daData.fase) ? 'acumulacao2' : daData.etapa
+        // (com prova alvo, faz a Transição e a Realização como todo mundo: regra do treinador)
+        const etapa = condicionamento && (!periodizacao || periodizacao.semProva) && ['transicao', 'realizacao'].includes(daData.fase) ? 'acumulacao2' : daData.etapa
         const efeitos = rules.periodizacao?.etapas?.[etapa] ?? {}
         const fase = efeitos.fase ?? daData.fase
         const doDia = {
@@ -1546,6 +1654,7 @@ export function generateTrainings({
             soLeve: Boolean(efeitos.soRitmoLeve),
             // Transição 2 (força específica): palmar e palmar + pull buoy, se o feedback não pediu outra coisa
             foco: athlete.foco ?? efeitos.foco ?? null,
+            serieDeTeste,
         }
         const proibidas = []
         // Acumulação: só A1/A2
@@ -1636,6 +1745,7 @@ export function generateTrainings({
                 condicionamento,
                 montagem,
                 tecnica: tecnicaDoTreino,
+                ...(partes.some((p) => p.parte === 'continuo') && { serieDeTeste }),
             },
         }
     })
@@ -1648,7 +1758,7 @@ export function legacyFields(partes) {
     return {
         warmUp: juntar(['aquecimento']),
         speed: juntar(['velocidade', 'solto']),
-        mainSeries: juntar(['teste', 'recuperacao', 'principal', 'complemento', 'hidratacao', 'perna']),
+        mainSeries: juntar(['teste', 'recuperacao', 'continuo', 'principal', 'complemento', 'hidratacao', 'perna']),
         release: juntar(['soltura']),
     }
 }

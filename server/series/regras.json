@@ -253,9 +253,23 @@
     "esforcoEsperado": { "A1": 4, "A2": 6, "A3": 8, "teste": 9 },
     "treinosEmSequencia": 3,
     "diferencaParaFacil": 2,
+    "_comentarioFacil": "Também é fácil quando os 3 seguidos tiveram nota 3 ou menos (o treino fica mais difícil).",
+    "facilAteNota": 3,
     "ajusteDaPrincipal": 0.1,
     "fatorMinimo": 0.6,
     "fatorMaximo": 1.1
+  },
+  "serieDeTeste": {
+    "_comentario": "Só para o treinador (o atleta vê 'Nado contínuo'). Quem tem prova mais longa do que nada sem parar ganha, em cada treino, um nado contínuo em ritmo leve que vai crescendo até a distância da prova. Começa um passo acima do que ele nada hoje (anamnese). Sobe um passo depois de 3 treinos seguidos nessa distância feitos sem parar e sem ficar pesado (o esforço de sempre). Desce um passo se não conseguiu nadar sem parar, se deu 10 onde era para ser 8 ou 9, ou se ficou pesado 3 vezes seguidas. Passos: de 'ate' em 'ate' metros, sobe 'passo'.",
+    "passos": [ { "ate": 400, "passo": 50 }, { "ate": 1000, "passo": 100 }, { "ate": 2000, "passo": 250 }, { "ate": 100000, "passo": 500 } ],
+    "treinosParaSubir": 3,
+    "minimo": 50,
+    "parteDaAula": 0.4,
+    "ritmo": 1.15
+  },
+  "avisoComMaterial": {
+    "_comentario": "Iniciante com pé de pato ou palmar: chega bem antes da saída. O aviso diz quanto descansar, pela distância da repetição (A1, A2 e A3; com material eles nadam mais forte que o A3). Chave = até essa distância.",
+    "descanso": { "25": "de 20 segundos", "100": "de 20 a 30 segundos", "200": "de 40 a 50 segundos", "400": "de 1 minuto", "1500": "de 1 minuto" }
   },
   "descansoMinimo": {
     "_comentario": "Quem nada até 'paraQuemNadaAte' metros sem parar descansa pelo menos isso entre as repetições (20 a 30 segundos), mesmo que a tabela dê menos.",

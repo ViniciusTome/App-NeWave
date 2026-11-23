@@ -69,6 +69,23 @@ export function validarProva({ modality, distance, stroke, goalHundredths }) {
     return { distance, stroke: estilo, goalHundredths: meta }
 }
 
+// Várias provas na mesma competição (até 6): [{ distance, stroke, goalHundredths }], a 1ª é a
+// principal. Aceita também uma prova só (distance, stroke, goalHundredths). { provas } ou { erro }.
+export const MAXIMO_DE_PROVAS = 6
+export function validarProvas({ modality, events, distance, stroke, goalHundredths }) {
+    const lista = Array.isArray(events) ? events : [{ distance, stroke, goalHundredths }]
+    if (lista.length === 0) return { erro: 'Escolha a distância da prova.' }
+    if (lista.length > MAXIMO_DE_PROVAS) return { erro: `Escolha até ${MAXIMO_DE_PROVAS} provas por competição.` }
+    const provas = []
+    for (const e of lista) {
+        const p = validarProva({ modality, distance: e?.distance, stroke: e?.stroke, goalHundredths: e?.goalHundredths })
+        if (p.erro) return { erro: lista.length > 1 ? `${provas.length + 1}ª prova: ${p.erro}` : p.erro }
+        if (provas.some((x) => x.distance === p.distance && x.stroke === p.stroke)) return { erro: 'A mesma prova foi escolhida duas vezes.' }
+        provas.push(p)
+    }
+    return { provas }
+}
+
 // "200 m costas", "1,5 km" (águas abertas)
 export function nomeDaProva({ modality, distance, stroke }) {
     if (!distance) return ''
