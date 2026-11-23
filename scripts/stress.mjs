@@ -145,6 +145,27 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         }
     }
 
+    // A3 seguido (regra do treinador): 2 treinos seguidos com A3 só na mesma semana, uma vez
+    // por semana, em até 35% das semanas; nunca 3 seguidos (fora quem treina pouco)
+    {
+        const dispensada = a.trainingDays.length <= rules.recuperacaoDispensada.maxTreinosPorSemana &&
+            a.sessionMinutes < rules.recuperacaoDispensada.aulaAbaixoDeMinutos && a.modalidade !== 'triatlo'
+        const semanaDe = (iso) => { const ms = Date.parse(`${iso}T12:00:00Z`); return new Date(ms - ((new Date(ms).getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10) }
+        const a3 = (t) => t.plano.intensidade === 'A3' && !t.plano.diaDeTeste
+        const semanas = new Map()
+        if (!dispensada) {
+            treinos.forEach((t, k) => {
+                if (k === 0 || !a3(t) || !a3(treinos[k - 1])) return
+                confere('A3 seguido: nunca 3 treinos seguidos', !(k > 1 && a3(treinos[k - 2])), () => `${quem}: ${treinos[k - 2].date}, ${treinos[k - 1].date}, ${t.date}`)
+                confere('A3 seguido: só na mesma semana', semanaDe(treinos[k - 1].date) === semanaDe(t.date), () => `${quem}: ${treinos[k - 1].date} -> ${t.date}`)
+                semanas.set(semanaDe(t.date), (semanas.get(semanaDe(t.date)) ?? 0) + 1)
+            })
+            const total = new Set(treinos.map((t) => semanaDe(t.date))).size
+            confere('A3 seguido: no máximo uma vez por semana', [...semanas.values()].every((n) => n <= 1), () => `${quem}: ${JSON.stringify([...semanas])}`)
+            confere('A3 seguido: em até 35% das semanas', semanas.size <= Math.floor(0.35 * total), () => `${quem}: ${semanas.size} de ${total} semanas`)
+        }
+    }
+
     // Etapas: começa na Acumulação, termina na Realização (6 a 8 dias), recuperação depois da Transição
     const plano = planStages(rules, daysBetween(periodizacao.inicio, periodizacao.fim) + 1, a.level, a.trainingDays.length, periodizacao.semProva)
     const nomes = plano.map((p) => p.etapa)
@@ -313,13 +334,6 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
                     confere('Quem nada até 400 m: descanso de pelo menos 20"', Number(m[1]) >= 20, () => `${quem}: ${p.texto}`)
                 }
             }
-        }
-
-        // Recuperação: sem A3 em menos de 48 h depois de um treino com A3 (fora quem treina pouco)
-        if (anterior?.plano.intensidade === 'A3' && daysBetween(anterior.date, t.date) < 2 && !ehTeste) {
-            const dispensada = a.trainingDays.length <= rules.recuperacaoDispensada.maxTreinosPorSemana &&
-                a.sessionMinutes < rules.recuperacaoDispensada.aulaAbaixoDeMinutos && a.modalidade !== 'triatlo'
-            if (!dispensada) confere('Recuperação: sem A3 nas 48 h depois de um A3', t.plano.intensidade !== 'A3', () => `${quem} ${anterior.date} -> ${t.date}`)
         }
 
         // Não repetir a série no treino seguinte (id, como saiu e família)

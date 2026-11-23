@@ -374,7 +374,7 @@ A cada treino, o gerador sorteia **um tipo** para a série principal (pelos peso
 - **NEG / POS:** a série toda.
 - Final forte, NEG e POS só em séries sem repetições de 25 m.
 - **A3 sempre com equipamento:** a série, o bloco ou (nas séries simples) a série toda em A3 recebe c/PÉ ou c/PÉ + PALM. Quem não é avançado e não tem pé de pato não recebe A3.
-- **Recuperação:** depois de um treino com A3 (ou AC de 10 ou menos) na série principal, o próximo treino dentro de 48 h (recuperação do A3) não tem A3.
+- **A3 seguido (regra do treinador, `intensidades.A3.seguido`):** A3 (ou AC de 10 ou menos) em **2 treinos seguidos** só dentro da **mesma semana**, **uma vez por semana** e em até **35% das semanas** da periodização; **nunca 3 seguidos**. Fora disso, o treino depois de um A3 não tem A3.
 - **Recuperação dispensada** (`recuperacaoDispensada`): quem treina **até 2 vezes por semana** e **menos de 1 hora** pode ter A3 em qualquer treino. A não ser na preparação para **triatlo**.
 
 No card: A1/A2/A3 como estão, os outros entre parênteses (`(15 AC)`, `(NEG)`, `(75 NAD x 25 fo)`). O que é igual em todas as séries aparece uma vez, no cabeçalho.
@@ -554,7 +554,7 @@ As fases são `acumulacao`, `transicao` e `realizacao`.
 A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 5 em 5 segundos (para o mais perto). Aparece no card como `a/c 1'50"`. Os números ficam em `saidas` no `regras.json`.
 
 - **A1, A2, A3:** o tempo vem da **tabela de tempos** (teste de 400 m). O descanso segue a tabela de descanso: por distância para o avançado e o intermediário, por intensidade para o iniciante e o recém-intermediário. Ex. (teste em 6'00", avançado): 100 m A1 = 1'30" + 25" = **a/c 1'55"**.
-- **Perto do A1, fica a saída do A1:** se a saída do A2 ou do A3 é até 10" menor que a do A1 (20" nas repetições de 300 m ou mais), usa a do A1. Na fase de **Transição** cada intensidade fica com a sua. Enquanto a fase da temporada não é definida, vale a da Acumulação.
+- **A2 e A3 saem junto com o A1 (regra do treinador):** quando a saída do A2 ou do A3 dá menor que a do A1, fica a do A1: quanto mais perto do 100%, mais descanso. A exceção (`saidas.saidaPorIntensidade`): no **avançado**, a partir da **Transição** (Transição e Realização), em **40% das séries** cada intensidade fica com a sua saída. O sorteio é feito quando o treino é montado e fica guardado (um tempo novo não muda isso).
 - **Iniciante:** como o descanso do A3 é maior, a saída do A3 pode ficar acima da do A1, mas **no máximo 20" acima**. O A2 fica com a sua (ex.: 1'40" / 1'45" / 1'55").
 - **Iniciante com equipamento:** a saída não diminui com pé de pato ou palmar. O card mostra um aviso: se fizer muito abaixo do tempo proposto, descanse o tempo de descanso antes da próxima.
 - **AC (acima do melhor):** nos 400, melhor tempo do teste + o AC. Nas outras distâncias, o melhor tempo é **estimado pela tabela de percentuais** a partir do A1: melhor = tempo do A1 ÷ (1 + (100 − esforço do A1) ÷ 100). Ex. (avançado, A1 a 75%): 100 m A1 1'30" → melhor 1'12"; 10 AC = 1'22" + 25" = **a/c 1'45"**.
@@ -678,7 +678,6 @@ Cada regra aparece como OK ou FALHA, com exemplos do que falhou. Rode depois de 
 ### A decidir
 
 - **Esforço do intermediário** em cada intensidade (hoje é um meio termo provisório).
-- **Recuperação:** hoje só evita A3 seguido; falta pesar o treino inteiro (velocidade, AC) com mais precisão.
 - **Tempo das séries com intensidade:** o tempo estimado ainda usa A2 para a série principal toda.
 
 - **Metragem e tempo de cada parte no card** ("100 m · ~2 min"): escondidos para sobrar espaço. Para voltar a mostrar, troque `MOSTRAR_METRAGEM_E_TEMPO` para `true` em `src/components/Training/index.jsx`. O total do treino vai aparecer em outro lugar.
