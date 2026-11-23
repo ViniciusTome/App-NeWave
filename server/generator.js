@@ -1620,6 +1620,8 @@ export function generateTrainings({
     // Série de teste: o nado contínuo que vai crescendo até a distância da prova
     // (no Específico o atleta já nada a distância da prova: não precisa)
     // Só para o iniciante (regra do treinador)
+    // Específico: a sequência A3/A2 dos treinos da Transição
+    const estadoEspecifico = { transicao: 0 }
     const serieDeTeste = periodizacao && !periodizacao.semProva && athlete.modelo !== 'especifico' && athlete.level === 'iniciante'
         ? testSeriesDistance(rules, athlete, historico, pace) : null
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino
@@ -1724,7 +1726,7 @@ export function generateTrainings({
         // Específico da prova: na Transição e na Realização, a série principal é a da prova
         // (estilo e ritmo da prova) e o treino inteiro fica dentro do limite (15x ou 10x a prova)
         const partes = especifico ? aplicarEspecifico({
-            esp: especifico, partes: doGeral, athlete: doDia, pace, random, recentes, saida: saidaDoEspecifico(rules, doDia), tecnica,
+            esp: especifico, partes: doGeral, athlete: doDia, pace, random, recentes, saida: saidaDoEspecifico(rules, doDia), tecnica, estado: estadoEspecifico,
         }) : doGeral
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)

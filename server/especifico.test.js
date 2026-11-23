@@ -168,3 +168,15 @@ test('ritmo de prova: pouco volume e descanso proporcional ao tiro (200 m: até 
   }
   assert.ok(textos.some((t) => /\((2|3)x\) 4 x 50 m · RP/.test(t)), 'sem 2 ou 3 x 4 x 50 RP')
 })
+
+test('Específico na Transição: 60% dos treinos em A3 e 40% em A2 (nunca dois A2 seguidos)', () => {
+  for (const prova of PROVAS) {
+    const naTransicao = gerar(prova).filter((t) => t.plano.fase === 'transicao' && t.partes.some((p) => p.especifico))
+      .map((t) => t.partes.find((p) => p.especifico).intensidades.valores[0])
+    const a3 = naTransicao.filter((x) => x === 'A3').length / naTransicao.length
+    assert.ok(a3 >= 0.55 && a3 <= 0.67, `${prova.distancia}: ${naTransicao.join(' ')}`)
+    assert.ok(naTransicao.every((x, i) => !(x === 'A2' && naTransicao[i - 1] === 'A2')), naTransicao.join(' '))
+    // O plano do treino (a intensidade que a página de periodização mostra) acompanha
+    assert.ok(naTransicao.includes('A2'))
+  }
+})

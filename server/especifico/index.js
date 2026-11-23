@@ -250,11 +250,13 @@ export function textoDaSerie(s, prova, saida = null) {
 }
 
 const INTENSIDADE = { RP: 'A3', max: 'A3', A3: 'A3', A2: 'A2', A1: 'A1' }
+// A intensidade da série: a mais forte dos blocos (RP e máx contam como A3)
+const intensidadeDaSerie = (serie) => serie.blocos.map((b) => INTENSIDADE[b.ritmo]).sort().at(-1)
 
 // Troca a série principal do treino do Geral pela série da prova e respeita o limite
 // da prova (15x ou 10x a distância) no treino inteiro. Devolve as partes novas (ou as
 // mesmas, quando o Específico não vale nesse treino).
-export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null, saida = null, tecnica = null }) {
+export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null, saida = null, tecnica = null, estado = null }) {
     const { regras, series } = esp
     const prova = athlete.prova
     if (athlete.modelo !== 'especifico' || !prova?.distancia || !prova.metaCentesimos) return partes
@@ -269,13 +271,21 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
     const sobra = () => limite - resto.reduce((s, p) => s + p.metros, 0)
 
     const grupo = grupoDaProva(regras, prova.distancia)
-    const candidatas = series
+    const todas = series
         .filter((s) => s.grupos.includes(grupo) && s.fases.includes(athlete.fase))
         .filter((s) => !s.material || (athlete.equipment ?? []).includes(s.material))
         .map((s) => adaptar(s, { prova, poolLength: athlete.poolLength }, regras))
         .filter(Boolean)
         .map((s) => ajustarRitmoDeProva(s, prova, regras))
-    if (candidatas.length === 0) return partes
+    if (todas.length === 0) return partes
+    // Transição (regra do treinador): 60% dos treinos em A3 e 40% em A2, na sequência
+    // A3, A2, A3, A2, A3 (de novo...). Sem a sequência (`estado`), sorteado.
+    const naTransicao = athlete.fase === 'transicao' ? regras.intensidadeNaTransicao : null
+    let alvo = null
+    if (naTransicao?.sequencia && estado) alvo = naTransicao.sequencia[(estado.transicao++) % naTransicao.sequencia.length]
+    else if (naTransicao) alvo = random() < naTransicao.A3 ? 'A3' : 'A2'
+    const daIntensidade = alvo ? todas.filter((s) => intensidadeDaSerie(s) === alvo) : []
+    const candidatas = daIntensidade.length > 0 ? daIntensidade : todas
     const menor = Math.min(...candidatas.map(volumeDe))
 
     // Não cabe nem a menor série: sai a perna, depois o aquecimento fica curto
@@ -322,7 +332,7 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
     encurtar(() => resto.reduce((t, p) => t + p.minutos, 0) + segundosDe(escolhida, prova, pace, regras) / 60 > minutosDaAula)
 
     const segundos = segundosDe(escolhida, prova, pace, regras)
-    const intensidade = escolhida.blocos.map((b) => INTENSIDADE[b.ritmo]).sort().at(-1)
+    const intensidade = intensidadeDaSerie(escolhida)
     const rp = ritmoDeProva(prova, prova.distancia <= 100 ? 25 : 50)
     const principal = {
         parte: 'principal',

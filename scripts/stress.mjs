@@ -459,6 +459,13 @@ function confereEspecifico(i) {
     const treinos = generateTrainings({ rules, library, athlete, today: HOJE, random, periodizacao: { inicio: HOJE, fim, provas: [], semProva: false, testeNaTransicao: Boolean(athlete.time400) } })
     const quem = `${base.nome} (${level}, ${distancia} m ${estilo}, ${modalidade}, ${athlete.sessionMinutes} min)`
     const limite = limiteDaProva(especifico.regras, distancia)
+    // Transição: 60% dos treinos em A3 e 40% em A2 (sequência A3, A2, A3, A2, A3), nunca dois A2 seguidos
+    const naTransicao = treinos.filter((t) => t.plano.fase === 'transicao' && t.partes.some((p) => p.especifico)).map((t) => t.partes.find((p) => p.especifico).intensidades.valores[0])
+    if (naTransicao.length >= 5) {
+        const a3 = naTransicao.filter((x) => x === 'A3').length / naTransicao.length
+        confere('Específico na Transição: 60% A3 e 40% A2 (55% a 67% de A3), nunca dois A2 seguidos', a3 >= 0.55 && a3 <= 0.67 &&
+            naTransicao.every((x, i) => !(x === 'A2' && naTransicao[i - 1] === 'A2')), () => `${base.nome}: ${naTransicao.join(' ')}`)
+    }
     for (const t of treinos) {
         const esp = t.partes.filter((p) => p.especifico)
         const vale = ['transicao', 'realizacao'].includes(t.plano.fase) && !t.plano.diaDeTeste && !t.plano.condicionamento
