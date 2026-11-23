@@ -11,6 +11,7 @@ import {
 import { createConsoleMailer, passwordResetMessage } from './mailer.js'
 import { createSwimmingRoutes } from './swimming.js'
 import { createAthleteRoutes } from './athlete.js'
+import { createAccountRoutes } from './account.js'
 import { loadLibrary } from './series/index.js'
 import { loadRules } from './series/regras.js'
 import {
@@ -60,6 +61,7 @@ export function createApp({
   secureCookies = false,
   mailer = createConsoleMailer(),
   appUrl = 'http://localhost:5173', // endereço do front-end, usado no link do email
+  supportEmail = null, // para onde vão as mensagens do "Entre em contato" (sem ele, só ficam guardadas)
 }) {
   const db = openDatabase(dbPath)
 
@@ -317,6 +319,15 @@ export function createApp({
     askAboutLastDays: rules.faltas?.perguntarDosUltimosDias ?? 21,
   })
   const athlete = createAthleteRoutes({ db, requireUser, library: loadLibrary(), rules })
+  // Perfil: números de verdade, dados pessoais, senha, suporte e excluir a conta
+  const account = createAccountRoutes({
+    db, requireUser, mailer, supportEmail,
+    sessionTokenHash: (req) => {
+      const token = getSessionToken(req)
+      return token ? hashToken(token) : null
+    },
+    logoutCookie: () => cookieHeader('', 0),
+  })
 
   // Rotas da API. Trechos como ":id" viram parâmetros (ex.: /api/tests/7).
   const routes = [
@@ -326,6 +337,11 @@ export function createApp({
     ['GET', '/api/auth/me', me],
     ['POST', '/api/auth/forgot-password', forgotPassword],
     ['POST', '/api/auth/reset-password', resetPassword],
+    ['GET', '/api/account', account.getAccount],
+    ['PATCH', '/api/account', account.updateAccount],
+    ['DELETE', '/api/account', account.deleteAccount],
+    ['POST', '/api/account/password', account.changePassword],
+    ['POST', '/api/support', account.sendSupport],
     ['GET', '/api/tests', swimming.getTests],
     ['POST', '/api/tests', swimming.createTest],
     ['DELETE', '/api/tests/:id', swimming.removeTest],
@@ -391,6 +407,7 @@ export function createApp({
     server,
     async close() {
       registerLimiter.close()
+      account.close()
       loginLimiter.close()
       loginIpLimiter.close()
       forgotLimiter.close()

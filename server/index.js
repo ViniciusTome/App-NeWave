@@ -46,6 +46,8 @@ const app = createApp({
   appUrl: process.env.APP_URL ?? 'http://localhost:5173',
   // Em desenvolvimento, o "email" aparece no terminal do servidor
   mailer: createConsoleMailer({ showContent: !isProduction }),
+  // Para onde vão as mensagens do "Entre em contato" (sem ele, ficam guardadas no banco)
+  supportEmail: process.env.SUPPORT_EMAIL ?? null,
 })
 
 app.server.listen(port, host, () => {

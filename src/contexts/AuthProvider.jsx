@@ -76,6 +76,11 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
+  // Perfil: o nome mudou (atualiza o resto do app) ou a conta foi excluída (sai)
+  const updateUser = useCallback((changes) => {
+    setUser((atual) => (changes === null ? null : { ...atual, ...changes }))
+  }, [])
+
   const value = useMemo(
     () => ({
       user,
@@ -86,8 +91,9 @@ export const AuthProvider = ({ children }) => {
       logout,
       forgotPassword,
       resetPassword,
+      updateUser,
     }),
-    [user, isLoading, register, login, logout, forgotPassword, resetPassword],
+    [user, isLoading, register, login, logout, forgotPassword, resetPassword, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -1,40 +1,15 @@
 import styles from './payments.module.css'
 
+// Pagamentos: ainda não há planos pagos (o app está gratuito). Quando houver, a
+// escolha e o pagamento do plano entram aqui.
 export const Payments = () => {
-    const getAPlan = true;
-
-    const getPayment = () => {
-        if (getAPlan) {
-            return (
-                <div className={styles.description}>
-                    <div className={styles.description}>
-                        <div className={styles.plan}>
-                            <p style={{ color: 'white' }} className={styles.name}> Plano Trimestal (set/25 a nov/25) -  </p>
-                            <a href='#'>Renovar</a>
-                            <p className={styles.name}> - </p>
-                            <a href='#'>Cancelar</a>
-                        </div>
-                    </div>
-                </div>
-            )
-        } else {
-            return (
-                <div className={styles.description}>
-                    <div className={styles.description}>
-                        <div className={styles.plan}>
-                            <a style={{ cursor: 'pointer' }}> ADIQUIRA UM PLANO </a>
-                        </div>
-                    </div>
-                </div>
-
-            )
-        }
-    }
-
 
     return (
-        <div className={styles.profile}>
-            {getPayment()}
+        <div className={styles.plan}>
+            <p className={styles.name}>
+                <strong>Plano atual: gratuito.</strong> Por enquanto o NeWave não cobra nada. Quando os planos chegarem,
+                você escolhe o seu e paga por aqui.
+            </p>
         </div>
     )
 }
