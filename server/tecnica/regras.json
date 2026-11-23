@@ -1,0 +1,18 @@
+{
+  "_comentario": "Técnica (educativos) no treino. Fica separada do gerador: server/tecnica/. Entra no aquecimento e no solto depois da velocidade (técnica cansado, para manter o nado bom mesmo cansado). No solto, um treino sim, um não, o 'foco do dia' (saída ou virada, passo a passo, ou uma série do fundamento). Os educativos da planilha estão em educativos.json; os do treinador em treinador.json.",
+  "partes": {
+    "aquecimento": { "apartirDeMinutos": 30 },
+    "soltoDepoisDaVelocidade": { "apartirDeMinutos": 45 }
+  },
+  "repeticoes": { "iniciante": 4, "intermediario": 6, "avancado": 8 },
+  "distancia": 25,
+  "descanso": 20,
+  "focoDoDia": { "aCadaTreinos": 2, "pesoDasSeries": 1, "pesoDosPassos": 2 },
+  "pesoDoCrawl": 2,
+  "nomes": {
+    "palmateio": "palmateio", "bracada": "braçada", "bracadas": "braçadas", "pernada": "pernada", "rolamento": "rolamento",
+    "respiracao": "respiração", "coordenacao": "coordenação", "ondulacao": "ondulação submersa",
+    "saida": "saída", "virada_simples": "virada simples", "virada_olimpica": "virada olímpica", "filipina": "filipina",
+    "virada": "virada", "virada_medley": "virada do medley"
+  }
+}

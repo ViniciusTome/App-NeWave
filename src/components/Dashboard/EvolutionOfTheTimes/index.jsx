@@ -79,7 +79,7 @@ export const EvolutionOfTheTimes = () => {
         try {
             await api(`/tests/${test.id}`, { method: 'DELETE' })
             setTests((current) => current.filter((t) => t.id !== test.id))
-            // Sem esse teste, os tempos (e o cd dos treinos) podem mudar
+            // Sem esse teste, os tempos (e o a/c dos treinos) podem mudar
             notifyAthleteChanged()
             notifyTrainingsChanged()
         } catch (err) {

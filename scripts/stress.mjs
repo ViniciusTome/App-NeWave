@@ -10,6 +10,7 @@ import { computeLevel } from '../server/athlete.js'
 import { feedbackAdjustment, generateTrainings, planStages, refreshTimes, trainingDates } from '../server/generator.js'
 import { loadLibrary } from '../server/series/index.js'
 import { loadRules } from '../server/series/regras.js'
+import { loadTecnica } from '../server/tecnica/index.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -74,6 +75,8 @@ function perfil(i) {
 }
 
 // ---------- Regras conferidas ----------
+const contaTecnica = { aquecimento: { com: 0, total: 0 }, solto: { com: 0, total: 0 } }
+const tecnicaPorId = new Map(loadTecnica().itens.map((i) => [i.id, i]))
 const regras = new Map() // nome -> { conferidas, falhas: [] }
 const contaBorboleta = { linhas: 0, palmarBoia: 0 }
 function confere(nome, ok, exemplo) {
@@ -98,7 +101,7 @@ const ordemDaLinha = (l) => {
         pos(/(?:^|: | · )(NAD|c\/(?:PÉ|PALM|BOIA|SNK|PARA)[^·]*)(?= ·|$)/),
         pos(/ · (A[123]|\([^)]*\)|ritmo (leve|moderado|forte)[^·]*)(?= ·|$)/),
         pos(/ · (CR|CO|PE|BO|MD|ME)\b/),
-        pos(/ · (\d+ )?(cd \d|c\/\d+"( a \d+")? de descanso)/),
+        pos(/ · (\d+ )?(a\/c \d|D\d+"( a \d+")? de descanso)/),
     ].filter((p) => p >= 0)
     return posicoes.every((p, i) => i === 0 || p > posicoes[i - 1])
 }
@@ -118,6 +121,29 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
     confere('Gera todos os treinos da periodização (até a prova / 8 semanas)', treinos.length === esperadas.length,
         () => `${quem}: ${treinos.length} de ${esperadas.length}`)
     confere('Gera rápido (menos de 1,5 s por atleta)', ms < 1500, () => `${quem}: ${Math.round(ms)} ms`)
+
+    // Técnica: aquecimento (a partir de 30 min) e solto depois da velocidade (a partir de 45 min);
+    // só educativos do nível, com o material e nos estilos do atleta
+    for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
+        // (só sai quando o treino passaria do tempo: a série principal tem prioridade)
+        const aq = t.partes.find((p) => p.parte === 'aquecimento')
+        if (aq && a.sessionMinutes >= 30) {
+            contaTecnica.aquecimento.total++
+            if (/\n(Técnica|Foco do dia) · /.test(aq.texto)) contaTecnica.aquecimento.com++
+        }
+        const i = t.partes.findIndex((p) => p.parte === 'solto')
+        if (i > 0 && t.partes[i - 1].parte === 'velocidade' && a.sessionMinutes >= 45) {
+            contaTecnica.solto.total++
+            if (/\n(Técnica|Foco do dia) · /.test(t.partes[i].texto)) contaTecnica.solto.com++
+        }
+        for (const r of t.plano.tecnica) {
+            const item = tecnicaPorId.get(r.id)
+            confere('Técnica do nível do atleta', !item.niveis || item.niveis.includes(a.level), () => `${quem}: ${item.id}`)
+            confere('Técnica só com o material que o atleta tem', (item.material ?? []).every((m) => a.equipment.includes(m)), () => `${quem}: ${item.id}`)
+            confere('Técnica num estilo que o atleta nada', r.estilo === 'medley' ? ['crawl', 'costas', 'peito', 'borboleta'].every((e) => a.strokes.includes(e)) : a.strokes.includes(r.estilo),
+                () => `${quem}: ${item.id} ${r.estilo}`)
+        }
+    }
 
     // Etapas: começa na Acumulação, termina na Realização (6 a 8 dias), recuperação depois da Transição
     const plano = planStages(rules, daysBetween(periodizacao.inicio, periodizacao.fim) + 1, a.level, a.trainingDays.length, periodizacao.semProva)
@@ -225,8 +251,8 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
             }
             // Quanto mais perto do 100%, maior o descanso: o AC mais forte nunca tem cd menor
             {
-                const comAC = p.texto.split('\n').filter((l) => /^\dª série:.*\((\d+) AC\) · CR · cd /.test(l))
-                const cdDe = (l) => { const m = /cd (?:(\d+)')?(\d+)"/.exec(l); return Number(m[1] ?? 0) * 60 + Number(m[2]) }
+                const comAC = p.texto.split('\n').filter((l) => /^\dª série:.*\((\d+) AC\) · CR · a\/c /.test(l))
+                const cdDe = (l) => { const m = /a\/c (?:(\d+)')?(\d+)"/.exec(l); return Number(m[1] ?? 0) * 60 + Number(m[2]) }
                 const acDe = (l) => Number(/\((\d+) AC\)/.exec(l)[1])
                 const ok = comAC.every((a) => comAC.every((b) => !(acDe(b) < acDe(a)) || cdDe(b) >= cdDe(a)))
                 if (comAC.length > 1) confere('AC mais forte nunca com cd menor (descansa mais perto do 100%)', ok, () => `${quem}: ${p.texto}`)
@@ -276,14 +302,14 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
             }
             // Sem tempo: nada de cd, A1/A2/A3 ou AC; ritmo com %
             if (!a.time400) {
-                confere('Sem tempo: sem cd na principal (descanso no lugar)', !/cd \d/.test(p.texto), () => `${quem} ${t.date}: ${p.texto}`)
+                confere('Sem tempo: sem cd na principal (descanso no lugar)', !/a\/c \d/.test(p.texto), () => `${quem} ${t.date}: ${p.texto}`)
                 confere('Sem tempo: sem A1/A2/A3 escritos (ritmo leve/moderado/forte)', !/\bA[123]\b/.test(p.texto), () => `${quem} ${t.date}: ${p.texto}`)
                 confere('Sem tempo: sem AC', !/AC\)/.test(p.texto), () => `${quem} ${t.date}: ${p.texto}`)
                 if (/ritmo /.test(p.texto)) confere('Sem tempo: ritmo com o % do máximo', /% do seu máximo/.test(p.texto), () => p.texto)
             }
             // Descanso mínimo para quem nada até 400 m
             if (SEM_PARAR[a.continuousDistance] <= rules.descansoMinimo.paraQuemNadaAte) {
-                for (const m of p.texto.matchAll(/c\/(\d+)" de descanso/g)) {
+                for (const m of p.texto.matchAll(/D(\d+)" de descanso/g)) {
                     confere('Quem nada até 400 m: descanso de pelo menos 20"', Number(m[1]) >= 20, () => `${quem}: ${p.texto}`)
                 }
             }
@@ -372,6 +398,10 @@ for (const [nome, r] of regras) {
     if (!ok) falhou++
     console.log(`${ok ? 'OK   ' : 'FALHA'} ${nome}  (${r.conferidas} conferências${ok ? '' : `, ${r.total} falhas`})`)
     for (const f of r.falhas) console.log(`        - ${f.replace(/\n/g, '\n          ')}`)
+}
+for (const [parte, c] of Object.entries(contaTecnica)) {
+    confere(`Técnica no ${parte === 'solto' ? 'solto depois da velocidade' : 'aquecimento'} (95% ou mais; sai só quando falta tempo)`,
+        c.com >= c.total * 0.95, () => `${c.com} de ${c.total}`)
 }
 confere('Borboleta com palmar + boia é rara (menos de 10%)', contaBorboleta.palmarBoia <= contaBorboleta.linhas * 0.1, () => `${contaBorboleta.palmarBoia} de ${contaBorboleta.linhas}`)
 console.log(`\n${regras.size - falhou} de ${regras.size} regras sem falhas.`)

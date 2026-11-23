@@ -15,6 +15,7 @@ import {
     partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
     drawIntensities, hardestIntensity, recoveryWaived,
 } from './series/regras.js'
+import { estadoDaTecnica, loadTecnica, montarTecnica } from './tecnica/index.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
 const DEFAULT_400 = { iniciante: 9 * 6000, intermediario: 7 * 6000, avancado: 5 * 6000 + 3000 }
@@ -165,7 +166,7 @@ export function saidaVelocidade(rules, athlete, bloco, fator = 1) {
 }
 
 // Sem tempos de referência (sem teste de 400 m) não dá para montar a saída:
-// no lugar dela vai o descanso entre as repetições ("c/20\" de descanso").
+// no lugar dela vai o descanso entre as repetições ("D20\" de descanso", notação do treinador).
 export function descansoFor(rules, athlete, bloco, valor, fator = 1) {
     const intensidade = /^A[123]$/.test(valor ?? '') ? valor : null
     const ritmoLivre = valor === 'NEG' || valor === 'POS' || / NAD x 25 fo$/.test(valor ?? '')
@@ -177,7 +178,7 @@ export function descansoFor(rules, athlete, bloco, valor, fator = 1) {
     return Math.max(5, de5em5(intensityName(rules, bloco.intensidade) === 'solto' && !valor ? segundos : restOfPhase(athlete, segundos)))
 }
 const descansoText = (segundos) =>
-    `c/${segundos >= 60 ? minutosCurto(segundos) : `${segundos}"`} de descanso`
+    `D${segundos >= 60 ? minutosCurto(segundos) : `${segundos}"`} de descanso`
 
 // Os descansos de cada parte com intensidade, no mesmo formato das saídas
 function descansosDaSerie(rules, athlete, serie, intensidades, fator = 1) {
@@ -207,7 +208,8 @@ function comoMostrar(rules, athlete, intensidades) {
 }
 
 // Saída (segundos) ou descanso (texto) do jeito que vai no card
-const marcaText = (x) => (typeof x === 'number' ? `cd ${saidaText(x)}` : x)
+// Saída na notação do treinador: "a/c 1'50\"" (a cada)
+const marcaText = (x) => (typeof x === 'number' ? `a/c ${saidaText(x)}` : x)
 
 // 90 -> 1'30"; 45 -> 45"
 export const saidaText = (segundos) =>
@@ -876,7 +878,11 @@ export function trainingDates(today, trainingDays, dias = DIAS_PADRAO) {
 // ---------- Montagem ----------
 
 // Monta um treino: uma série para cada parte da estrutura do nível e do tempo de aula.
-function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1 }) {
+// Técnica (educativos): módulo separado, carregado uma vez
+let tecnicaPadrao = null
+const tecnicaDoApp = () => (tecnicaPadrao ??= loadTecnica())
+
+function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1, tecnica = null, estadoTecnica = null }) {
     const leve = soRitmoLeve(rules, athlete) || Boolean(athlete.soLeve)
     const estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes).filter((p) => !leve || p !== 'velocidade')
     const pausas = estrutura.map((p) => pauseOf(rules, p)).filter(Boolean)
@@ -903,6 +909,12 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         if (parte === 'principal' || pauseOf(rules, parte)) return
         const escolha = escolher(i, (segundosLivres * (TEMPO_DAS_PARTES[parte] ?? 0)) / somaPesos)
         if (escolha) usado += escolha.segundos
+        // Técnica no aquecimento e no solto depois da velocidade (técnica cansado)
+        const comTecnica = parte === 'aquecimento' || (parte === 'solto' && estrutura[i - 1] === 'velocidade')
+        if (escolha && tecnica && comTecnica) {
+            escolha.tecnica = montarTecnica({ tecnica, athlete, parte, pace, random, recentes, estado: estadoTecnica })
+            if (escolha.tecnica) usado += escolha.tecnica.segundos
+        }
     })
     // 2º a série principal fica com o tempo que sobrou (dividido se forem duas)
     // (o feedback e o condicionamento aumentam ou diminuem esse tempo: `fatorPrincipal`)
@@ -929,6 +941,23 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             }
         }
     })
+
+    // A técnica não pode fazer o treino passar do tempo (a série principal já está no
+    // mínimo): sai primeiro a do solto, depois a do aquecimento
+    if (tecnica) {
+        const limite = Math.min(athlete.sessionMinutes, rules.niveis?.[athlete.level]?.maxMinutosDeTreino ?? Infinity) * 60 * 1.15
+        let total = pausas.reduce((s, p) => s + p.minutos * 60, 0) +
+            [...escolhas.values()].reduce((s, e) => s + e.segundos + (e.tecnica?.segundos ?? 0), 0)
+        for (const parte of ['solto', 'aquecimento']) {
+            if (total <= limite) break
+            const escolha = [...escolhas.entries()].find(([i, e]) => estrutura[i] === parte && e.tecnica)?.[1]
+            if (!escolha) continue
+            total -= escolha.tecnica.segundos
+            const { sequencia, passo } = escolha.tecnica.registro
+            if (sequencia && estadoTecnica) estadoTecnica.passos[sequencia] = passo - 1 // o passo fica para o próximo
+            escolha.tecnica = null
+        }
+    }
 
     // Monta na ordem do treino
     const partes = []
@@ -964,6 +993,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         // Como a parte foi montada (fica no plano interno): com um tempo novo, o texto é
         // refeito (cd, ritmo, velocidade) sem mudar a série
         const montagem = partMontage(parte, escolha.serie, escolha.variation, faixaDoDia, escolha.intensidades, athlete)
+        if (escolha.tecnica) montagem.tecnica = escolha.tecnica.texto
         const { texto, aviso } = renderPart(rules, athlete, montagem)
         partes.push({
             parte,
@@ -978,9 +1008,10 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             ...(intervalo && { intervalo }),
             nado: escolha.variation.nado,
             material: escolha.variation.material,
-            ...(escolha.serie.observacao && { observacao: escolha.serie.observacao }),
-            metros: escolha.serie.volume,
-            minutos: Math.round(escolha.segundos / 60),
+            ...(escolha.serie.observacao && !escolha.tecnica && { observacao: escolha.serie.observacao }),
+            metros: escolha.serie.volume + (escolha.tecnica?.metros ?? 0),
+            minutos: Math.round((escolha.segundos + (escolha.tecnica?.segundos ?? 0)) / 60),
+            ...(escolha.tecnica && { _tecnica: escolha.tecnica.registro }),
         })
     })
     return partes
@@ -1021,10 +1052,17 @@ export function renderPart(rules, athlete, montagem) {
         // (na Realização, 30 a 40% a mais e de 5 em 5: 25" a 40")
         const [de, ate] = (rules.saidas?.velocidade?.descanso ?? [20, 30]).map((x) => restOfPhase(doDia, x))
         saidas = parte === 'velocidade'
-            ? (saidas?.[0] ? saidas : [`c/${de}" a ${ate}" de descanso`])
+            ? (saidas?.[0] ? saidas : [`D${de}" a ${ate}" de descanso`])
             : descansosDaSerie(rules, doDia, serie, intensidades, strokeFactor(rules, variation, null, doDia, serie))
     }
-    return { texto: cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas), aviso }
+    const texto = cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas)
+    // Técnica da parte (aquecimento, solto): vai embaixo, como foi montada. A observação
+    // da série (ex.: "Pode ser feito com pull buoy.") vai junto da série, para não
+    // parecer ser da técnica
+    if (!montagem.tecnica) return { texto, aviso }
+    const obs = montagem.serie.observacao?.replace(/\.$/, '')
+    const daSerie = obs ? `${texto} (${obs[0].toLowerCase()}${obs.slice(1)})` : texto
+    return { texto: `${daSerie}\n${montagem.tecnica}`, aviso }
 }
 
 // Treino mais leve depois de faltas. `como` = 'degrau' (iniciante e intermediário):
@@ -1400,6 +1438,7 @@ export function periodPhases(rules, inicio, fim, level = null, treinosPorSemana 
 export function generateTrainings({
     rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
     inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null, semTeste = false,
+    tecnica = tecnicaDoApp(),
 }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
@@ -1414,6 +1453,8 @@ export function generateTrainings({
     athlete = { ...athlete, foco: ajuste.foco }
     const condicionamento = inConditioning(rules, athlete)
     const recentes = recentWindow(4) // séries dos últimos 4 treinos perdem prioridade
+    // Técnica: continua do passo em que o atleta parou (saídas, viradas)
+    const estadoTecnica = estadoDaTecnica(historico)
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino
     const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false
@@ -1498,10 +1539,14 @@ export function generateTrainings({
         if (testeNaTransicao) testeDaPeriodizacao = true
         const partes = testeSemTempo || testeNaTransicao
             ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
-            : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
+            : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal, tecnica, estadoTecnica })
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
-        partes.forEach((p) => delete p._montagem)
+        const tecnicaDoTreino = partes.map((p) => p._tecnica).filter(Boolean)
+        partes.forEach((p) => {
+            delete p._montagem
+            delete p._tecnica
+        })
         bloqueadas = seriesUsadas(partes)
         recentes.fecharTreino()
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
@@ -1539,6 +1584,7 @@ export function generateTrainings({
                 foco: ajuste.foco,
                 condicionamento,
                 montagem,
+                tecnica: tecnicaDoTreino,
             },
         }
     })

@@ -575,7 +575,7 @@ test('texto da saída', () => {
 test('o card mostra a saída (cd) da série principal', () => {
   const textos = [1, 2, 3].flatMap((seed) => gerar(avancado, seed))
     .map((t) => t.partes.find((p) => p.parte === 'principal').texto)
-  assert.ok(textos.some((t) => /cd \d+'\d{2}"/.test(t)), 'nenhum treino com saída')
+  assert.ok(textos.some((t) => /a\/c \d+'\d{2}"/.test(t)), 'nenhum treino com saída')
 })
 
 test('na acumulação, A2/A3 perto do A1 ficam com a saída do A1; na transição, cada um com a sua', () => {
@@ -638,7 +638,7 @@ test('quanto mais perto do 100%, maior o descanso: 15, 10 e 5 AC com a mesma sa�
       periodizacao: { inicio: '2026-11-23', fim: '2027-02-28', semProva: true } })
     for (const p of plano.flatMap((t) => t.partes).filter((x) => x.parte === 'principal')) {
       const linhas = p.texto.split('\n').filter((l) => /^\dª série:.*\(\d+ AC\)/.test(l))
-      const cd = (l) => { const m = /cd (\d+)'(\d+)"/.exec(l) ?? /cd (\d+)"/.exec(l); return m[2] ? Number(m[1]) * 60 + Number(m[2]) : Number(m[1]) }
+      const cd = (l) => { const m = /a\/c (\d+)'(\d+)"/.exec(l) ?? /a\/c (\d+)"/.exec(l); return m[2] ? Number(m[1]) * 60 + Number(m[2]) : Number(m[1]) }
       const ac = (l) => Number(/\((\d+) AC\)/.exec(l)[1])
       for (const a of linhas) for (const b of linhas) if (ac(b) < ac(a) && /· CR · cd/.test(a) && /· CR · cd/.test(b)) assert.ok(cd(b) >= cd(a), p.texto)
     }
@@ -663,7 +663,7 @@ test('velocidade: avançado nos 25 a cada 30"; intermediário: tempo forte + 20"
   // O card mostra a saída
   const textos = [1, 2, 3, 4].flatMap((seed) => gerar(avancado, seed))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
-  assert.ok(textos.length > 0 && textos.every((t) => /cd \d+"/.test(t)), textos.join('\n'))
+  assert.ok(textos.length > 0 && textos.every((t) => /a\/c \d+"/.test(t)), textos.join('\n'))
 })
 
 test('grupos: cada distância com a sua saída', () => {
@@ -675,11 +675,11 @@ test('grupos: cada distância com a sua saída', () => {
   assert.deepEqual(acumulacao.porBloco.map((col) => new Set(col).size), [1, 1, 1])
   const variation = { texto: '', material: [], padrao: 'livre' }
   const texto = cardText({ ...serie, texto: '' }, variation, null, I, acumulacao)
-  assert.match(texto, /1 x 100 m · cd 1'50"/)
+  assert.match(texto, /1 x 100 m · a\/c 1'50"/)
   // Transição: cada série com as suas saídas
   const transicao = saidasDaSerie(rules, avancado, serie, I, 'transicao')
   const texto2 = cardText({ ...serie, texto: '' }, variation, null, I, transicao)
-  assert.match(texto2, /3ª série: A3 · 100 cd \d'\d{2}" \/ 75 cd/)
+  assert.match(texto2, /3ª série: A3 · 100 a\/c \d'\d{2}" \/ 75 a\/c/)
 })
 
 test('iniciante com equipamento: aviso para descansar o intervalo', () => {
@@ -691,7 +691,7 @@ test('iniciante com equipamento: aviso para descansar o intervalo', () => {
   const comAviso = partes.filter((p) => p.aviso)
   assert.ok(comAviso.length > 0, 'nenhum aviso')
   for (const p of comAviso) {
-    assert.match(p.texto, /cd /)
+    assert.match(p.texto, /a\/c /)
     assert.match(p.aviso, /descanse o tempo de descanso/)
   }
   // Avançado não recebe o aviso
@@ -803,7 +803,7 @@ test('sem tempos de referência: o teste de 400 m só depois de 1 mês de treino
   // O resto da aula: séries com pé de pato em ritmo leve para recuperar
   const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
   assert.ok(recuperar.length > 0)
-  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · ritmo leve .* · CR · c\/\d+" de descanso/)
+  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · ritmo leve .* · CR · D\d+" de descanso/)
   assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
   // Quem não nada 400 m sem parar não faz o teste (condicionamento)
   for (const continuousDistance of ['ate_50', '100_200', '200_400']) {
@@ -824,13 +824,13 @@ test('sem tempos de referência: o descanso entre as repetições no lugar da sa
   const textos = [1, 2, 3, 4, 5].flatMap((seed) => semTeste(gerar(semTempo, seed)))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'principal' && p.intensidades).map((p) => p.texto))
   assert.ok(textos.length > 0)
-  for (const t of textos) assert.ok(!/cd \d/.test(t) && !/AC\)/.test(t) && !/\bA[123]\b/.test(t), t)
+  for (const t of textos) assert.ok(!/a\/c \d/.test(t) && !/AC\)/.test(t) && !/\bA[123]\b/.test(t), t)
   assert.ok(textos.some((t) => /ritmo (leve|moderado|forte)/.test(t)), textos.join('\n'))
-  assert.ok(textos.some((t) => /c\/\d+"? de descanso|c\/\d+' de descanso/.test(t)), textos.join('\n'))
+  assert.ok(textos.some((t) => /D\d+"? de descanso|D\d+' de descanso/.test(t)), textos.join('\n'))
   // Velocidade do intermediário sem tempo: 20" a 30" de descanso (nunca 1/1)
   const velocidade = [1, 2, 3].flatMap((seed) => semTeste(gerar(semTempo, seed)))
     .flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade').map((p) => p.texto))
-  assert.ok(velocidade.every((t) => /c\/20" a 30" de descanso/.test(t) && !/1\/1/.test(t)), velocidade.join('\n'))
+  assert.ok(velocidade.every((t) => /D20" a 30" de descanso/.test(t) && !/1\/1/.test(t)), velocidade.join('\n'))
 })
 
 test('quem nada até 400 m sem parar descansa pelo menos 20 a 30 segundos', () => {
@@ -839,7 +839,7 @@ test('quem nada até 400 m sem parar descansa pelo menos 20 a 30 segundos', () =
     strokes: ['crawl'], equipment: ['pe_de_pato', 'palmar'], time400: null,
   }
   const descansos = [1, 2, 3, 4].flatMap((seed) => gerar(iniciante, seed)).flatMap((t) => t.partes)
-    .flatMap((p) => [...p.texto.matchAll(/c\/(\d+)" de descanso/g)].map((m) => Number(m[1])))
+    .flatMap((p) => [...p.texto.matchAll(/D(\d+)" de descanso/g)].map((m) => Number(m[1])))
   assert.ok(descansos.length > 0)
   for (const d of descansos) assert.ok(d >= 20, `${d}"`)
 })
@@ -1061,10 +1061,10 @@ test('periodização: cada etapa muda o treino', () => {
   // Transição: o avançado aperta a velocidade nos 25 m a cada 25"; na Realização, cd 30"
   const velocidadeDa = (...etapas) => etapas.flatMap((e) => daEtapa(e)).flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade'))
   // (de crawl; nos outros estilos o tempo de nado é maior)
-  const crawl25 = (lista) => lista.filter((p) => /^\d+ x 25 m.*· CR · cd/.test(p.texto))
+  const crawl25 = (lista) => lista.filter((p) => /^\d+ x 25 m.*· CR · a\/c/.test(p.texto))
   assert.ok(crawl25(velocidadeDa('transicao1', 'transicao2')).length > 0)
-  assert.ok(crawl25(velocidadeDa('transicao1', 'transicao2')).every((p) => /cd 25"/.test(p.texto)))
-  assert.ok(crawl25(velocidadeDa('realizacao')).every((p) => !/cd 25"/.test(p.texto)))
+  assert.ok(crawl25(velocidadeDa('transicao1', 'transicao2')).every((p) => /a\/c 25"/.test(p.texto)))
+  assert.ok(crawl25(velocidadeDa('realizacao')).every((p) => !/a\/c 25"/.test(p.texto)))
   // Semana de recuperação: só ritmo leve, volume baixo, sem velocidade
   for (const t of daEtapa('recuperacao')) {
     assert.ok(!t.partes.some((p) => p.parte === 'velocidade'))
@@ -1284,7 +1284,7 @@ const ordemDaLinha = (l) => {
     pos(/(?:^|: | · )(NAD|c\/(?:PÉ|PALM|BOIA|SNK|PARA)[^·]*)(?= ·|$)/),
     pos(/ · (A[123]|\([^)]*\)|ritmo (leve|moderado|forte)[^·]*)(?= ·|$)/),
     pos(/ · (CR|CO|PE|BO|MD|ME)\b/),
-    pos(/ · (\d+ )?(cd \d|c\/\d+"( a \d+")? de descanso)/),
+    pos(/ · (\d+ )?(a\/c \d|D\d+"( a \d+")? de descanso)/),
   ].filter((p) => p >= 0)
   return posicoes.every((p, i) => i === 0 || p > posicoes[i - 1])
 }
@@ -1301,7 +1301,7 @@ test('regra: cada linha da principal segue a ordem como nada · intensidade · e
         // Com a descrição de cada série, o estilo e o tempo vão nela (não no cabeçalho)
         const [cabecalho, ...resto] = p.texto.split('\n')
         if (resto.some((l) => /^\dª série:/.test(l))) {
-          assert.ok(!/ · (CR|CO|PE|BO|MD|ME)\b| · cd \d/.test(cabecalho), p.texto)
+          assert.ok(!/ · (CR|CO|PE|BO|MD|ME)\b| · a\/c \d/.test(cabecalho), p.texto)
         }
       }
     }
