@@ -55,7 +55,8 @@ test('técnica: só o que serve para o nível, o material e os estilos do atleta
   for (let seed = 1; seed <= 300; seed++) {
     const t = montar(iniciante, 'aquecimento', seed)
     const item = tecnica.itens.find((i) => i.id === t.registro.id)
-    assert.ok(!item.niveis || item.niveis.includes('iniciante'), item.id)
+    // Marcada com um nível só: só se for o iniciante; com mais de um (ou nenhum): todos
+    assert.ok(item.soPara ? item.soPara.includes('iniciante') : !item.niveis || item.niveis.length > 1 || item.niveis[0] === 'iniciante', item.id)
     assert.ok(!item.material, `${item.id}: precisa de material que o atleta não tem`)
     assert.equal(t.registro.estilo, 'crawl')
     // Título numa linha e a série na outra
@@ -135,4 +136,20 @@ test('tempo novo: o treino é reescrito e a técnica continua igual', () => {
     const tec = p.texto.split('\n').slice(-2)
     if (/^(Técnica|Foco do dia)/.test(tec[0])) assert.deepEqual(novas[k].texto.split('\n').slice(-2), tec)
   }
+})
+
+test('técnica: um nível só vai só para esse nível; mais de um nível (ou nenhum) vale para todos', () => {
+  const ids = (athlete) => new Set(Array.from({ length: 400 }, (_, k) => montar(athlete, 'aquecimento', k + 1).registro.id))
+  const doIniciante = ids(iniciante)
+  const doAvancado = ids({ ...avancado, strokes: ['crawl'], equipment: [] })
+  const porId = new Map(tecnica.itens.map((i) => [i.id, i]))
+  // Só do avançado nunca para o iniciante, e vice-versa
+  assert.ok(![...doIniciante].some((id) => String(porId.get(id).niveis) === 'avancado'))
+  assert.ok(![...doAvancado].some((id) => String(porId.get(id).niveis) === 'iniciante'))
+  // "Int/Avan" (mais de um nível) também vai para o iniciante
+  assert.ok([...doIniciante].some((id) => String(porId.get(id).niveis) === 'intermediario,avancado'))
+  // E a do avançado só aparece para ele
+  assert.ok([...doAvancado].some((id) => String(porId.get(id).niveis) === 'avancado'))
+  // As do treinador.json com "soPara" (ex.: apneia, respiração 9x1) não vão para o iniciante
+  assert.ok(![...doIniciante].some((id) => porId.get(id).soPara && !porId.get(id).soPara.includes('iniciante')))
 })

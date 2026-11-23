@@ -655,7 +655,7 @@ Como entra no treino:
   6 x 25 m · CR: Crawl com as mãos fechadas · D20" de descanso
   ```
 - Repetições: iniciante 4 x 25, intermediário 6 x 25, avançado 8 x 25 (piscina de 50 m: 50 m, metade das repetições). Algumas técnicas têm o formato próprio (ex.: respiração 4 x 50 D40").
-- Só entra o que serve para o **nível** (o que não diz o nível vale para todos), com o **material** que o atleta tem e nos **estilos** que ele nada (medley só para quem nada os quatro). Material que o app não conhece fica com a observação "se tiver" (aquatubo/macarrão, arco, copo, balde, bloco de saída).
+- **Nível:** técnica marcada com **um nível só** (ex.: "(Avan)") vai **só** para esse nível; com **mais de um nível** (ex.: "(Int/Avan)") ou **sem nível**, vale para **todos**. As técnicas do `treinador.json` com `soPara` (apneia, respiração até 9x1, palmateio máximo...) são só para os níveis da lista (não vão para o iniciante). Só entra também com o **material** que o atleta tem e nos **estilos** que ele nada (medley só para quem nada os quatro). Material que o app não conhece fica com a observação "se tiver" (aquatubo/macarrão, arco, copo, balde, bloco de saída).
 - **Foco do dia** (quando a técnica cai no solto, um sim, um não): o próximo **passo** de uma saída (ou da filipina) ou uma **série do fundamento** (virada forte, saída + 15 m forte). Os passos continuam de onde o atleta parou (fica no plano de cada treino).
 - **Viradas passo a passo: fora** (regra do treinador, `conteudosFora` no `regras.json` da técnica). Continuam no `educativos.json`, para voltar se precisar.
 - O mesmo educativo não se repete nos treinos seguintes.

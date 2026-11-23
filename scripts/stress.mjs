@@ -137,7 +137,8 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         }
         for (const r of t.plano.tecnica) {
             const item = tecnicaPorId.get(r.id)
-            confere('Técnica do nível do atleta', !item.niveis || item.niveis.includes(a.level), () => `${quem}: ${item.id}`)
+            confere('Técnica do nível do atleta (um nível só: só para ele; mais de um ou nenhum: todos)', (item.soPara ? item.soPara.includes(a.level) : !item.niveis || item.niveis.length > 1 || item.niveis[0] === a.level),
+                () => `${quem}: ${item.id}`)
             confere('Técnica só com o material que o atleta tem', (item.material ?? []).every((m) => a.equipment.includes(m)), () => `${quem}: ${item.id}`)
             confere('Técnica num estilo que o atleta nada', r.estilo === 'medley' ? ['crawl', 'costas', 'peito', 'borboleta'].every((e) => a.strokes.includes(e)) : a.strokes.includes(r.estilo),
                 () => `${quem}: ${item.id} ${r.estilo}`)

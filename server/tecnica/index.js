@@ -31,7 +31,9 @@ export function validarTecnica(itens) {
         if (!Array.isArray(item.estilos) || item.estilos.length === 0 || item.estilos.some((e) => !ESTILOS.includes(e))) {
             problemas.push(`${onde}: estilos precisa ser uma lista com: ${ESTILOS.join(', ')}.`)
         }
-        if (item.niveis && item.niveis.some((n) => !NIVEIS.includes(n))) problemas.push(`${onde}: níveis: ${NIVEIS.join(', ')}.`)
+        for (const campo of ['niveis', 'soPara']) {
+            if (item[campo] && item[campo].some((n) => !NIVEIS.includes(n))) problemas.push(`${onde}: ${campo}: ${NIVEIS.join(', ')}.`)
+        }
         if (!item.texto?.trim()) problemas.push(`${onde}: falta o texto.`)
         if (item.sequencia) passos.set(item.sequencia, [...(passos.get(item.sequencia) ?? []), item.passo])
     }
@@ -81,6 +83,13 @@ export function parteDaTecnica({ tecnica, athlete, soltoDepoisDaVelocidade, rand
     return noAquecimento ? 'aquecimento' : null
 }
 
+// Nível (regra do treinador): técnica marcada com um nível só vai só para esse nível;
+// com mais de um nível (ex.: "Int/Avan") ou sem nível, vai para todos
+// (`soPara`: restrição de verdade, nas técnicas do treinador.json; ex.: apneia não vai
+// para o iniciante)
+export const paraONivel = (item, nivel) => (item.soPara ? item.soPara.includes(nivel)
+    : !item.niveis || item.niveis.length > 1 || item.niveis[0] === nivel)
+
 function sorteia(opcoes, random) {
     const total = opcoes.reduce((s, o) => s + o.peso, 0)
     let r = random() * total
@@ -104,7 +113,7 @@ export function montarTecnica({ tecnica, athlete, parte, pace = 120, random = Ma
     const estilosDo = (item) => (item.estilos.includes('medley')
         ? (QUATRO.every((e) => nada.has(e)) ? ['medley'] : [])
         : item.estilos.filter((e) => nada.has(e)))
-    const serve = (item) => (!item.niveis || item.niveis.includes(nivel)) &&
+    const serve = (item) => paraONivel(item, nivel) &&
         (item.material ?? []).every((m) => equipamento.has(m)) && estilosDo(item).length > 0
     const pesoDoEstilo = (e) => (e === athlete.estiloDaProva ? 3 : e === 'crawl' ? regras.pesoDoCrawl ?? 1 : 1)
     const vezes = (item) => recentes?.vezes(`tec:${item.id}`) ?? 0
