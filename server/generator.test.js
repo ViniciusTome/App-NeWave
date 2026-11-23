@@ -1174,13 +1174,23 @@ test('cd dos estilos: o tempo de nado do crawl x o fator do estilo; o descanso �
   const a = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   const crawl = saidaFor(rules, a, { distancia: 100 }, 'A1')
   const peito = saidaFor(rules, a, { distancia: 100 }, 'A1', rules.saidas.fatorDoEstilo.peito)
-  // 100 A1 = 1'30" de crawl; de peito 1'48" + 25" de descanso
+  // 100 A1 = 1'30" de crawl; de peito 2'06" + 25" de descanso -> 2'30"
   assert.equal(crawl, 115)
-  assert.equal(peito, 135)
+  assert.equal(peito, 150)
   // Série que mistura estilos: vale o mais lento
   const variation = { nado: 'misto', porSerie: [['costas', 'peito'], ['crawl']] }
   assert.equal(strokeFactor(rules, variation, 0), rules.saidas.fatorDoEstilo.peito)
   assert.equal(strokeFactor(rules, variation, 1), 1)
   assert.equal(strokeFactor(rules, { nado: 'livre', nadoAbrev: 'CR' }), 1)
   assert.equal(strokeFactor(rules, { nado: 'medley' }), rules.saidas.fatorDoEstilo.medley)
+})
+
+test('cd dos estilos bate com a experiência do treinador (avançado): 100 a cada 2\' e 200 a cada 4\'', () => {
+  // Avançado com o 100 de crawl a cada 1'30" (teste de 400 em 4'40")
+  const a = { level: 'avancado', tabela: timeTable(rules, 280), teste400: 280 }
+  const medley = rules.saidas.fatorDoEstilo.medley
+  const cd = (distancia, fator) => saidaFor(rules, a, { distancia }, 'A1', fator)
+  assert.ok(Math.abs(cd(100, 1) - 90) <= 5, `crawl 100: ${cd(100, 1)}`)
+  assert.ok(Math.abs(cd(100, medley) - 120) <= 5, `estilo 100: ${cd(100, medley)}`)
+  assert.ok(Math.abs(cd(200, medley) - 240) <= 10, `estilo 200: ${cd(200, medley)}`)
 })
