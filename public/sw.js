@@ -4,7 +4,7 @@
 //   precisam estar atualizados.
 // - O resto do app (telas, estilos, ícones) fica guardado no aparelho e abre mais
 //   rápido; sem internet, abre a última versão guardada.
-const CACHE = 'newave-v0.4.1'
+const CACHE = 'newave-v0.4.2'
 
 // Na instalação já guarda a tela e os arquivos que ela usa (os /assets/ do build)
 self.addEventListener('install', (event) => {

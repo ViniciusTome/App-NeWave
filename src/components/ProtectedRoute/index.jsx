@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { useAuth } from "../../hooks/useAuth"
 import { Spinner } from "../Spinner"
+import { Tutorial } from "../Tutorial"
 import { useNavigate } from "react-router-dom"
 
 
@@ -25,5 +26,11 @@ export const ProtectedRoute = ({children}) => {
     return null
   }
 
-    return children
+    // O tutorial abre sozinho na 1ª vez (e pelo Perfil, quando a pessoa quiser)
+    return (
+        <>
+            {children}
+            <Tutorial />
+        </>
+    )
 }

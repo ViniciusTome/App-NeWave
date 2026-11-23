@@ -168,6 +168,8 @@ export function openDatabase(path) {
   if (!userColumns.includes('birth_date')) db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT')
   // Entrar com o Google: o id da conta Google e se a pessoa já criou uma senha no app
   if (!userColumns.includes('google_sub')) db.exec('ALTER TABLE users ADD COLUMN google_sub TEXT')
+  // Tutorial do app: quando a pessoa viu (ou pulou); null = ainda não viu
+  if (!userColumns.includes('tutorial_seen_at')) db.exec('ALTER TABLE users ADD COLUMN tutorial_seen_at TEXT')
   if (!userColumns.includes('password_set')) db.exec('ALTER TABLE users ADD COLUMN password_set INTEGER NOT NULL DEFAULT 1')
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_sub) WHERE google_sub IS NOT NULL')
 
