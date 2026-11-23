@@ -15,7 +15,7 @@ import {
     partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
     drawIntensities, hardestIntensity, recoveryWaived,
 } from './series/regras.js'
-import { estadoDaTecnica, loadTecnica, montarTecnica } from './tecnica/index.js'
+import { estadoDaTecnica, loadTecnica, montarTecnica, parteDaTecnica } from './tecnica/index.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
 const DEFAULT_400 = { iniciante: 9 * 6000, intermediario: 7 * 6000, avancado: 5 * 6000 + 3000 }
@@ -903,6 +903,10 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         return escolha
     }
 
+    // Técnica: no aquecimento OU no solto depois da velocidade (nunca nos dois)
+    const soltoDepoisDaVelocidade = estrutura.some((p, i) => p === 'solto' && estrutura[i - 1] === 'velocidade')
+    const parteComTecnica = tecnica ? parteDaTecnica({ tecnica, athlete, soltoDepoisDaVelocidade, random }) : null
+
     // 1º as partes que não são a principal, cada uma com a sua parte do tempo
     let usado = 0
     estrutura.forEach((parte, i) => {
@@ -910,8 +914,8 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const escolha = escolher(i, (segundosLivres * (TEMPO_DAS_PARTES[parte] ?? 0)) / somaPesos)
         if (escolha) usado += escolha.segundos
         // Técnica no aquecimento e no solto depois da velocidade (técnica cansado)
-        const comTecnica = parte === 'aquecimento' || (parte === 'solto' && estrutura[i - 1] === 'velocidade')
-        if (escolha && tecnica && comTecnica) {
+        const comTecnica = parte === parteComTecnica && (parte === 'aquecimento' || estrutura[i - 1] === 'velocidade')
+        if (escolha && comTecnica) {
             escolha.tecnica = montarTecnica({ tecnica, athlete, parte, pace, random, recentes, estado: estadoTecnica })
             if (escolha.tecnica) usado += escolha.tecnica.segundos
         }

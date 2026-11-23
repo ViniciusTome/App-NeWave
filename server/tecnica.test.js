@@ -34,18 +34,19 @@ const montar = (athlete, parte, seed = 1, estado = null) =>
 
 test('técnica: os educativos da planilha e os do treinador, sem problemas', () => {
   assert.deepEqual(validarTecnica(tecnica.itens), [])
-  assert.ok(tecnica.itens.length > 230, `${tecnica.itens.length} itens`)
+  assert.ok(tecnica.itens.length > 180, `${tecnica.itens.length} itens`) // (sem as viradas passo a passo)
   // Fora da água não entra; o "esquema" também não
   assert.ok(!tecnica.itens.some((i) => /fora da água|no solo|esquema/i.test(i.texto)))
   // Técnicas do treinador
   for (const id of ['palmateio-maximo', 'menos-bracadas', 'respiracao-3-9', 'apneia', 'ondulacao-submersa-pe', 'maos-fechadas']) {
     assert.ok(tecnica.itens.some((i) => i.id === id), id)
   }
-  // Saídas e viradas: sequências com os passos 1, 2, 3...
-  assert.ok(tecnica.sequencias.size >= 10)
-  // Saída do crawl e do borboleta: uma sequência só; virada do peito e do borboleta também
+  // Saídas (e filipina): sequências com os passos 1, 2, 3...; saída do crawl e do borboleta: uma só
   assert.ok(tecnica.sequencias.has('crawl-borboleta-saida'))
-  assert.ok(tecnica.sequencias.has('peito-borboleta-virada'))
+  assert.ok(tecnica.sequencias.has('costas-saida'))
+  // As viradas passo a passo ficam de fora (regra do treinador)
+  assert.ok(!tecnica.itens.some((i) => /virada/.test(i.conteudo)))
+  assert.ok(![...tecnica.sequencias.keys()].some((s) => /virada/.test(s)))
   // Validação: passo pulado e estilo desconhecido
   assert.equal(validarTecnica([{ id: 'x', estilos: ['nado'], texto: 'a', sequencia: 's', passo: 2 }]).length, 2)
 })
@@ -57,7 +58,8 @@ test('técnica: só o que serve para o nível, o material e os estilos do atleta
     assert.ok(!item.niveis || item.niveis.includes('iniciante'), item.id)
     assert.ok(!item.material, `${item.id}: precisa de material que o atleta não tem`)
     assert.equal(t.registro.estilo, 'crawl')
-    assert.match(t.texto, /^Técnica · 4 x 25 m · CR: .+ · D20" de descanso$/)
+    // Título numa linha e a série na outra
+    assert.match(t.texto, /^Técnica\n4 x 25 m · CR: .+ · D20" de descanso$/)
   }
   // Medley só para quem nada os quatro (e virada do medley só no foco do dia)
   const doisEstilos = { ...avancado, strokes: ['crawl', 'costas'] }
@@ -90,17 +92,27 @@ test('foco do dia: no solto, um treino sim, um não; os passos avançam e contin
   assert.equal(continua.soltos, 1)
 })
 
-test('treino gerado: técnica no aquecimento e no solto depois da velocidade, guardada no plano', () => {
+test('treino gerado: técnica no aquecimento OU no solto depois da velocidade (nunca nos dois)', () => {
   const treinos = [1, 2, 3].flatMap((seed) => gerar(avancado, seed))
+  const temTecnica = (p) => Boolean(p) && /\n(Técnica|Foco do dia)/.test(p.texto)
+  const onde = { aquecimento: 0, solto: 0 }
   for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
     const aquecimento = t.partes.find((p) => p.parte === 'aquecimento')
-    assert.match(aquecimento.texto, /\n(Técnica|Foco do dia) · /, aquecimento.texto)
     const solto = t.partes.find((p) => p.parte === 'solto')
-    if (solto) assert.match(solto.texto, /\n(Técnica|Foco do dia) · /, solto.texto)
-    assert.ok(t.plano.tecnica.length >= 1)
+    assert.ok(!(temTecnica(aquecimento) && temTecnica(solto)), `${aquecimento.texto}\n${solto?.texto}`)
+    assert.ok(temTecnica(aquecimento) || temTecnica(solto))
+    if (temTecnica(aquecimento)) onde.aquecimento++
+    if (temTecnica(solto)) onde.solto++
+    assert.equal(t.plano.tecnica.length, 1)
     // A metragem da parte conta a técnica
-    assert.ok(aquecimento.metros > Number(/^(\d+)/.exec(aquecimento.serieTexto)?.[1] ?? 0))
+    const comTecnica = temTecnica(aquecimento) ? aquecimento : solto
+    assert.ok(comTecnica.metros > Number(/^(\d+)/.exec(comTecnica.serieTexto)?.[1] ?? 0))
+    // Foco do dia e a série em linhas separadas
+    const linhas = comTecnica.texto.split('\n')
+    assert.match(linhas.at(-2), /^(Técnica|Foco do dia · .+)$/)
+    assert.match(linhas.at(-1), /^\d+ x \d+ m · (CR|CO|PE|BO|MD): .+ · D\d+" de descanso$/)
   }
+  assert.ok(onde.aquecimento > 0 && onde.solto > 0, JSON.stringify(onde))
   // Iniciante: o solto é no fim (não depois da velocidade): sem técnica no solto
   for (const t of gerar(iniciante, 1)) {
     const solto = t.partes.find((p) => p.parte === 'solto')
@@ -120,7 +132,7 @@ test('tempo novo: o treino é reescrito e a técnica continua igual', () => {
   const [treino] = gerar({ ...avancado, time400: null }, 2)
   const novas = refreshTimes(rules, { ...avancado, time400: { hundredths: 30000 } }, treino)
   for (const [k, p] of treino.partes.entries()) {
-    const tec = p.texto.split('\n').filter((l) => /^(Técnica|Foco do dia)/.test(l))
-    if (tec.length > 0) assert.deepEqual(novas[k].texto.split('\n').filter((l) => /^(Técnica|Foco do dia)/.test(l)), tec)
+    const tec = p.texto.split('\n').slice(-2)
+    if (/^(Técnica|Foco do dia)/.test(tec[0])) assert.deepEqual(novas[k].texto.split('\n').slice(-2), tec)
   }
 })

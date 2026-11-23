@@ -75,7 +75,7 @@ function perfil(i) {
 }
 
 // ---------- Regras conferidas ----------
-const contaTecnica = { aquecimento: { com: 0, total: 0 }, solto: { com: 0, total: 0 } }
+const contaTecnica = { treino: { com: 0, total: 0 } }
 const tecnicaPorId = new Map(loadTecnica().itens.map((i) => [i.id, i]))
 const regras = new Map() // nome -> { conferidas, falhas: [] }
 const contaBorboleta = { linhas: 0, palmarBoia: 0 }
@@ -125,16 +125,15 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
     // Técnica: aquecimento (a partir de 30 min) e solto depois da velocidade (a partir de 45 min);
     // só educativos do nível, com o material e nos estilos do atleta
     for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
-        // (só sai quando o treino passaria do tempo: a série principal tem prioridade)
+        // Num lugar só (aquecimento OU solto depois da velocidade); só sai quando o
+        // treino passaria do tempo (a série principal tem prioridade)
+        const com = (p) => Boolean(p) && /\n(Técnica|Foco do dia)/.test(p.texto)
         const aq = t.partes.find((p) => p.parte === 'aquecimento')
+        const solto = t.partes.find((p) => p.parte === 'solto')
+        confere('Técnica num lugar só (aquecimento ou solto, nunca nos dois)', !(com(aq) && com(solto)), () => `${quem}: ${aq?.texto}\n${solto?.texto}`)
         if (aq && a.sessionMinutes >= 30) {
-            contaTecnica.aquecimento.total++
-            if (/\n(Técnica|Foco do dia) · /.test(aq.texto)) contaTecnica.aquecimento.com++
-        }
-        const i = t.partes.findIndex((p) => p.parte === 'solto')
-        if (i > 0 && t.partes[i - 1].parte === 'velocidade' && a.sessionMinutes >= 45) {
-            contaTecnica.solto.total++
-            if (/\n(Técnica|Foco do dia) · /.test(t.partes[i].texto)) contaTecnica.solto.com++
+            contaTecnica.treino.total++
+            if (com(aq) || com(solto)) contaTecnica.treino.com++
         }
         for (const r of t.plano.tecnica) {
             const item = tecnicaPorId.get(r.id)
@@ -399,10 +398,8 @@ for (const [nome, r] of regras) {
     console.log(`${ok ? 'OK   ' : 'FALHA'} ${nome}  (${r.conferidas} conferências${ok ? '' : `, ${r.total} falhas`})`)
     for (const f of r.falhas) console.log(`        - ${f.replace(/\n/g, '\n          ')}`)
 }
-for (const [parte, c] of Object.entries(contaTecnica)) {
-    confere(`Técnica no ${parte === 'solto' ? 'solto depois da velocidade' : 'aquecimento'} (95% ou mais; sai só quando falta tempo)`,
-        c.com >= c.total * 0.95, () => `${c.com} de ${c.total}`)
-}
+confere('Treino com técnica (95% ou mais; sai só quando falta tempo)', contaTecnica.treino.com >= contaTecnica.treino.total * 0.95,
+    () => `${contaTecnica.treino.com} de ${contaTecnica.treino.total}`)
 confere('Borboleta com palmar + boia é rara (menos de 10%)', contaBorboleta.palmarBoia <= contaBorboleta.linhas * 0.1, () => `${contaBorboleta.palmarBoia} de ${contaBorboleta.linhas}`)
 console.log(`\n${regras.size - falhou} de ${regras.size} regras sem falhas.`)
 process.exitCode = falhou ? 1 : 0

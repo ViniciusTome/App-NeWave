@@ -93,8 +93,8 @@
   {
     "categoria": "Técnica",
     "termos": [
-      { "sigla": "Técnica", "detectar": "Técnica ·", "nome": "Educativo", "explicacao": "Exercício para melhorar o jeito de nadar (braçada, pernada, respiração, rolamento...). Vem no aquecimento e no solto depois da velocidade: treinar a técnica cansado ajuda a manter um nado bom mesmo no fim da prova." },
-      { "sigla": "Foco do dia", "detectar": "Foco do dia", "explicacao": "Saída ou virada, aprendida passo a passo (passo 1, 2, 3... ao longo dos treinos), ou uma série para treinar esse fundamento (ex.: virada forte)." },
+      { "sigla": "Técnica", "detectar": "(^|\\n)Técnica(\\n|$)", "nome": "Educativo", "explicacao": "Exercício para melhorar o jeito de nadar (braçada, pernada, respiração, rolamento...). Vem no aquecimento ou no solto depois da velocidade: treinar a técnica cansado ajuda a manter um nado bom mesmo no fim da prova." },
+      { "sigla": "Foco do dia", "detectar": "Foco do dia", "explicacao": "A saída aprendida passo a passo (passo 1, 2, 3... ao longo dos treinos) ou uma série para treinar um fundamento (ex.: virada forte, saída + 15 m forte)." },
       { "sigla": "Palmateio", "detectar": "[Pp]almateio", "explicacao": "Movimento das mãos, para os lados e de volta, sentindo a água (como passar manteiga no pão). Ensina a 'segurar' a água na braçada." },
       { "sigla": "Unilateral", "detectar": "[Uu]nilatera", "explicacao": "Nadar com um braço só, o outro parado (à frente ou ao lado do corpo)." },
       { "sigla": "Ondulação submersa", "detectar": "[Oo]ndulaç", "explicacao": "Pernada de golfinho (como a do borboleta) embaixo d'água, depois da saída ou da virada." },

@@ -44,9 +44,12 @@ export function validarTecnica(itens) {
 
 export function loadTecnica() {
     const regras = ler('./regras.json')
-    const itens = [...ler('./educativos.json'), ...ler('./treinador.json')]
-    const problemas = validarTecnica(itens)
+    const todos = [...ler('./educativos.json'), ...ler('./treinador.json')]
+    const problemas = validarTecnica(todos)
     if (problemas.length > 0) throw new Error(`Técnica com problemas:\n- ${problemas.join('\n- ')}`)
+    // Conteúdos que ficam de fora (ex.: as viradas passo a passo)
+    const fora = new Set(regras.conteudosFora ?? [])
+    const itens = todos.filter((i) => !fora.has(i.conteudo))
     const sequencias = new Map()
     for (const item of itens.filter((i) => i.sequencia)) {
         sequencias.set(item.sequencia, [...(sequencias.get(item.sequencia) ?? []), item].sort((a, b) => a.passo - b.passo))
@@ -65,6 +68,17 @@ export function estadoDaTecnica(historico = []) {
         }
     }
     return estado
+}
+
+// Onde a técnica entra neste treino: no aquecimento OU no solto depois da velocidade
+// (nunca nos dois). `soltoDepoisDaVelocidade` = o treino tem esse solto.
+export function parteDaTecnica({ tecnica, athlete, soltoDepoisDaVelocidade, random = Math.random }) {
+    const { regras } = tecnica
+    const minutos = athlete.sessionMinutes ?? 0
+    const noAquecimento = minutos >= (regras.partes.aquecimento?.apartirDeMinutos ?? Infinity)
+    const noSolto = soltoDepoisDaVelocidade && minutos >= (regras.partes.soltoDepoisDaVelocidade?.apartirDeMinutos ?? Infinity)
+    if (noSolto && (!noAquecimento || random() < (regras.chanceNoSolto ?? 0.5))) return 'solto'
+    return noAquecimento ? 'aquecimento' : null
 }
 
 function sorteia(opcoes, random) {
@@ -124,16 +138,17 @@ export function montarTecnica({ tecnica, athlete, parte, pace = 120, random = Ma
     const extra = seTiver.length > 0 ? ` (se tiver ${seTiver.join(' ou ')})` : ''
     const serie = `${repeticoes} x ${distancia} m`
     const fim = `D${descanso}" de descanso`
-    let texto
+    // Duas linhas: o título (técnica ou foco do dia) e a série
+    let titulo
     if (escolha.tipo === 'passo') {
         const nome = regras.nomes?.[item.conteudo] ?? item.conteudo
-        texto = `Foco do dia · ${nome}${item.nomeDaSequencia ? ` (${item.nomeDaSequencia.toLowerCase()})` : ''}, ` +
-            `passo ${item.passo} de ${escolha.total} · ${serie} · ${ABREV[estilo]}: ${item.texto}${extra} · ${fim}`
+        titulo = `Foco do dia · ${nome}${item.nomeDaSequencia ? ` (${item.nomeDaSequencia.toLowerCase()})` : ''}, passo ${item.passo} de ${escolha.total}`
     } else if (escolha.tipo === 'fundamento') {
-        texto = `Foco do dia · ${regras.nomes?.[item.fundamento] ?? item.fundamento} · ${serie} · ${ABREV[estilo]}: ${item.texto}${extra} · ${fim}`
+        titulo = `Foco do dia · ${regras.nomes?.[item.fundamento] ?? item.fundamento}`
     } else {
-        texto = `Técnica · ${serie} · ${ABREV[estilo]}: ${item.texto}${extra} · ${fim}`
+        titulo = 'Técnica'
     }
+    const texto = `${titulo}\n${serie} · ${ABREV[estilo]}: ${item.texto}${extra} · ${fim}`
     recentes?.add(`tec:${item.id}`)
     if (escolha.tipo === 'passo') estado.passos[item.sequencia] = item.passo
     const metros = repeticoes * distancia

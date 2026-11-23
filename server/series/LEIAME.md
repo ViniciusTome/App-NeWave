@@ -648,10 +648,16 @@ A técnica fica **separada do gerador**, na pasta `server/tecnica/` (mais fácil
 - `regras.json`: onde entra e quanto.
 
 Como entra no treino:
-- **Aquecimento** (aula de 30 min ou mais) e **solto depois da velocidade** (45 min ou mais): treinar a técnica cansado ensina a manter o nado bom mesmo cansado. Ex.: `Técnica · 6 x 25 m · CR: Crawl com as mãos fechadas · D20" de descanso`.
+- **Num lugar só por treino:** no **aquecimento** (aula de 30 min ou mais) **ou** no **solto depois da velocidade** (45 min ou mais; treinar a técnica cansado ensina a manter o nado bom mesmo cansado). Nunca nos dois. Quando os dois servem, metade das vezes em cada (`chanceNoSolto`).
+- **Duas linhas:** o título e a série. Ex.:
+  ```
+  Técnica
+  6 x 25 m · CR: Crawl com as mãos fechadas · D20" de descanso
+  ```
 - Repetições: iniciante 4 x 25, intermediário 6 x 25, avançado 8 x 25 (piscina de 50 m: 50 m, metade das repetições). Algumas técnicas têm o formato próprio (ex.: respiração 4 x 50 D40").
 - Só entra o que serve para o **nível** (o que não diz o nível vale para todos), com o **material** que o atleta tem e nos **estilos** que ele nada (medley só para quem nada os quatro). Material que o app não conhece fica com a observação "se tiver" (aquatubo/macarrão, arco, copo, balde, bloco de saída).
-- **Foco do dia** (no solto, um treino sim, um não): o próximo **passo** de uma saída ou virada (ex.: `Foco do dia · virada olímpica, passo 3 de 13 · 4 x 25 m · CR: Ênfase na expiração nasal · D20" de descanso`) ou uma **série do fundamento**. Os passos continuam de onde o atleta parou (fica no plano de cada treino).
+- **Foco do dia** (quando a técnica cai no solto, um sim, um não): o próximo **passo** de uma saída (ou da filipina) ou uma **série do fundamento** (virada forte, saída + 15 m forte). Os passos continuam de onde o atleta parou (fica no plano de cada treino).
+- **Viradas passo a passo: fora** (regra do treinador, `conteudosFora` no `regras.json` da técnica). Continuam no `educativos.json`, para voltar se precisar.
 - O mesmo educativo não se repete nos treinos seguintes.
 - A técnica conta na metragem e no tempo do treino. Se o treino passaria do tempo (a série principal já no mínimo), sai a técnica do solto e, se precisar, a do aquecimento.
 - Com um tempo novo (teste), o treino é reescrito e a técnica continua igual.
