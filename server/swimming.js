@@ -46,6 +46,8 @@ const publicTest = (row) => ({
   distance: row.distance,
   timeHundredths: row.time_hundredths,
   date: row.date,
+  // "anamnese" = o tempo que o atleta informou na anamnese
+  origin: row.origin ?? 'teste',
 })
 
 const publicTraining = (row) => ({
@@ -92,7 +94,7 @@ export function createSwimmingRoutes({
   onTrainingMissed = () => 0, askAboutLastDays = 21,
 }) {
   const listTests = db.prepare(`
-    SELECT id, distance, time_hundredths, date FROM tests
+    SELECT id, distance, time_hundredths, date, origin FROM tests
     WHERE user_id = ? ORDER BY date, id
   `)
   const insertTest = db.prepare(`
@@ -100,6 +102,11 @@ export function createSwimmingRoutes({
     VALUES (?, ?, ?, ?, ?)
   `)
   const deleteTest = db.prepare('DELETE FROM tests WHERE id = ? AND user_id = ?')
+  const findTest = db.prepare('SELECT time_hundredths, origin FROM tests WHERE id = ? AND user_id = ?')
+  // Apagou o tempo que veio da anamnese: ele sai também do perfil (a evolução manda)
+  const clearReported = db.prepare(`
+    UPDATE athlete_profiles SET reported_400_hundredths = NULL WHERE user_id = ? AND reported_400_hundredths = ?
+  `)
 
   const TRAINING_COLUMNS =
     'id, date, title, warm_up, speed, main_series, release, notes, completed_at, parts, difficulty, difficulty_reason, missed_at'
@@ -174,9 +181,11 @@ export function createSwimmingRoutes({
     removeTest(req, res, { id }) {
       const user = requireUser(req)
       // Filtrar pelo usuário impede apagar o teste de outra pessoa
+      const teste = findTest.get(parseId(id), user.id)
       if (deleteTest.run(parseId(id), user.id).changes === 0) {
         throw new HttpError(404, 'Teste não encontrado.')
       }
+      if (teste?.origin === 'anamnese') clearReported.run(user.id, teste.time_hundredths)
       onTimesChanged(user.id) // sem esse teste, os tempos podem mudar
       res.writeHead(204, { 'Cache-Control': 'no-store' })
       res.end()

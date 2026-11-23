@@ -560,6 +560,8 @@ No card do teste de 400 m tem **"Não vou conseguir ir: remarcar o teste"**. O a
 
 ### Tempo novo nos treinos já montados
 
+- **Tempo da anamnese:** o tempo nos 400 m que o atleta informa na anamnese também entra na **evolução dos tempos** (marcado como "anamnese") e nos treinos já montados. Ele continua contando como tempo *informado* (não é teste): o teste registrado pelo "+ Teste" vale mais. Salvar a anamnese de novo com o mesmo tempo não duplica. Apagar esse tempo da evolução tira ele também da anamnese.
+
 Quando o atleta registra um **teste de 400 m** (ou apaga um), os treinos que ele **ainda não fez** são reescritos com os tempos atuais: o **cd**, o ritmo (A1, A2, A3 no lugar de "ritmo leve...") e a saída da velocidade. **As séries, o material e as intensidades não mudam.** Para isso, cada treino guarda no plano interno como cada parte foi montada (`plano.montagem`).
 
 - **Teste planejado:** se o atleta não tinha tempo, ele tem um teste de 400 m planejado (depois de 1 mês). Ao registrar um tempo, o app pergunta se ele **vai fazer esse teste**. **Sim:** o teste fica (ele pode ter colocado o tempo por curiosidade ou como estimativa), e os tempos novos continuam entrando nos treinos. **Não:** no lugar entra um treino normal da etapa, sem repetir as séries do treino anterior nem do seguinte.

@@ -173,7 +173,10 @@ test('valida as respostas da anamnese', async () => {
 test('o tempo nos 400 m vem do último teste; sem teste, do tempo informado', async () => {
   const cookie = await userFor('tempo400')
   const informed = await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 40000 })
-  assert.deepEqual(informed.body.time400, { hundredths: 40000, source: 'informado', date: null })
+  // O tempo da anamnese também entra na evolução dos tempos (com a data de hoje)
+  assert.deepEqual(informed.body.time400, { hundredths: 40000, source: 'informado', date: daysFromToday(0) })
+  const evolucao = (await api('/api/tests', { cookie })).body.tests
+  assert.deepEqual(evolucao.map((t) => [t.distance, t.timeHundredths, t.origin]), [[400, 40000, 'anamnese']])
 
   await api('/api/tests', {
     method: 'POST',
@@ -686,5 +689,40 @@ test('remarcar o teste: vai para o dia que o atleta escolher', async () => {
   // Treino que não é teste: não
   const normal = agora.find((t) => !ehTeste(t))
   assert.equal((await api(`/api/trainings/${normal.id}/reschedule-test?today=${hoje}`, { method: 'POST', cookie, body: { date: livre } })).status, 404)
+  db.close()
+})
+
+test('tempo da anamnese: vai para a evolução e para os treinos já montados; não duplica', async () => {
+  const cookie = await userFor('feedback')
+  const { user } = (await api('/api/auth/me', { cookie })).body
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
+  db.prepare('DELETE FROM trainings WHERE user_id = ?').run(user.id)
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: null })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const principal = async () => (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+    .map((t) => t.partes.find((p) => p.parte === 'principal')?.texto ?? '').join('\n')
+  assert.ok(!/cd \d/.test(await principal()))
+  // Informa o tempo na anamnese: entra na evolução e o cd entra nos treinos
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 37000 })
+  let evolucao = (await api('/api/tests', { cookie })).body.tests
+  assert.equal(evolucao.length, 1)
+  assert.equal(evolucao[0].origin, 'anamnese')
+  assert.ok(/cd \d/.test(await principal()))
+  // Salvar a anamnese de novo com o mesmo tempo não duplica; tempo novo entra
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 37000 })
+  assert.equal((await api('/api/tests', { cookie })).body.tests.length, 1)
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  evolucao = (await api('/api/tests', { cookie })).body.tests
+  assert.deepEqual(evolucao.map((t) => t.timeHundredths), [37000, 36000])
+  // Apagou tudo da evolução: o tempo sai do perfil e os treinos voltam a ficar sem tempo
+  for (const t of evolucao) await api(`/api/tests/${t.id}`, { method: 'DELETE', cookie })
+  const perfil = (await api('/api/athlete-profile', { cookie })).body
+  assert.equal(perfil.time400, null)
+  assert.equal(perfil.profile.reported400Hundredths, null)
+  assert.ok(!/cd \d/.test(await principal()))
   db.close()
 })

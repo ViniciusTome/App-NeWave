@@ -247,9 +247,18 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       updated_at = excluded.updated_at
   `)
   // Teste de 400 m mais recente registrado pelo atleta
+  // O tempo informado na anamnese também vai para a evolução dos tempos
+  const insertAnamnesisTest = db.prepare(`
+    INSERT INTO tests (user_id, distance, time_hundredths, date, created_at, origin) VALUES (?, 400, ?, ?, ?, 'anamnese')
+  `)
+  // O último teste de 400 m de verdade ("+ Teste"); e o último informado na anamnese
   const latest400Test = db.prepare(`
+    SELECT time_hundredths, date, origin FROM tests
+    WHERE user_id = ? AND distance = 400 AND (origin IS NULL OR origin <> 'anamnese') ORDER BY date DESC, id DESC LIMIT 1
+  `)
+  const latest400Informed = db.prepare(`
     SELECT time_hundredths, date FROM tests
-    WHERE user_id = ? AND distance = 400 ORDER BY date DESC, id DESC LIMIT 1
+    WHERE user_id = ? AND distance = 400 AND origin = 'anamnese' ORDER BY date DESC, id DESC LIMIT 1
   `)
 
   const listUpcomingCompetitions = db.prepare(`
@@ -341,6 +350,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   function time400Of(userId, profile) {
     const test = latest400Test.get(userId)
     if (test) return { hundredths: test.time_hundredths, source: 'teste', date: test.date }
+    // O tempo da anamnese (na evolução dos tempos) continua sendo "informado"
+    const informado = latest400Informed.get(userId)
+    if (informado) return { hundredths: informado.time_hundredths, source: 'informado', date: informado.date }
     if (profile?.reported400Hundredths) {
       return { hundredths: profile.reported400Hundredths, source: 'informado', date: null }
     }
@@ -463,6 +475,37 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     return { trainings, replaced }
   }
 
+  // Tempo novo (teste de 400 m ou da anamnese): reescreve os treinos que ainda não foram
+  // feitos com os tempos atuais. Devolve quantos treinos foram atualizados.
+  function refreshTimesFor(userId, today = new Date().toISOString().slice(0, 10)) {
+    const { profile, time400, level } = profileResponse(userId)
+    if (!profile || !level) return 0
+    // Ficou sem tempo nenhum: volta ao planejamento sem tempos (descanso no lugar do cd,
+    // ritmo por extenso, sem AC e o teste depois de 1 mês de treino)
+    if (!time400) {
+      if (upcomingWithPlan.all(userId, today).length === 0) return 0
+      return buildPeriodization(userId, today).trainings.length
+    }
+    const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 }
+    let atualizados = 0
+    db.exec('BEGIN')
+    try {
+      for (const row of upcomingWithPlan.all(userId, today)) {
+        const plano = JSON.parse(row.plan)
+        if (!plano.montagem) continue
+        const partes = refreshTimes(rules, athlete, { partes: JSON.parse(row.parts), plano })
+        const f = legacyFields(partes)
+        updateParts.run(JSON.stringify(partes), f.warmUp, f.speed, f.mainSeries, f.release, row.id, userId)
+        atualizados++
+      }
+      db.exec('COMMIT')
+    } catch (err) {
+      db.exec('ROLLBACK')
+      throw err
+    }
+    return atualizados
+  }
+
   function preparationResponse(userId, today) {
     const row = findCurrentPreparation.get(userId)
     if (!row) return null
@@ -490,6 +533,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       const user = requireUser(req)
       const profile = validateProfile(await readJson(req))
       const now = new Date().toISOString()
+      const antes = findProfile.get(user.id)?.reported_400_hundredths ?? null
       upsertProfile.run(
         user.id,
         profile.swimmingSince,
@@ -506,6 +550,11 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
         now,
         now,
       )
+      // Tempo novo nos 400 m: entra na evolução dos tempos e nos treinos já montados
+      if (profile.reported400Hundredths && profile.reported400Hundredths !== antes) {
+        insertAnamnesisTest.run(user.id, profile.reported400Hundredths, readToday(req), now)
+        refreshTimesFor(user.id, readToday(req))
+      }
       sendJson(res, 200, profileResponse(user.id))
     },
 
@@ -565,33 +614,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     // Tempo novo (teste de 400 m): reescreve os treinos que ainda não foram feitos com
     // os tempos atuais (cd, ritmo, velocidade). As séries e as intensidades não mudam.
     // Devolve quantos treinos foram atualizados.
-    refreshTrainingTimes(userId, today = new Date().toISOString().slice(0, 10)) {
-      const { profile, time400, level } = profileResponse(userId)
-      if (!profile || !level) return 0
-      // Ficou sem tempo nenhum: volta ao planejamento sem tempos (descanso no lugar do cd,
-      // ritmo por extenso, sem AC e o teste depois de 1 mês de treino)
-      if (!time400) {
-        if (upcomingWithPlan.all(userId, today).length === 0) return 0
-        return buildPeriodization(userId, today).trainings.length
-      }
-      const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 }
-      let atualizados = 0
-      db.exec('BEGIN')
-      try {
-        for (const row of upcomingWithPlan.all(userId, today)) {
-          const plano = JSON.parse(row.plan)
-          if (!plano.montagem) continue
-          const partes = refreshTimes(rules, athlete, { partes: JSON.parse(row.parts), plano })
-          const f = legacyFields(partes)
-          updateParts.run(JSON.stringify(partes), f.warmUp, f.speed, f.mainSeries, f.release, row.id, userId)
-          atualizados++
-        }
-        db.exec('COMMIT')
-      } catch (err) {
-        db.exec('ROLLBACK')
-        throw err
-      }
-      return atualizados
+    refreshTrainingTimes(userId, today) {
+      return refreshTimesFor(userId, today)
     },
 
     // Faltas: quem treina pouco por semana perde mais com elas. Iniciante e intermediário
