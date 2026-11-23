@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
   abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
-  saidaVelocidade, setOptions, trainingDates, withMeters,
+  saidaVelocidade, setOptions, strokeFactor, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
 import {
@@ -730,7 +730,7 @@ test('sem tempos de referência: o teste de 400 m só depois de 1 mês de treino
   // O resto da aula: séries com pé de pato em ritmo leve para recuperar
   const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
   assert.ok(recuperar.length > 0)
-  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · ritmo leve/)
+  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · CR · c\/PÉ · ritmo leve/)
   assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
   // Quem não nada 400 m sem parar não faz o teste (condicionamento)
   for (const continuousDistance of ['ate_50', '100_200', '200_400']) {
@@ -984,7 +984,8 @@ test('periodização: cada etapa muda o treino', () => {
   assert.ok(media('realizacao') < media('acumulacao2'))
   // Realização: o avançado faz a velocidade nos 25 m a cada 25"
   const velocidade = daEtapa('realizacao').flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade'))
-  assert.ok(velocidade.filter((p) => /25 m/.test(p.texto)).every((p) => /cd 25"/.test(p.texto)))
+  // (de crawl; nos outros estilos o tempo de nado é maior)
+  assert.ok(velocidade.filter((p) => /25 m.*· CR ·/.test(p.texto)).every((p) => /cd 25"/.test(p.texto)))
   // Semana de recuperação: só ritmo leve, volume baixo, sem velocidade
   for (const t of daEtapa('recuperacao')) {
     assert.ok(!t.partes.some((p) => p.parte === 'velocidade'))
@@ -1157,4 +1158,29 @@ test('a 2ª série principal nunca é igual à 1ª no mesmo treino', () => {
       if (b) assert.notEqual(a.serieTexto, b.serieTexto, `${t.date}: ${a.serieTexto}`)
     }
   }
+})
+
+test('série principal: o card sempre diz o estilo (CR na livre; os estilos de cada série na mistura)', () => {
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    for (const t of gerar(avancado, seed)) {
+      for (const p of t.partes.filter((x) => x.parte === 'principal')) {
+        assert.match(p.texto, /\b(CR|CO|PE|BO|MD|ME)\b|estilo/, p.texto)
+      }
+    }
+  }
+})
+
+test('cd dos estilos: o tempo de nado do crawl x o fator do estilo; o descanso é o mesmo', () => {
+  const a = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  const crawl = saidaFor(rules, a, { distancia: 100 }, 'A1')
+  const peito = saidaFor(rules, a, { distancia: 100 }, 'A1', rules.saidas.fatorDoEstilo.peito)
+  // 100 A1 = 1'30" de crawl; de peito 1'48" + 25" de descanso
+  assert.equal(crawl, 115)
+  assert.equal(peito, 135)
+  // Série que mistura estilos: vale o mais lento
+  const variation = { nado: 'misto', porSerie: [['costas', 'peito'], ['crawl']] }
+  assert.equal(strokeFactor(rules, variation, 0), rules.saidas.fatorDoEstilo.peito)
+  assert.equal(strokeFactor(rules, variation, 1), 1)
+  assert.equal(strokeFactor(rules, { nado: 'livre', nadoAbrev: 'CR' }), 1)
+  assert.equal(strokeFactor(rules, { nado: 'medley' }), rules.saidas.fatorDoEstilo.medley)
 })

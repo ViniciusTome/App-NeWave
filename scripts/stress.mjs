@@ -192,6 +192,8 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         }
 
         for (const p of principais) {
+            confere('Série principal com o estilo escrito (CR, CO, PE, BO, MD, ME)', /\b(CR|CO|PE|BO|MD|ME)\b|estilo/.test(p.texto),
+                () => `${quem} ${t.date}: ${p.texto}`)
             const linhas = linhasDeSerie(p.texto)
             // Material diferente em cada série
             if (linhas.length >= 2 && !serieById.get(p.serieId)?.exige.material.length && !serieById.get(p.serieId)?.materialPorSerie) {

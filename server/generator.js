@@ -96,7 +96,8 @@ export function bestTimeFor(rules, athlete, distancia) {
 // - "30 AC": melhor tempo (teste nos 400; estimado nas outras distâncias) + 30".
 // - NEG, POS e final forte: tempo do A2 + 20" a 30" (50 e 100 m).
 // null quando não dá para calcular.
-export function saidaFor(rules, athlete, bloco, valor) {
+// `fator` = o estilo: o tempo de nado do crawl x o fator do estilo (o descanso é o mesmo).
+export function saidaFor(rules, athlete, bloco, valor, fator = 1) {
     if (!athlete.tabela || !valor) return null
     const intensidade = /^A[123]$/.test(valor) ? valor : null
     const ac = /^(\d+) AC$/.exec(valor)
@@ -108,6 +109,7 @@ export function saidaFor(rules, athlete, bloco, valor) {
         if (melhor !== null) nado = melhor + Number(ac[1])
     } else if (ritmoLivre) nado = repSeconds(rules, athlete.tabela, bloco.distancia, 'A2')
     if (nado === null) return null
+    nado *= fator
     const regra = rules.saidas?.negPosFinalForte
     const descanso = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
@@ -117,17 +119,18 @@ export function saidaFor(rules, athlete, bloco, valor) {
 
 // Saída da velocidade: avançado nos 25 m a cada 30"; nos outros casos o tempo forte
 // estimado + 20" a 30" de descanso (nunca 1/1).
-export function saidaVelocidade(rules, athlete, bloco) {
+export function saidaVelocidade(rules, athlete, bloco, fator = 1) {
     const cfg = rules.saidas?.velocidade
     if (!cfg) return null
     // Realização: o avançado força mais nos 25 m (cd 25")
     const fixa = (athlete.velocidade25 && athlete.level === 'avancado' && bloco.distancia === 25 ? athlete.velocidade25 : null) ??
         cfg[athlete.level]?.[String(bloco.distancia)]
-    if (fixa) return fixa
+    // (a saída fixa é a do crawl; nos estilos, o tempo de nado é maior)
+    if (fixa) return fator === 1 ? fixa : de5em5(fixa * fator)
     if (!athlete.tabela) return null
     const melhor50 = bestTimeFor(rules, athlete, 50)
     if (melhor50 === null) return null
-    const nado = (melhor50 * bloco.distancia) / 50
+    const nado = ((melhor50 * bloco.distancia) / 50) * fator
     const [de, ate] = cfg.descanso ?? [20, 30]
     return de5em5(nado + (de + ate) / 2)
 }
@@ -181,20 +184,54 @@ export const saidaText = (segundos) =>
     segundos >= 60 ? `${Math.floor(segundos / 60)}'${String(segundos % 60).padStart(2, '0')}"` : `${segundos}"`
 
 // Saídas de cada parte que recebeu intensidade (série, bloco, repetição ou a série toda)
-export function saidasDaSerie(rules, athlete, serie, intensidades, fase = null) {
+export function saidasDaSerie(rules, athlete, serie, intensidades, fase = null, variation = null) {
     if (!intensidades) return null
     const { unidade, valores } = intensidades
-    if (unidade === 'bloco') return serie.blocos.map((b, i) => saidaFor(rules, athlete, b, valores[i]))
+    // O estilo de cada série (por série) ou o mais lento da série toda
+    const sets = serie.vezes ?? (serie.blocos.length === 1 ? serie.blocos[0].vezes ?? 1 : 1)
+    const fatorDaSerie = (i) => strokeFactor(rules, variation, i, athlete, serie)
+    const todos = Math.max(...Array.from({ length: Math.max(1, sets) }, (_, i) => fatorDaSerie(i)))
+    const fator = (i) => (unidade === 'serie' ? fatorDaSerie(i) : todos)
+    if (unidade === 'bloco') return serie.blocos.map((b, i) => saidaFor(rules, athlete, b, valores[i], todos))
     // Grupos: cada distância com a sua saída -> { porBloco: [[saídas de cada série] de cada bloco] }
     if (serie.blocos.length > 1) {
         return {
             porBloco: serie.blocos.map((b) => ajustarAoA1(rules, valores,
-                valores.map((v) => saidaFor(rules, athlete, b, v)), saidaFor(rules, athlete, b, 'A1'), fase, b.distancia)),
+                valores.map((v, i) => saidaFor(rules, athlete, b, v, fator(i))), saidaFor(rules, athlete, b, 'A1', todos), fase, b.distancia)),
         }
     }
     const bloco = serie.blocos[0]
-    return ajustarAoA1(rules, valores, valores.map((v) => saidaFor(rules, athlete, bloco, v)),
-        saidaFor(rules, athlete, bloco, 'A1'), fase, bloco.distancia)
+    return ajustarAoA1(rules, valores, valores.map((v, i) => saidaFor(rules, athlete, bloco, v, fator(i))),
+        saidaFor(rules, athlete, bloco, 'A1', todos), fase, bloco.distancia)
+}
+
+// Fator do estilo da série `i` sobre o tempo do crawl (o mais lento quando a série
+// mistura estilos). Ex.: costas 1,1 = 10% mais tempo de nado que o crawl.
+const ABREV_NADO = { CR: 'crawl', CO: 'costas', PE: 'peito', BO: 'borboleta', MD: 'medley' }
+export function strokeFactor(rules, variation, i = 0, athlete = {}, serie = null) {
+    const fatores = rules.saidas?.fatorDoEstilo ?? {}
+    const de = (nado) => {
+        if (!nado || nado === 'livre') return 1
+        if (fatores[nado] !== undefined) return fatores[nado]
+        if (/medley|estilo/.test(nado)) return fatores.medley ?? 1
+        return 1
+    }
+    if (!variation) return 1
+    if (variation.nadoAbrev) return de(ABREV_NADO[variation.nadoAbrev] ?? variation.nadoAbrev)
+    let nados
+    if (variation.porSerie) nados = variation.porSerie[i] ?? variation.porSerie.flat()
+    else if (variation.nados) nados = [variation.nados[i] ?? variation.nados[0]]
+    else if (variation.nado === 'melhor_estilo_e_medley') nados = [variation.melhorEstilo, 'medley']
+    else if (variation.nado === 'ida_crawl_volta_melhor_estilo') {
+        // Metade crawl, metade no melhor estilo
+        return (1 + de(athlete.bestStroke ?? 'medley')) / 2
+    } else nados = [variation.nado]
+    // Blocos escritos com estilos (ex.: "indo crawl, voltando medley")
+    const doBloco = (serie?.blocos ?? []).flatMap((b) => [b.nado].flat()).filter((n) => n && n !== 'livre')
+    if (variation.nado === 'livre' && doBloco.length > 0) {
+        return Math.max(...doBloco.map(de))
+    }
+    return Math.max(...nados.map(de))
 }
 
 // A2/A3 perto do A1: mesma saída do A1 (na transição, cada intensidade com a sua).
@@ -222,6 +259,10 @@ export function withSpeedStroke(rules, variation, athlete, random = Math.random)
     const nado = weightedPick(nados, random)
     return { ...variation, nadoAbrev: NADO_ABREV[nado] ?? nado }
 }
+
+// Série escrita como "livre" (sem estilo misturado): é crawl, e o card mostra "CR"
+export const withCrawl = (variation) =>
+    (variation.nado !== 'livre' || variation.nados || variation.porSerie || variation.nadoAbrev ? variation : { ...variation, nadoAbrev: 'CR' })
 
 // Séries com (2x), (3x), (4x)...: cada série com um material diferente da anterior e
 // da seguinte (pode repetir, mas não em seguida). Iniciante e intermediário começam
@@ -420,7 +461,8 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     // Pirâmides e grupos
     if (serie.blocos.length > 1) {
         const linhas = []
-        const cabecalho = [(serie.vezes ?? 1) > 1 ? `(${serie.vezes}x)` : null, c].filter(Boolean).join(' · ')
+        // O estilo vai no cabeçalho: "(3x) · CR · c/2' de intervalo"
+        const cabecalho = [(serie.vezes ?? 1) > 1 ? `(${serie.vezes}x)` : null, nadoDaSerie, c].filter(Boolean).join(' · ')
         if (cabecalho) linhas.push(cabecalho)
         const alternada = variation.padrao === 'piramide_alternada'
         serie.blocos.forEach((bloco, i) => {
@@ -433,7 +475,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
             else if (blocoIgual?.[i] && !saidaNaSerie) linha += ` · ${marcaText(blocoIgual[i])}`
             linhas.push(linha)
         })
-        const resto = [nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null].filter(Boolean).join(' · ')
+        const resto = [materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null].filter(Boolean).join(' · ')
         if (resto) linhas.push(resto)
         // Grupo repetido com intensidade por série
         if (I?.unidade === 'serie') {
@@ -760,8 +802,10 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const escolha = escolhas.get(i)
         if (!escolha) return // nenhuma série da biblioteca serve para esse atleta
         const segunda = parte === 'principal' && partes.some((p) => p.parte === 'principal')
-        // Velocidade "livre": o estilo vai escrito (sorteado entre os que o atleta nada)
+        // Velocidade "livre": o estilo vai escrito (sorteado entre os que o atleta nada).
+        // Série principal "livre": é crawl, e o card diz isso (CR)
         if (parte === 'velocidade') escolha.variation = withSpeedStroke(rules, escolha.variation, athlete, random)
+        if (parte === 'principal') escolha.variation = withCrawl(escolha.variation)
         // (2x), (3x), (4x)...: um material diferente em cada série, sem repetir em seguida
         escolha.variation = rotateSetMaterials(rules, parte, escolha.serie, escolha.variation, escolha.intensidades, athlete, random)
         // Intervalo entre as séries (Acumulação 1: maior)
@@ -820,8 +864,8 @@ export function renderPart(rules, athlete, montagem) {
     const doDia = { ...athlete, ...montagem.dia }
     const serie = describe(montagem.serie)
     let saidas = parte === 'velocidade'
-        ? (serie.blocos.length === 1 ? [saidaVelocidade(rules, doDia, serie.blocos[0])] : null)
-        : saidasDaSerie(rules, doDia, serie, intensidades, doDia.fase ?? null)
+        ? (serie.blocos.length === 1 ? [saidaVelocidade(rules, doDia, serie.blocos[0], strokeFactor(rules, variation, 0, doDia, serie))] : null)
+        : saidasDaSerie(rules, doDia, serie, intensidades, doDia.fase ?? null, variation)
     const aviso = avisoComEquipamento(rules, doDia, { variation, intensidades }, saidas)
     // Sem tempos de referência: o descanso no lugar da saída (velocidade: 20" a 30")
     if (!doDia.tabela) {
@@ -931,7 +975,7 @@ function buildTestTraining({ rules, library, athlete, pace, random, recentes }) 
         const serie = describe({ ...crua, blocos: crua.blocos.map((b) => ({ ...b, intensidade: intensidades.valores[0] })) })
         if (serie.maiorDistancia > (SEM_PARAR[athlete.continuousDistance] ?? Infinity)) continue
         if (!serie.piscinas.includes(athlete.poolLength)) continue
-        const variation = { texto: serie.texto, material, padrao: 'serie_inteira', nado: 'livre' }
+        const variation = { texto: serie.texto, material, padrao: 'serie_inteira', nado: 'livre', nadoAbrev: 'CR' }
         const segundos = estimateSeconds(rules, 'principal', serie, variation, athlete, pace)
         if (segundos > livres || segundos < (cfg.minimoDeMinutos ?? 0) * 60) continue
         livres -= segundos

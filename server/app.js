@@ -343,6 +343,7 @@ export function createApp({
     ['PATCH', '/api/competitions/:id', athlete.updateCompetitionPriority],
     ['DELETE', '/api/competitions/:id', athlete.removeCompetition],
     ['POST', '/api/trainings/:id/planned-test', athlete.answerPlannedTest],
+    ['POST', '/api/trainings/:id/reschedule-test', athlete.rescheduleTest],
     ['GET', '/api/preparations/current', athlete.getCurrentPreparation],
     ['POST', '/api/preparations', athlete.createPreparation],
   ].map(([method, path, handler]) => {
