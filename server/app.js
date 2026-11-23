@@ -38,6 +38,8 @@ const publicUser = (row) => ({
   name: row.name,
   email: row.email,
   createdAt: row.created_at,
+  // Já viu o tutorial do app? (na 1ª vez que entra, ele abre sozinho)
+  tutorialSeen: Boolean(row.tutorial_seen_at),
 })
 
 function isValidPassword(password) {
@@ -69,7 +71,7 @@ export function createApp({
   const db = openDatabase(dbPath)
 
   const findUserByEmail = db.prepare(
-    'SELECT id, name, email, password_hash, created_at FROM users WHERE email = ?',
+    'SELECT id, name, email, password_hash, created_at, tutorial_seen_at FROM users WHERE email = ?',
   )
   const insertUser = db.prepare(
     'INSERT INTO users (name, email, password_hash, created_at) VALUES (?, ?, ?, ?)',
@@ -78,7 +80,7 @@ export function createApp({
     'INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)',
   )
   const findSessionUser = db.prepare(`
-    SELECT u.id, u.name, u.email, u.created_at
+    SELECT u.id, u.name, u.email, u.created_at, u.tutorial_seen_at
     FROM sessions s JOIN users u ON u.id = s.user_id
     WHERE s.token_hash = ? AND s.expires_at > ?
   `)
@@ -98,7 +100,7 @@ export function createApp({
   const deleteUserResets = db.prepare('DELETE FROM password_resets WHERE user_id = ?')
   const deleteExpiredResets = db.prepare('DELETE FROM password_resets WHERE expires_at <= ?')
   const updatePassword = db.prepare('UPDATE users SET password_hash = ?, password_set = 1 WHERE id = ?')
-  const findUserByGoogle = db.prepare('SELECT id, name, email, password_hash, created_at FROM users WHERE google_sub = ?')
+  const findUserByGoogle = db.prepare('SELECT id, name, email, password_hash, created_at, tutorial_seen_at FROM users WHERE google_sub = ?')
   const linkGoogle = db.prepare('UPDATE users SET google_sub = ? WHERE id = ?')
   const insertGoogleUser = db.prepare(
     'INSERT INTO users (name, email, password_hash, created_at, google_sub, password_set) VALUES (?, ?, ?, ?, ?, 0)',
@@ -269,6 +271,14 @@ export function createApp({
     sendJson(res, 200, { user: publicUser(user) })
   }
 
+  // POST /api/account/tutorial -> o tutorial foi visto (ou pulado): não abre mais sozinho
+  const markTutorialSeen = db.prepare('UPDATE users SET tutorial_seen_at = ? WHERE id = ?')
+  function tutorialSeen(req, res) {
+    const user = requireUser(req)
+    markTutorialSeen.run(new Date().toISOString(), user.id)
+    sendJson(res, 200, { ok: true })
+  }
+
   async function forgotPassword(req, res) {
     const ip = clientIp(req)
     const body = await readJson(req)
@@ -387,6 +397,7 @@ export function createApp({
     ['POST', '/api/auth/login', login],
     ['POST', '/api/auth/logout', logout],
     ['GET', '/api/auth/me', me],
+    ['POST', '/api/account/tutorial', tutorialSeen],
     ['POST', '/api/auth/forgot-password', forgotPassword],
     ['POST', '/api/auth/reset-password', resetPassword],
     ['GET', '/api/auth/config', authConfig],

@@ -1,0 +1,88 @@
+.passo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    padding: 8px 4px 4px;
+    color: #0b2f57;
+}
+
+.icone {
+    font-size: 44px;
+    line-height: 1;
+}
+
+.titulo {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.texto {
+    font-size: 15px;
+    line-height: 1.55;
+    color: #2c4a68;
+    max-width: 440px;
+    min-height: 120px;
+}
+
+.pontos {
+    display: flex;
+    gap: 8px;
+    margin: 4px 0;
+}
+
+.ponto,
+.pontoAtual {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border-radius: 50%;
+    border: none;
+    background-color: #c9dff1;
+    cursor: pointer;
+}
+
+.pontoAtual {
+    width: 22px;
+    border-radius: 999px;
+    background-color: #1d6fb8;
+}
+
+.acoes {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.primario,
+.secundario {
+    font: inherit;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 10px 22px;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.primario {
+    background-color: #1d6fb8;
+    color: #ffffff;
+    border: 1px solid #1d6fb8;
+}
+
+.secundario {
+    background-color: #ffffff;
+    color: #1d6fb8;
+    border: 1px solid #b9d6ee;
+}
+
+.primario:focus-visible,
+.secundario:focus-visible,
+.ponto:focus-visible,
+.pontoAtual:focus-visible {
+    outline: 2px solid #0b2f57;
+    outline-offset: 2px;
+}

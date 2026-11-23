@@ -132,3 +132,11 @@ test('excluir a conta: pede a senha e apaga tudo', async () => {
   // O email fica livre para um cadastro novo
   assert.equal((await api('/api/auth/register', { method: 'POST', body: { name: 'De Novo', email: conta.email, password: 'senha-forte-123' } })).status, 201)
 })
+
+test('tutorial: abre na 1ª vez; depois de visto (ou pulado), a conta lembra', async () => {
+  const { cookie } = await novoUsuario()
+  assert.equal((await api('/api/auth/me', { cookie })).body.user.tutorialSeen, false)
+  assert.equal((await api('/api/account/tutorial', { method: 'POST' })).status, 401)
+  assert.equal((await api('/api/account/tutorial', { method: 'POST', cookie })).status, 200)
+  assert.equal((await api('/api/auth/me', { cookie })).body.user.tutorialSeen, true)
+})

@@ -791,6 +791,13 @@ test('prova com distância, estilo e meta; o modelo Específico só para quem po
   assert.equal(troca.status, 200)
   assert.equal(troca.body.preparation.model, 'especifico')
   assert.ok(troca.body.refeitos > 0)
+  // Os treinos refeitos já são do Específico (Transição e Realização), com o ritmo de prova novo
+  const periodo = (await api('/api/trainings/periodization', { cookie })).body.trainings
+  const daProva = periodo.filter((t) => ['transicao', 'realizacao'].includes(t.periodizacao?.fase))
+    .flatMap((t) => (t.partes ?? []).filter((p) => p.parte === 'principal'))
+  assert.ok(daProva.length > 0)
+  assert.ok(daProva.every((p) => p.titulo === 'Série principal da prova'), daProva.map((p) => p.titulo).join())
+  assert.ok(daProva.every((p) => !/10 x 100 m · RP/.test(p.texto)))
   // Passou a nadar menos (anamnese): o Específico deixa de valer
   await saveProfile(cookie, { ...sampleProfile, continuousDistance: '50_100' })
   assert.equal((await api('/api/preparations/current', { cookie })).body.preparation.model, 'geral')

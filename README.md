@@ -150,7 +150,8 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `POST /api/auth/register` | Cria a conta (`name`, `email`, `password`) |
 | `POST /api/auth/login` | Entra (`email`, `password`, `remember` opcional) |
 | `POST /api/auth/logout` | Encerra a sessão |
-| `GET /api/auth/me` | Devolve o usuário logado, ou 401 |
+| `GET /api/auth/me` | Devolve o usuário logado (com `tutorialSeen`: já viu o tutorial), ou 401 |
+| `POST /api/account/tutorial` | Marca o tutorial como visto (ele abre sozinho só na 1ª vez; depois, pelo Perfil → Suporte → "Ver o tutorial") |
 | `POST /api/auth/forgot-password` | Pede o link para criar nova senha (`email`) |
 | `POST /api/auth/reset-password` | Troca a senha usando o link (`token`, `password`) |
 | `GET /api/tests` | Testes de tempo do usuário logado |
