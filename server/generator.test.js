@@ -1474,6 +1474,8 @@ test('A3 seguido: só na mesma semana, uma vez por semana, em até 35% das seman
     const semanas = new Map()
     treinos.forEach((t, k) => {
       if (k === 0 || !a3(t) || !a3(treinos[k - 1])) return
+      // Só na Transição e na Realização (nunca na Acumulação)
+      assert.ok(['transicao', 'realizacao'].includes(t.plano.fase), t.plano.fase)
       assert.ok(!(k > 1 && a3(treinos[k - 2])), `3 seguidos: ${t.date}`)
       assert.equal(semanaDe(treinos[k - 1].date), semanaDe(t.date))
       semanas.set(semanaDe(t.date), (semanas.get(semanaDe(t.date)) ?? 0) + 1)

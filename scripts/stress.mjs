@@ -157,6 +157,8 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
             treinos.forEach((t, k) => {
                 if (k === 0 || !a3(t) || !a3(treinos[k - 1])) return
                 confere('A3 seguido: nunca 3 treinos seguidos', !(k > 1 && a3(treinos[k - 2])), () => `${quem}: ${treinos[k - 2].date}, ${treinos[k - 1].date}, ${t.date}`)
+                confere('A3 seguido: só na Transição e na Realização (nunca na Acumulação)', ['transicao', 'realizacao'].includes(t.plano.fase),
+                    () => `${quem}: ${t.date} ${t.plano.fase}`)
                 confere('A3 seguido: só na mesma semana', semanaDe(treinos[k - 1].date) === semanaDe(t.date), () => `${quem}: ${treinos[k - 1].date} -> ${t.date}`)
                 semanas.set(semanaDe(t.date), (semanas.get(semanaDe(t.date)) ?? 0) + 1)
             })

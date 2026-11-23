@@ -1545,7 +1545,7 @@ export function generateTrainings({
         const regraSeguido = rules.intensidades?.A3?.seguido
         if (anterior?.intensidade === 'A3' && !recoveryWaived(rules, athlete)) {
             const semana = semanaDe(date)
-            const pode = regraSeguido && antesDoAnterior !== 'A3' && semanaDe(anterior.date) === semana &&
+            const pode = regraSeguido && (regraSeguido.fases ?? []).includes(fase) && antesDoAnterior !== 'A3' && semanaDe(anterior.date) === semana &&
                 !semanasComA3Seguido.has(semana) &&
                 semanasComA3Seguido.size < Math.floor(regraSeguido.maximoDasSemanas * totalDeSemanas)
             if (!pode) {

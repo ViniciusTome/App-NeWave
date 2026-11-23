@@ -117,8 +117,9 @@
       "descanso": [0, 60],
       "recuperacaoHoras": [24, 48],
       "seguido": {
-        "_comentario": "Regra do treinador: A3 em 2 treinos seguidos só na mesma semana, no máximo uma vez por semana e em até 'maximoDasSemanas' das semanas da periodização; nunca 3 seguidos. Quem treina até 2x por semana (ou aula curta) não precisa dessa recuperação (recuperacaoDispensada).",
-        "maximoDasSemanas": 0.35
+        "_comentario": "Regra do treinador: A3 em 2 treinos seguidos só na mesma semana, no máximo uma vez por semana e em até 'maximoDasSemanas' das semanas da periodização; nunca 3 seguidos; só nas 'fases' (nunca na Acumulação). Quem treina até 2x por semana (ou aula curta) não precisa dessa recuperação (recuperacaoDispensada).",
+        "maximoDasSemanas": 0.35,
+        "fases": ["transicao", "realizacao"]
       },
       "material": {
         "opcoes": [["pe_de_pato"], ["pe_de_pato", "palmar"]],

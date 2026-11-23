@@ -94,6 +94,10 @@ export function validateRules(rules) {
         if (!faixa(regra?.descanso)) problems.push(`${where}.descanso: use [mínimo, máximo] em segundos.`)
         if (!faixa(regra?.recuperacaoHoras)) problems.push(`${where}.recuperacaoHoras: use [mínimo, máximo] em horas.`)
         const seguido = regra?.seguido?.maximoDasSemanas
+        const fasesDoSeguido = regra?.seguido?.fases
+        if (fasesDoSeguido !== undefined && !(Array.isArray(fasesDoSeguido) && fasesDoSeguido.every((f) => FASES.includes(f)))) {
+            problems.push(`${where}.seguido.fases: use fases entre ${FASES.join(', ')}.`)
+        }
         if (seguido !== undefined && !(typeof seguido === 'number' && seguido >= 0 && seguido <= 1)) {
             problems.push(`${where}.seguido.maximoDasSemanas: de 0 a 1 (ex.: 0.35 = 35% das semanas).`)
         }

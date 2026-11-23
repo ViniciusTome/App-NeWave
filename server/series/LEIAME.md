@@ -374,7 +374,7 @@ A cada treino, o gerador sorteia **um tipo** para a série principal (pelos peso
 - **NEG / POS:** a série toda.
 - Final forte, NEG e POS só em séries sem repetições de 25 m.
 - **A3 sempre com equipamento:** a série, o bloco ou (nas séries simples) a série toda em A3 recebe c/PÉ ou c/PÉ + PALM. Quem não é avançado e não tem pé de pato não recebe A3.
-- **A3 seguido (regra do treinador, `intensidades.A3.seguido`):** A3 (ou AC de 10 ou menos) em **2 treinos seguidos** só dentro da **mesma semana**, **uma vez por semana** e em até **35% das semanas** da periodização; **nunca 3 seguidos**. Fora disso, o treino depois de um A3 não tem A3.
+- **A3 seguido (regra do treinador, `intensidades.A3.seguido`):** A3 (ou AC de 10 ou menos) em **2 treinos seguidos** só dentro da **mesma semana**, **uma vez por semana** e em até **35% das semanas** da periodização, **só na Transição e na Realização** (nunca na Acumulação); **nunca 3 seguidos**. Fora disso, o treino depois de um A3 não tem A3.
 - **Recuperação dispensada** (`recuperacaoDispensada`): quem treina **até 2 vezes por semana** e **menos de 1 hora** pode ter A3 em qualquer treino. A não ser na preparação para **triatlo**.
 
 No card: A1/A2/A3 como estão, os outros entre parênteses (`(15 AC)`, `(NEG)`, `(75 NAD x 25 fo)`). O que é igual em todas as séries aparece uma vez, no cabeçalho.
