@@ -200,12 +200,12 @@
       "transicao1": {
         "nome": "Transição 1", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Especificidade: resistência mista, A3 e aeróbica intensa",
-        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85
+        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "velocidadeAvancado25": 25
       },
       "transicao2": {
         "nome": "Transição 2", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Força específica, resistência mista e aeróbica intensa",
-        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "foco": "forca"
+        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "foco": "forca", "velocidadeAvancado25": 25
       },
       "recuperacao": {
         "nome": "Semana de recuperação", "fase": "recuperacao", "dias": [7, 7],
@@ -215,7 +215,7 @@
       "realizacao": {
         "nome": "Realização", "fase": "realizacao", "dias": [6, 8],
         "objetivo": "Ritmo de prova e velocidade: baixo volume e alta intensidade. Só uma semana (6 a 8 dias): com duas, o atleta perde condicionamento e sofre mais na volta aos treinos",
-        "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": [0.85, 0.6], "velocidadeAvancado25": 25
+        "tipos": { "intensidades": 30, "AC": 35, "finalForte": 35 }, "volume": [0.85, 0.6]
       }
     }
   },

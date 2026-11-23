@@ -727,3 +727,22 @@ test('tempo da anamnese: vai para a evolução e para os treinos já montados; n
   assert.ok(!/cd \d/.test(await principal()))
   db.close()
 })
+
+test('página de periodização: cada treino com a fase, a intensidade, a metragem e o tempo', async () => {
+  const cookie = await userFor('periodizacao')
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  await api(`/api/trainings/generate?today=${daysFromToday(0)}`, { method: 'POST', cookie })
+  const res = await api('/api/trainings/periodization', { cookie })
+  assert.equal(res.status, 200)
+  const gerados = res.body.trainings.filter((t) => t.periodizacao)
+  assert.ok(gerados.length > 10)
+  assert.deepEqual([...new Set(gerados.filter((t) => !t.completed).map((t) => t.periodizacao.fase))], ['acumulacao', 'transicao', 'realizacao'])
+  for (const t of gerados) {
+    assert.ok(t.metros > 0 && t.minutos > 0, `${t.date}: ${t.metros} m, ${t.minutos} min`)
+    assert.equal(t.metros, t.partes.reduce((s, p) => s + (p.metros ?? 0), 0))
+    assert.equal(t.plan, undefined) // o plano interno não sai
+  }
+  // Em ordem de data
+  assert.deepEqual(gerados.map((t) => t.date), gerados.map((t) => t.date).sort())
+})

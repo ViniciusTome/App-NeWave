@@ -123,6 +123,10 @@ export function createSwimmingRoutes({
     ORDER BY date, id LIMIT ?
   `)
   const findTraining = db.prepare(`SELECT ${TRAINING_COLUMNS} FROM trainings WHERE id = ? AND user_id = ?`)
+  // Página Treinos/Periodização: todos os treinos, com a fase de cada um
+  const listPeriodization = db.prepare(`
+    SELECT ${TRAINING_COLUMNS}, plan FROM trainings WHERE user_id = ? ORDER BY date, id LIMIT 500
+  `)
   // Sem resposta: passou da data, não foi concluído nem marcado como falta
   const listPending = db.prepare(`
     SELECT ${TRAINING_COLUMNS} FROM trainings
@@ -200,6 +204,30 @@ export function createSwimmingRoutes({
       const limit = Number.isInteger(requested) ? Math.min(Math.max(requested, 1), 50) : 10
       const trainings = listHistory.all(user.id, readToday(url), limit)
       sendJson(res, 200, { trainings: trainings.map(publicTraining) })
+    },
+
+    // GET /api/trainings/periodization -> todos os treinos (do mais antigo ao mais
+    // novo) com a fase da periodização, a intensidade da principal, a metragem e o
+    // tempo de cada um. O plano interno continua guardado: só sai o que a página mostra.
+    getPeriodization(req, res) {
+      const user = requireUser(req)
+      const trainings = listPeriodization.all(user.id).map((row) => {
+        const plano = row.plan ? JSON.parse(row.plan) : null
+        const partes = row.parts ? JSON.parse(row.parts) : []
+        return {
+          ...publicTraining(row),
+          periodizacao: plano && {
+            fase: plano.fase ?? null,
+            etapa: plano.etapa ?? null,
+            nomeDaEtapa: plano.nomeDaEtapa ?? null,
+            intensidade: plano.intensidade ?? null,
+            diaDeTeste: Boolean(plano.diaDeTeste),
+          },
+          metros: partes.reduce((s, p) => s + (p.metros ?? 0), 0),
+          minutos: partes.reduce((s, p) => s + (p.minutos ?? 0), 0),
+        }
+      })
+      sendJson(res, 200, { trainings })
     },
 
     // GET /api/trainings/upcoming?today=AAAA-MM-DD -> treinos agendados de hoje em diante,

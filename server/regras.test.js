@@ -399,6 +399,12 @@ test('borboleta dividida: repetição de 200 vira BO/CO ou BO/CR (100 de cada)',
   const nados = new Set(draws('pri-4x3x200', { ...avancadoCompleto, poolLength: 25 }, 500).flatMap((m) => m.porSerie.flat()))
   assert.ok(nados.has('borboleta/costas') && nados.has('borboleta/crawl'), [...nados].join())
   assert.ok(!nados.has('borboleta'))
+  // Duas repetições com borboleta nunca ficam seguidas (BO/CO | BO/CR)
+  for (const m of draws('pri-4x3x200', { ...avancadoCompleto, poolLength: 25, bestStroke: 'borboleta' }, 500)) {
+    for (const serie of m.porSerie) {
+      serie.slice(1).forEach((n, k) => assert.ok(!(n.startsWith('borboleta') && serie[k].startsWith('borboleta')), serie.join(' | ')))
+    }
+  }
   // Quem não nada borboleta não ganha a dividida
   const semBo = new Set(draws('pri-4x3x200', { ...avancadoCompleto, strokes: ['crawl', 'costas', 'peito'] }, 200).flatMap((m) => m.porSerie.flat()))
   assert.ok(![...semBo].some((n) => n.startsWith('borboleta')))

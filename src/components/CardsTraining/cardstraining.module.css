@@ -1,33 +1,117 @@
+.wrapper {
+    margin-bottom: 10px;
+}
+
+.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0 4px 6px;
+}
+
+.top h3 {
+    color: #0b2f57;
+    font-size: 16px;
+}
+
+.arrows {
+    display: flex;
+    gap: 6px;
+}
+
+.arrows button {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: #134a85;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+}
+
+.arrows button:first-child img {
+    transform: rotate(180deg);
+}
+
+.arrows img {
+    width: 14px;
+}
+
+/* Carrossel: rola para os lados */
 .container {
     display: flex;
-    margin-bottom: 10px;
-    
+    gap: 10px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 8px;
+    scrollbar-width: thin;
 }
 
 .cardTraining {
-    text-decoration: none;
-    margin-left: -100px;
-    border: 1px solid black;
-    margin-right: 10px;
-    border-radius: 4px;
-    color: black;
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+    transition: transform 0.15s;
 }
 
-.cardTraining:first-child {
-    margin-left: 0px;
+.cardTraining > div {
+    border: 2px solid transparent;
 }
 
-.cardTraining:hover {
-    z-index: 999;
-    /* margin-left: -50px; */
-    margin-right: 100px;
-    scale: 1.1;
+.cardTraining:hover,
+.cardTraining:focus-visible {
+    transform: translateY(-4px);
+    outline: none;
 }
 
-.cardTraining:hover:last-child{
-    margin-right: 0px;
+.cardTraining:hover > div,
+.cardTraining:focus-visible > div {
+    border-color: var(--pool-accent);
 }
 
-.cardTraining:hover:first-child {
-    margin-left: 8px;
+/* O treino de hoje (ou o próximo) */
+.next > div {
+    border-color: #ffc93c;
+}
+
+.status {
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    white-space: nowrap;
+    background: #d9ecff;
+    color: #0b2f57;
+}
+
+.Realizado {
+    background: #b8f0c8;
+}
+
+.Falta,
+.Semresposta {
+    background: #ffd0d0;
+}
+
+.Hoje {
+    background: #ffc93c;
+}
+
+.info {
+    margin-bottom: 10px;
+    color: #1d4f80;
+    font-size: 14px;
+}
+
+.glossary {
+    margin-bottom: 12px;
 }

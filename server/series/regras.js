@@ -846,7 +846,8 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
         for (let k = 0; k < reps; k++) {
             const anterior = lista[k - 1]
             const crawlPode = parte > 0 && anterior !== 'crawl'
-            const opcoes = nados.filter((n) => n !== anterior)
+            // Nunca o mesmo estilo seguido (nem duas com borboleta: BO/CO | BO/CR)
+            const opcoes = nados.filter((n) => n !== anterior && !(anterior && ehBorboleta(n) && ehBorboleta(anterior)))
             if (crawlPode && random() < chance) lista.push('crawl')
             else lista.push(opcoes.length > 0 ? pick(opcoes) : 'crawl')
         }

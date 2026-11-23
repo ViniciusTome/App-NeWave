@@ -209,7 +209,8 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
                 const nados = l.split(' · ').find((x) => x.includes(' | '))?.split(' | ') ?? []
                 confere('Troca de estilo dentro da série com "|" (nunca "/" entre estilos)', !/\b(CR|CO|PE|BO|MD|ME) \/ (CR|CO|PE|BO|MD|ME)\b/.test(l),
                     () => `${quem}: ${l}`)
-                confere('Estilos misturados: nunca o mesmo estilo seguido', nados.every((n, i) => i === 0 || n !== nados[i - 1]),
+                confere('Estilos misturados: nunca o mesmo estilo seguido (nem duas com borboleta)',
+                    nados.every((n, i) => i === 0 || (n !== nados[i - 1] && !(/^BO\b/.test(n) && /^BO\b/.test(nados[i - 1])))),
                     () => `${quem}: ${l}`)
                 if (/\bBO\b(?!\/)/.test(l)) {
                     contaBorboleta.linhas++

@@ -8,15 +8,65 @@
     border-radius: 16px;
     box-shadow: var(--pool-shadow);
     color: #ffffff;
-    width: 100%; 
-    height: 230px;
-    overflow: hidden; 
-    margin-bottom: 10px; 
+    width: 100%;
+    min-height: 230px;
+    overflow: hidden;
+    margin-bottom: 10px;
     margin-right: 10px;
+    padding: 10px 12px;
+    box-sizing: border-box;
 }
 
 .volume h2 {
-    color: white; 
-    margin-top: 0px; 
-    margin-left: 10px;
+    color: white;
+    margin: 0 0 8px;
+}
+
+.metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.metric {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    column-gap: 8px;
+}
+
+.label {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.label small {
+    font-weight: normal;
+    opacity: 0.75;
+}
+
+.value {
+    font-size: 18px;
+    text-align: right;
+}
+
+.bar {
+    grid-column: 1 / -1;
+    height: 5px;
+    margin: 3px 0 1px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.bar span {
+    display: block;
+    height: 100%;
+    background: var(--pool-accent);
+}
+
+.detail {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    opacity: 0.8;
 }

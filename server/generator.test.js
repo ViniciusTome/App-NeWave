@@ -982,10 +982,13 @@ test('periodização: cada etapa muda o treino', () => {
   assert.ok([...principais('transicao1'), ...principais('transicao2')].some((p) => /A3|AC\)|fo\)/.test(p.texto)))
   const media = (e) => daEtapa(e).reduce((s, t) => s + t.plano.fatorPrincipal, 0) / daEtapa(e).length
   assert.ok(media('realizacao') < media('acumulacao2'))
-  // Realização: o avançado faz a velocidade nos 25 m a cada 25"
-  const velocidade = daEtapa('realizacao').flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade'))
+  // Transição: o avançado aperta a velocidade nos 25 m a cada 25"; na Realização, cd 30"
+  const velocidadeDa = (...etapas) => etapas.flatMap((e) => daEtapa(e)).flatMap((t) => t.partes.filter((p) => p.parte === 'velocidade'))
   // (de crawl; nos outros estilos o tempo de nado é maior)
-  assert.ok(velocidade.filter((p) => /25 m.*· CR ·/.test(p.texto)).every((p) => /cd 25"/.test(p.texto)))
+  const crawl25 = (lista) => lista.filter((p) => /^\d+ x 25 m.*· CR · cd/.test(p.texto))
+  assert.ok(crawl25(velocidadeDa('transicao1', 'transicao2')).length > 0)
+  assert.ok(crawl25(velocidadeDa('transicao1', 'transicao2')).every((p) => /cd 25"/.test(p.texto)))
+  assert.ok(crawl25(velocidadeDa('realizacao')).every((p) => !/cd 25"/.test(p.texto)))
   // Semana de recuperação: só ritmo leve, volume baixo, sem velocidade
   for (const t of daEtapa('recuperacao')) {
     assert.ok(!t.partes.some((p) => p.parte === 'velocidade'))
