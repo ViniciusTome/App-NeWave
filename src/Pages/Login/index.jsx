@@ -4,6 +4,7 @@ import { IconAssignement } from '../../components/icons/IconAssignement'
 import { Form } from '../../components/Form'
 import { Fieldset } from '../../components/Fieldset'
 import { Label } from '../../components/Label'
+import { PasswordInput } from '../../components/PasswordInput'
 import { Input } from '../../components/Input'
 import { TextDivider } from '../../components/TextDivider'
 import { Button } from '../../components/Button'
@@ -58,7 +59,7 @@ export const Login = () => {
                         </Fieldset>
                         <Fieldset>
                             <Label>Senha</Label>
-                            <Input type='password' name='password' id='password' placeholder='Senha' required />
+                            <PasswordInput name='password' id='password' placeholder='Senha' required autoComplete='current-password' />
                         </Fieldset>
                         <div className={styles.remember}>
                             <div className={styles.checkbox}>
