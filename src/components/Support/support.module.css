@@ -28,6 +28,13 @@
 }
 
 
+.versao {
+    margin: 20px;
+    font-size: 13px;
+    color: #bfe9ff;
+    align-self: center;
+}
+
 /* ---------- Celular ---------- */
 @media screen and (max-width: 768px) {
     .contact {

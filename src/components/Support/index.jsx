@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ContactSupport, DeleteAccount } from '../AccountForms'
+import { version } from '../../../package.json'
 import { Modal } from '../Modal'
 import styles from './support.module.css'
 
@@ -11,6 +12,7 @@ export const Support = () => {
         <div className={styles.contact}>
             <button type='button' className={styles.link} onClick={() => setAberto('contato')}>Entre em contato</button>
             <button type='button' className={`${styles.link} ${styles.danger}`} onClick={() => setAberto('excluir')}>Excluir conta</button>
+            <p className={styles.versao}>NeWave versão {version}</p>
             <Modal open={aberto === 'contato'} onClose={() => setAberto(null)} title='Fale com a gente'>
                 {aberto === 'contato' && <ContactSupport onDone={() => setAberto(null)} />}
             </Modal>

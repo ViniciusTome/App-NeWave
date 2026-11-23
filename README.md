@@ -49,7 +49,14 @@ npm run test:server  # roda os testes do backend
 npm run seed -- seu@email.com  # coloca testes e treinos de exemplo nessa conta
 ```
 
-## App no celular (versão 0.1)
+## App no celular (versão 0.2)
+
+**Versões** (o número aparece no Perfil, em Suporte):
+- **0.2:** entrar com o Google; Perfil funcional (números reais, dados pessoais, trocar/criar senha, suporte, excluir conta); ver a senha (olho) e o caractere digitado aparece por 1 segundo; biblioteca de técnica; notação do treinador (a/c, D de descanso); logo nova; regras novas de descanso e A3.
+- **0.1:** telas para celular e app instalável (PWA).
+
+Para lançar uma versão nova: mude `version` no `package.json` e o `CACHE` em `public/sw.js` (ex.: `newave-v0.3.0`). Quem já instalou recebe a versão nova ao abrir o app com internet.
+
 
 O NeWave funciona no celular de dois jeitos:
 
