@@ -34,7 +34,9 @@
     "descanso": {
       "fator": { "50": 3, "100": 1.5, "200": 0.8, "400": 0.5, "1500": 0.25, "100000": 0.15 },
       "minimo": 15,
-      "maximo": 180
+      "maximo": 180,
+      "_comentarioAumento": "Regra do treinador: com ritmo de prova (RP), o descanso é 50% maior que o proporcional ao tiro (o máximo sobe junto).",
+      "aumentoNoRP": 1.5
     },
     "intervaloMinimo": 120
   },

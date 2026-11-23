@@ -163,8 +163,8 @@ test('ritmo de prova: pouco volume e descanso proporcional ao tiro (200 m: até 
     const vezes = Number(/^\((\d+)x\)/.exec(texto)?.[1] ?? 1)
     const rp = [...texto.matchAll(/(\d+) x (\d+) m[^·\n]*· (?:RP|máx) /g)].reduce((t, [, r, d]) => t + Number(r) * Number(d), 0) * vezes
     assert.ok(rp <= 600, `${rp} m em RP\n${texto}`)
-    // 50 m em 37"5 x 0,8 = 30" de descanso
-    for (const [, d] of texto.matchAll(/4 x 50 m · RP 37"5 · CO · D(\d+)"/g)) assert.equal(Number(d), 30)
+    // 50 m em 37"5 x 0,8 = 30", e no RP 50% a mais = 45" de descanso
+    for (const [, d] of texto.matchAll(/4 x 50 m · RP 37"5 · CO · D(\d+)"/g)) assert.equal(Number(d), 45)
   }
   assert.ok(textos.some((t) => /\((2|3)x\) 4 x 50 m · RP/.test(t)), 'sem 2 ou 3 x 4 x 50 RP')
 })

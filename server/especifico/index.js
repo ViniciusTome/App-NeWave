@@ -181,7 +181,9 @@ function ajustarRitmoDeProva(serie, prova, regras) {
         blocos: serie.blocos.map((b) => {
             if (!emRitmoDeProva(b) || b.quebrado) return b
             const tiro = ritmoDeProva(prova, b.dist) * (b.ritmo === 'max' ? regras.ritmos.max : 1)
-            const proporcional = Math.min(cfg.descanso.maximo, Math.max(cfg.descanso.minimo, de5em5(tiro * fator)))
+            // RP: 50% a mais de descanso (regra do treinador)
+            const aumento = b.ritmo === 'RP' ? cfg.descanso.aumentoNoRP ?? 1 : 1
+            const proporcional = Math.min(cfg.descanso.maximo * aumento, Math.max(cfg.descanso.minimo, de5em5(tiro * fator * aumento)))
             // Máximo: nunca menos que o descanso escrito na série (tiro forte descansa bem)
             return { ...b, descanso: b.ritmo === 'max' ? Math.max(b.descanso, proporcional) : proporcional }
         }),
