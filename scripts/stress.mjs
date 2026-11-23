@@ -11,7 +11,7 @@ import { feedbackAdjustment, generateTrainings, planStages, prepareAthlete, refr
 import { loadLibrary } from '../server/series/index.js'
 import { loadRules } from '../server/series/regras.js'
 import { chanceNaFase, loadTecnica } from '../server/tecnica/index.js'
-import { DISTANCIAS_NA_PISCINA, limiteDaProva, loadEspecifico, podeUsarEspecifico, ritmoDeProva, tempoText } from '../server/especifico/index.js'
+import { DISTANCIAS_NA_PISCINA, limiteDaProva, volumeMaximoEmRP, loadEspecifico, podeUsarEspecifico, ritmoDeProva, tempoText } from '../server/especifico/index.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -55,7 +55,7 @@ function perfil(i) {
         trainingDays: um([[1, 4], [1, 3, 5], [1, 2, 4, 5], [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6]]),
         sessionMinutes: um([30, 40, 45, 60, 75, 90, 120]),
         poolLength: um([25, 25, 50]),
-        equipment: alguns(['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas']),
+        equipment: alguns(['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas']),
     }
     const { level, recemIntermediario } = computeLevel(anamnese, time400)
     // Preparação: sem prova (8 semanas, A-T-R) ou com prova a 20 dias até 8 meses
@@ -133,6 +133,16 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
     const precisa = !periodizacao.semProva && a.level === 'iniciante' && Boolean(testSeriesDistance(rules, prepareAthlete(rules, a), [], ritmo))
     for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
         const i = t.partes.findIndex((p) => p.parte === 'continuo')
+        // Peito com pé de pato (nadando): o card diz para fazer a pernada de borboleta ou de crawl;
+        // e o pé de pato de peito não existe mais
+        for (const p of t.partes) {
+            confere('Sem "pé de pato de peito" nos treinos', !/PÉ de peito|pé de pato de peito/.test(p.texto), () => `${quem}: ${p.texto}`)
+            if (p.parte === 'perna' || p.parte === 'teste') continue
+            const comPePeito = p.texto.split('\n').some((l) => l.includes('c/PÉ') && /\bPE\b/.test(l))
+            if (comPePeito) {
+                confere('Peito com pé de pato: aviso da pernada de borboleta ou de crawl', p.texto.includes('pernada de borboleta ou de crawl'), () => `${quem}: ${p.texto}`)
+            }
+        }
         // Triatlo e maratona aquática: aquecimento, velocidade e principal só de crawl
         if (['triatlo', 'maratona_aquatica'].includes(a.modalidade)) {
             for (const p of t.partes.filter((x) => ['aquecimento', 'velocidade', 'principal'].includes(x.parte))) {
@@ -461,6 +471,11 @@ function confereEspecifico(i) {
         const linhas = esp[0].texto.split('\n').filter((l) => / x \d+ m/.test(l))
         confere('Específico: no estilo da prova (medley curto: estilo a estilo)', linhas.every((l) => l.includes(`· ${ABREV_ESP[estilo]} ·`) || (estilo === 'medley' && l.includes('BO|CO|PE|CR'))),
             () => `${quem}: ${esp[0].texto}`)
+        const emRP = [...esp[0].texto.matchAll(/^(?:\((\d+)x\) )?(\d+) x (\d+) m[^·\n]*· (?:RP|máx) /gm)]
+        const vezesDaSerie = Number(/^\((\d+)x\)/.exec(esp[0].texto)?.[1] ?? 1)
+        const metrosEmRP = emRP.reduce((t, [, , rep, dist]) => t + Number(rep) * Number(dist), 0) * vezesDaSerie
+        confere('Específico: pouco volume em ritmo de prova (ex.: 200 m -> até 600 m em RP/máx)', metrosEmRP <= volumeMaximoEmRP(especifico.regras, distancia),
+            () => `${quem}: ${metrosEmRP} m em RP\n${esp[0].texto}`)
         confere('Específico: RP saindo da meta', [...esp[0].texto.matchAll(/(\d+) m[^·]*· RP ([^ ]+) ·/g)].every(([, d, rp]) => rp === tempoText(ritmoDeProva(prova, Number(d)))),
             () => `${quem}: ${esp[0].texto}`)
         confere('Específico: borboleta até 100 m; piscina de 50 sem 25 e 75 m', ![...esp[0].texto.matchAll(/x (\d+) m/g)].some(([, d]) =>

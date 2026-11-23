@@ -458,7 +458,7 @@ export function rotateSetMaterials(rules, parte, serie, variation, intensidades,
         series.length = 0
         for (let i = 0; i < sets; i++) series.push(preferencia(i)[0])
     }
-    const material = ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'pull_buoy', 'prancha', 'snorkel', 'paraquedas']
+    const material = ['pe_de_pato', 'palmar', 'pull_buoy', 'prancha', 'snorkel', 'paraquedas']
         .filter((m) => series.some((s) => s.includes(m)))
     return { ...variation, padrao: 'por_serie', series, material }
 }
@@ -470,7 +470,7 @@ function avisoComEquipamento(rules, athlete, escolha, saidas, serie = null) {
     if (athlete.level !== 'iniciante' || !temSaida) return null
     const v = escolha.variation
     const materiais = [v.material, ...(v.series ?? []), ...(v.porBloco ?? [])].flat()
-    if (!materiais.some((m) => ['pe_de_pato', 'pe_de_pato_peito', 'palmar'].includes(m))) return null
+    if (!materiais.some((m) => ['pe_de_pato', 'palmar'].includes(m))) return null
     // Descanso pela distância da repetição (regra do treinador; com material eles nadam
     // mais forte que o A3): 25 m 20"; 50 e 100 m 20" a 30"; 200 m 40" a 50"; 400 m 1'
     const tabela = rules.avisoComMaterial?.descanso ?? {}
@@ -488,7 +488,7 @@ function avisoComEquipamento(rules, athlete, escolha, saidas, serie = null) {
 export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
     if (serie.porSensacao) return serie.duracaoMinutos * 60
 
-    const comPe = variation.material.includes('pe_de_pato') || variation.material.includes('pe_de_pato_peito')
+    const comPe = variation.material.includes('pe_de_pato')
     const fator = (parte === 'perna' ? RITMO_PERNA : 1) * (comPe ? RITMO_PE_DE_PATO : 1)
     // Intervalo entre as séries: troca o descanso da última repetição de cada série
     const intervalo = (saidaSegundos) =>
@@ -536,7 +536,7 @@ export function withMeters(texto) {
 // ---------- Abreviações do card (as mesmas do glossário) ----------
 
 const MATERIAL_ABREV = {
-    pe_de_pato: 'PÉ', pe_de_pato_peito: 'PÉ de peito', palmar: 'PALM', pull_buoy: 'BOIA',
+    pe_de_pato: 'PÉ', palmar: 'PALM', pull_buoy: 'BOIA',
     snorkel: 'SNK', paraquedas: 'PARA', prancha: 'prancha',
 }
 const NADO_ABREV = { crawl: 'CR', costas: 'CO', peito: 'PE', borboleta: 'BO', medley: 'MD', livre: 'livre' }
@@ -550,7 +550,6 @@ export const materialAbbrev = (material) =>
 // "com pé de pato + palmar" -> "c/PÉ + PALM"; "nadando" -> "NAD"
 export function abbreviate(texto) {
     return texto
-        .replace(/\bpé de pato de peito\b/g, 'PÉ de peito')
         .replace(/\bpé de pato\b/g, 'PÉ')
         .replace(/\bpalmar\b/g, 'PALM')
         .replace(/\bpull buoy\b/g, 'BOIA')
@@ -563,7 +562,7 @@ export function abbreviate(texto) {
         .replace(/\bmelhor estilo\b/g, 'ME')
         .replace(/\bcrawl\b/g, 'CR')
         .replace(/\bcostas\b/g, 'CO')
-        .replace(/(?<!PÉ de )\bpeito\b/g, 'PE') // "PÉ de peito" (o material) fica por extenso
+        .replace(/\bpeito\b/g, 'PE')
         .replace(/\bborboleta\b/g, 'BO')
         .replace(/\bmedley\b/g, 'MD')
         .replace(/\bperna\b/g, 'PR')
@@ -1143,7 +1142,8 @@ export function renderPart(rules, athlete, montagem) {
             ? (saidas?.[0] ? saidas : [`D${de}" a ${ate}" de descanso`])
             : descansosDaSerie(rules, doDia, serie, intensidades, strokeFactor(rules, variation, null, doDia, serie))
     }
-    const texto = cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas) + legAlternation(parte, serie, variation)
+    const base = cardText(serie, variation, faixa, comoMostrar(rules, doDia, intensidades), saidas)
+    const texto = base + legAlternation(parte, serie, variation) + breaststrokeWithFins(parte, base, doDia)
     // Técnica da parte (aquecimento, solto): vai embaixo, como foi montada. A observação
     // da série (ex.: "Pode ser feito com pull buoy.") vai junto da série, para não
     // parecer ser da técnica
@@ -1151,6 +1151,17 @@ export function renderPart(rules, athlete, montagem) {
     const obs = montagem.serie.observacao?.replace(/\.$/, '')
     const daSerie = obs ? `${texto} (${obs[0].toLowerCase()}${obs.slice(1)})` : texto
     return { texto: `${daSerie}\n${montagem.tecnica}`, aviso }
+}
+
+// Peito com pé de pato (nadando, fora da perna): a pernada é de borboleta ou de crawl
+// (regra do treinador). Vale para PE, MD (o medley tem peito) e ME quando o melhor estilo
+// é o peito, na mesma linha do c/PÉ (ou na série toda, quando o c/PÉ está no cabeçalho).
+function breaststrokeWithFins(parte, texto, athlete) {
+    if (parte === 'perna' || !texto.includes('c/PÉ')) return ''
+    const temPeito = (t) => /\b(PE|MD)\b/.test(t) || (athlete.bestStroke === 'peito' && /\bME\b/.test(t))
+    const linhas = texto.split('\n')
+    const vale = linhas[0].includes('c/PÉ') ? temPeito(texto) : linhas.some((l) => l.includes('c/PÉ') && temPeito(l))
+    return vale ? '\nPeito com pé de pato: faça a pernada de borboleta ou de crawl.' : ''
 }
 
 // Perna com dois estilos ("CO | CR"): explica que alterna a cada repetição, para não

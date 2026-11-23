@@ -28,6 +28,16 @@
     "saidas": { "texto": "saída + 15 m forte", "rep": 6, "dist": 15, "descanso": 60 },
     "viradas": { "texto": "virada forte (10 m antes, 10 m depois)", "rep": 4, "dist": 20, "descanso": 45 }
   },
+  "ritmoDeProva": {
+    "_comentario": "Regra do treinador: pouco volume em ritmo de prova (RP) e máximo (máx), com descanso proporcional ao tiro. 'volumeMaximo': metros em RP/máx no treino, por distância da prova (chave = até essa distância). 'descanso': descanso de cada repetição em RP/máx = tempo da repetição x fator (de 5 em 5 segundos, entre 'minimo' e 'maximo').",
+    "volumeMaximo": { "50": 200, "100": 400, "200": 600, "400": 800, "1500": 1500, "100000": 3000 },
+    "descanso": {
+      "fator": { "50": 3, "100": 1.5, "200": 0.8, "400": 0.5, "1500": 0.25, "100000": 0.15 },
+      "minimo": 15,
+      "maximo": 180
+    },
+    "intervaloMinimo": 120
+  },
   "borboletaAte": 100,
   "esforco": { "transicao": "A3", "realizacao": "A3" }
 }

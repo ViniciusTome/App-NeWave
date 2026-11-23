@@ -153,3 +153,18 @@ test('Específico: sobra de tempo (provas curtas) vira "Saídas e técnica", for
   // Na Acumulação não tem
   assert.ok(treinos.filter((t) => t.plano.fase === 'acumulacao').every((t) => t.partes.every((p) => p.parte !== 'complemento')))
 })
+
+test('ritmo de prova: pouco volume e descanso proporcional ao tiro (200 m: até 600 m em RP, nunca 10 x 100 RP)', () => {
+  const prova = { distancia: 200, estilo: 'costas', metaCentesimos: 15000, modalidade: 'piscina_25' }
+  const textos = [1, 2, 3, 4].flatMap((seed) => gerar(prova, { seed })).flatMap((t) => t.partes.filter((p) => p.especifico)).map((p) => p.texto)
+  assert.ok(textos.length > 10)
+  for (const texto of textos) {
+    assert.doesNotMatch(texto, /10 x 100 m · RP/, texto)
+    const vezes = Number(/^\((\d+)x\)/.exec(texto)?.[1] ?? 1)
+    const rp = [...texto.matchAll(/(\d+) x (\d+) m[^·\n]*· (?:RP|máx) /g)].reduce((t, [, r, d]) => t + Number(r) * Number(d), 0) * vezes
+    assert.ok(rp <= 600, `${rp} m em RP\n${texto}`)
+    // 50 m em 37"5 x 0,8 = 30" de descanso
+    for (const [, d] of texto.matchAll(/4 x 50 m · RP 37"5 · CO · D(\d+)"/g)) assert.equal(Number(d), 30)
+  }
+  assert.ok(textos.some((t) => /\((2|3)x\) 4 x 50 m · RP/.test(t)), 'sem 2 ou 3 x 4 x 50 RP')
+})

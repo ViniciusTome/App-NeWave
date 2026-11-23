@@ -51,7 +51,6 @@ export const POOL_LENGTH = options([[25, '25 m'], [50, '50 m']])
 
 export const EQUIPMENT = options([
     ['pe_de_pato', 'Pé de pato'],
-    ['pe_de_pato_peito', 'Pé de pato de peito'],
     ['palmar', 'Palmar'],
     ['prancha', 'Prancha'],
     ['pull_buoy', 'Pull buoy'],

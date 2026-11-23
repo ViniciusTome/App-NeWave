@@ -17,7 +17,7 @@ export const OPTIONS = {
   strokes: ['crawl', 'costas', 'peito', 'borboleta'],
   sessionMinutes: [30, 40, 45, 60, 75, 90, 120],
   poolLength: [25, 50],
-  equipment: ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas'],
+  equipment: ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas'],
   modality: ['triatlo', 'maratona_aquatica', 'piscina_25', 'piscina_50'],
   priority: ['A', 'B', 'C'],
   goal: ['competir', 'condicionamento', 'saude'],
@@ -146,7 +146,8 @@ function validateProfile(body) {
     }),
     sessionMinutes: oneOf(OPTIONS.sessionMinutes, body.sessionMinutes, 'Escolha quanto tempo tem por treino.'),
     poolLength: oneOf(OPTIONS.poolLength, body.poolLength, 'Escolha o tamanho da piscina.'),
-    equipment: listOf(OPTIONS.equipment, body.equipment ?? [], { message: 'Material inválido.' }),
+    // (o pé de pato de peito saiu do app: quem tinha marcado continua salvando sem ele)
+    equipment: listOf(OPTIONS.equipment, (body.equipment ?? []).filter((m) => m !== 'pe_de_pato_peito'), { message: 'Material inválido.' }),
     injuries,
     reported400Hundredths: reported400,
     bestStroke: validateBestStroke(body),
@@ -210,7 +211,7 @@ const publicProfile = (row) => ({
   trainingDays: JSON.parse(row.training_days),
   sessionMinutes: row.session_minutes,
   poolLength: row.pool_length,
-  equipment: JSON.parse(row.equipment),
+  equipment: JSON.parse(row.equipment).filter((m) => m !== 'pe_de_pato_peito'),
   injuries: row.injuries,
   reported400Hundredths: row.reported_400_hundredths,
   bestStroke: row.best_stroke,
@@ -367,7 +368,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     SELECT * FROM preparations WHERE user_id = ? ORDER BY id DESC LIMIT 1
   `)
   const insertPreparation = db.prepare(`
-    INSERT INTO preparations (user_id, goal, competition_id, model, created_at) VALUES (?, ?, ?, ?, ?)
+    INSERT INTO preparations (user_id, goal, competition_id, model, with_test, created_at) VALUES (?, ?, ?, ?, ?, ?)
   `)
   const setModel = db.prepare('UPDATE preparations SET model = ? WHERE id = ? AND user_id = ?')
 
@@ -451,7 +452,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     const provaDe400 = regra?.excecao?.modalidades?.includes(modalidade) && (ativa?.competition?.distance
       ? ativa.competition.distance === Number(regra.excecao.prova)
       : new RegExp(`\\b${regra.excecao.prova}\\b`).test(ativa?.competition?.event ?? ''))
-    const testeNaTransicao = Boolean(regra && time400 && geracao >= aPartirDe && !provaDe400)
+    // O atleta respondeu se quer o teste: vale a resposta. Sem resposta: a regra (a partir da geração)
+    const escolheu = ativa?.withTest ?? null
+    const testeNaTransicao = Boolean(regra && time400 && !provaDe400 && (escolheu === null ? geracao >= aPartirDe : escolheu))
 
     let seriesAnteriores = []
     try {
@@ -559,6 +562,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       competition,
       // Modelo de treino: Geral ou Específico da prova (só para quem pode usar)
       model: especifico.ok ? row.model : 'geral',
+      // Quer o teste de 400 m nesta preparação? (null = não perguntado)
+      withTest: row.with_test === null || row.with_test === undefined ? null : row.with_test === 1,
       especifico,
       createdAt: row.created_at,
       // Preparação ainda vale se não tem prova ou se a prova ainda não passou
@@ -867,7 +872,13 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
           const pode = podeUsarEspecifico({ goal, competition: competitionId ? publicCompetition(findCompetition.get(competitionId, user.id)) : null, profile: profileOf(user.id) })
           if (!pode.ok) throw new HttpError(400, pode.motivo)
         }
-        insertPreparation.run(user.id, goal, competitionId, model, now)
+        // Teste de 400 m na periodização: o atleta que já tem tempo escolhe (sim ou não)
+        if (body.withTest !== undefined && body.withTest !== null && typeof body.withTest !== 'boolean') {
+          throw new HttpError(400, 'Responda se quer fazer o teste de 400 m.')
+        }
+        // (sem resposta, ex.: "Tornar prova alvo" no calendário: vale a da preparação anterior)
+        const withTest = typeof body.withTest === 'boolean' ? Number(body.withTest) : findCurrentPreparation.get(user.id)?.with_test ?? null
+        insertPreparation.run(user.id, goal, competitionId, model, withTest, now)
         db.exec('COMMIT')
       } catch (err) {
         db.exec('ROLLBACK')

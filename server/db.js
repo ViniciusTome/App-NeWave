@@ -180,6 +180,8 @@ export function openDatabase(path) {
   if (!competitionColumns.includes('events')) db.exec('ALTER TABLE competitions ADD COLUMN events TEXT')
   const preparationColumns = db.prepare('PRAGMA table_info(preparations)').all().map((col) => col.name)
   if (!preparationColumns.includes('model')) db.exec("ALTER TABLE preparations ADD COLUMN model TEXT NOT NULL DEFAULT 'geral'")
+  // Teste de 400 m na periodização: 1 = o atleta quer, 0 = não quer, null = não perguntado (regra antiga)
+  if (!preparationColumns.includes('with_test')) db.exec('ALTER TABLE preparations ADD COLUMN with_test INTEGER')
 
   // Mensagens para o suporte (Perfil -> Suporte -> Entre em contato)
   db.exec(`

@@ -3,8 +3,8 @@
 // A ordem importa: os mais longos primeiro.
 import glossario from '../data/glossario.json'
 
-const MATERIAL = { 'PÉ de peito': 'pé de pato de peito', PÉ: 'pé de pato', PALM: 'palmar', BOIA: 'pull buoy', SNK: 'snorkel', PARA: 'paraquedas' }
-const GLOSSARIO_DO_MATERIAL = { 'PÉ de peito': 'Pé de pato de peito', PÉ: 'c/PÉ', PALM: 'c/PALM', BOIA: 'BOIA', SNK: 'SNK', PARA: 'PARA' }
+const MATERIAL = { PÉ: 'pé de pato', PALM: 'palmar', BOIA: 'pull buoy', SNK: 'snorkel', PARA: 'paraquedas' }
+const GLOSSARIO_DO_MATERIAL = { PÉ: 'c/PÉ', PALM: 'c/PALM', BOIA: 'BOIA', SNK: 'SNK', PARA: 'PARA' }
 const NADO = { CR: 'crawl', CO: 'costas', PE: 'peito', BO: 'borboleta', MD: 'medley', ME: 'melhor estilo' }
 const RITMO = { A1: 'leve', A2: 'moderado', A3: 'forte' }
 
@@ -12,10 +12,10 @@ const RITMO = { A1: 'leve', A2: 'moderado', A3: 'forte' }
 const REGRAS = [
     // (os ritmos entre parênteses no card, ex.: "(NEG)", ficam sem os parênteses duplos)
     [/\(?(\d+) NAD x 25 fo\)?/u, (m) => ({ extenso: `${m[1]} m nadando e 25 m forte (${m[1]} NAD x 25 fo)`, sigla: '75 NAD x 25 fo' })],
-    [/(c\/)?(PÉ de peito|PÉ|PALM|BOIA|SNK|PARA)(?![\p{L}])/u, (m) => ({
+    [/(c\/)?(PÉ|PALM|BOIA|SNK|PARA)(?![\p{L}])/u, (m) => ({
         extenso: `${m[1] ? 'com ' : ''}${MATERIAL[m[2]]} (${m[0]})`, sigla: GLOSSARIO_DO_MATERIAL[m[2]],
     })],
-    [/a\/c ((?:\d+')?(?:\d+")?)/u, (m) => ({ extenso: `saída a cada ${m[1]} (a/c)`, sigla: 'a/c' })],
+    [/a\/c ((?:\d+')?(?:\d+")?)/u, (m) => ({ extenso: `saída a cada (a/c) ${m[1]}`, sigla: 'a/c' })],
     [/D(\d+['"](?:\d+")?(?: a \d+['"])?) de descanso/u, (m) => ({ extenso: `descanso de ${m[1]} (D)`, sigla: 'D20" de descanso' })],
     [/c\/(\d+'(?:\d+")?(?: a \d+')?) de intervalo/u, (m) => ({ extenso: `intervalo de ${m[1]} entre as séries`, sigla: "c/2' de intervalo" })],
     [/\(?(\d+) AC\b\)?/u, (m) => ({ extenso: `${m[1]} acima (${m[1]} AC)`, sigla: 'AC' })],
