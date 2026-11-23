@@ -213,6 +213,8 @@ export function strokeFactor(rules, variation, i = 0, athlete = {}, serie = null
     const de = (nado) => {
         if (!nado || nado === 'livre') return 1
         if (fatores[nado] !== undefined) return fatores[nado]
+        // Dividida (ex.: "borboleta/costas"): vale o mais lento
+        if (nado.includes('/')) return Math.max(...nado.split('/').map(de))
         if (/medley|estilo/.test(nado)) return fatores.medley ?? 1
         return 1
     }
@@ -272,13 +274,15 @@ function rulesVoltando(rules, athlete, inicioDosTreinos, date) {
     return { ...rules, borboleta: { ...rules.borboleta, pesoNaPrincipal, maiorRepeticaoNaPrincipal } }
 }
 
-const temBorboleta = (v) => v.nado === 'borboleta' || v.nados?.includes('borboleta') || v.porSerie?.flat().includes('borboleta')
+const temBorboletaInteira = (v) => v.nado === 'borboleta' || v.nados?.includes('borboleta') || v.porSerie?.flat().includes('borboleta')
+const temBorboleta = (v) => v.nado === 'borboleta' || v.nados?.includes('borboleta') || v.porSerie?.flat().some((n) => n === 'borboleta' || n.startsWith('borboleta/'))
 function butterflyRule(rules, serie, variations) {
     const cfg = rules.borboleta
     if (!cfg) return variations
     const evitar = (m) => (cfg.evitarMaterial ?? []).some((e) => e.every((x) => m.includes(x)))
     return variations
-        .filter((v) => !temBorboleta(v) || serie.maiorDistancia <= cfg.maiorRepeticaoNaPrincipal)
+        // A dividida (BO/CO) já vem do sorteio com só metade da repetição em borboleta
+        .filter((v) => !temBorboletaInteira(v) || serie.maiorDistancia <= cfg.maiorRepeticaoNaPrincipal)
         .map((v) => (temBorboleta(v)
             ? { ...v, peso: (v.peso ?? 1) * cfg.pesoNaPrincipal * (evitar(v.material) && v.padrao === 'serie_inteira' ? 0.1 : 1) }
             : v))
@@ -325,7 +329,7 @@ export function rotateSetMaterials(rules, parte, serie, variation, intensidades,
     const forca = parte === 'principal' && athlete.foco === 'forca'
     // Série com borboleta (principal): evita palmar + pull buoy e prefere pé de pato
     const borboletaNa = (i) => parte === 'principal' && (variation.nado === 'borboleta' ||
-        variation.nados?.[i] === 'borboleta' || variation.porSerie?.[i]?.includes('borboleta'))
+        variation.nados?.[i] === 'borboleta' || variation.porSerie?.[i]?.some((n) => n === 'borboleta' || n.startsWith('borboleta/')))
     const evitarNaBorboleta = (m) => (rules.borboleta?.evitarMaterial ?? []).some((e) => e.every((x) => m.includes(x)))
     // Ordem de preferência de cada série: a 1ª nadando (iniciante e intermediário quase
     // sempre); depois, vai colocando material (faltou força: palmar e palmar + pull buoy)
@@ -503,7 +507,9 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     const nadosDa = (i) => {
         if (variation.porSerie) {
             // O melhor estilo aparece como ME
-            const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME' : NADO_ABREV[n] ?? n))
+            const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME'
+                : n.includes('/') ? `${n.split('/').map((x) => NADO_ABREV[x] ?? x).join('/')} T/${variation.trocaACada}`
+                    : NADO_ABREV[n] ?? n))
             return daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' / ')
         }
         if (variation.nados) return NADO_ABREV[variation.nados[i]] ?? variation.nados[i]

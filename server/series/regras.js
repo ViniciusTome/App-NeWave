@@ -201,10 +201,17 @@ export function validateRules(rules) {
         if (!(Number.isInteger(m?.minimoDeSeries) && m.minimoDeSeries >= 2)) {
             problems.push(`${where}.minimoDeSeries precisa ser um número a partir de 2 (ex.: 3 para "(3x)", "(4x)").`)
         }
-        for (const k of ['parteDeCrawl', 'chanceSoEstilo']) {
-            if (m?.[k] !== undefined && !(typeof m[k] === 'number' && m[k] >= 0 && m[k] <= 1)) {
-                problems.push(`${where}.${k} precisa ser um número de 0 a 1 (ex.: 0.3 = 30%).`)
-            }
+        const fracao = (v) => typeof v === 'number' && v >= 0 && v <= 1
+        const porNivel = (v) => v && typeof v === 'object' && NIVEIS.every((n) => fracao(v[n]))
+        if (!porNivel(m?.parteDeCrawl)) {
+            problems.push(`${where}.parteDeCrawl precisa ter ${NIVEIS.join(', ')}, cada um de 0 a 1 (ex.: 0.3 = 30%).`)
+        }
+        if (m?.variacao !== undefined && !(fracao(m.variacao.chance) && porNivel(m.variacao.parteDeCrawl))) {
+            problems.push(`${where}.variacao precisa de "chance" (0 a 1) e "parteDeCrawl" por nível (0 a 1).`)
+        }
+        if (m?.borboletaDividida !== undefined &&
+            !(Array.isArray(m.borboletaDividida.com) && m.borboletaDividida.com.every((s) => ['costas', 'peito', 'crawl'].includes(s)))) {
+            problems.push(`${where}.borboletaDividida.com precisa ser uma lista com costas, peito ou crawl.`)
         }
         if (!(Number.isInteger(m?.pesoMelhorEstilo) && m.pesoMelhorEstilo >= 1)) {
             problems.push(`${where}.pesoMelhorEstilo precisa ser um número a partir de 1 (1 = sem preferência).`)
@@ -798,13 +805,22 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
         : []
     // Medley aqui é o medley individual: cada repetição um medley completo
     const medleyPools = ORDEM_MEDLEY.every((s) => has.has(s)) ? individualMedleyPools(serie.blocos) : []
-    const nados = [...estilos, ...(medleyPools.length > 0 ? ['medley'] : [])]
+    // Repetição longa demais para a borboleta inteira (ex.: 200): metade borboleta, metade
+    // costas ou crawl ("BO/CO", "BO/CR"). Bom para o medley e não sobrecarrega.
+    const metade = bloco.distancia / 2
+    const divididas = has.has('borboleta') && !borboletaCabe && canSwimInStroke(serie.blocos) && regra.borboletaDividida &&
+        metade <= (borboleta?.maiorRepeticaoNaPrincipal ?? Infinity) && metade <= limitFor(rules, 'borboleta', athlete.level) &&
+        (!athlete.poolLength || metade % athlete.poolLength === 0)
+        ? regra.borboletaDividida.com.filter((s) => has.has(s)).map((s) => `borboleta/${s}`)
+        : []
+    const nados = [...estilos, ...divididas, ...(medleyPools.length > 0 ? ['medley'] : [])]
     if (nados.length < 2) return null
 
     const melhor = bestStrokeOf(athlete, estilos)
-    // Melhor estilo aparece mais; borboleta, menos
-    const peso = (nado) => (nado === melhor ? regra.pesoMelhorEstilo : 1) *
-        (nado === 'borboleta' ? borboleta?.pesoNaPrincipal ?? 1 : 1)
+    // Melhor estilo aparece mais; borboleta, menos (a dividida conta como borboleta)
+    const ehBorboleta = (nado) => nado === 'borboleta' || nado.startsWith('borboleta/')
+    const peso = (nado) => (nado === melhor || (ehBorboleta(nado) && athlete.bestStroke === 'borboleta') ? regra.pesoMelhorEstilo : 1) *
+        (ehBorboleta(nado) ? borboleta?.pesoNaPrincipal ?? 1 : 1)
     const pick = (opcoes) => {
         const total = opcoes.reduce((sum, n) => sum + peso(n), 0)
         let r = random() * total
@@ -818,15 +834,20 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
     const comCrawl = has.has('crawl') && bloco.distancia <= limitFor(rules, 'crawl', athlete.level)
 
     // Cada série: nunca o mesmo estilo duas vezes seguidas; o crawl entra em cerca de
-    // 30% das repetições (às vezes a série é 100% em estilo)
+    // parteDeCrawl das repetições (avançado 30%, intermediário 50%). Na variação
+    // (1 de cada 4 séries): avançado 100% em estilo; intermediário 30% de crawl.
+    // Como o crawl não repete seguido, a chance a cada repetição é c / (1 - c).
+    const nivel = athlete.level ?? 'intermediario'
     const porSerie = Array.from({ length: sets }, () => {
-        const soEstilo = !comCrawl || random() < (regra.chanceSoEstilo ?? 0)
+        const variacao = regra.variacao && random() < regra.variacao.chance
+        const parte = comCrawl ? (variacao ? regra.variacao.parteDeCrawl : regra.parteDeCrawl)[nivel] ?? 0.3 : 0
+        const chance = parte >= 0.5 ? 1 : parte / (1 - parte)
         const lista = []
         for (let k = 0; k < reps; k++) {
             const anterior = lista[k - 1]
-            const crawlPode = !soEstilo && anterior !== 'crawl'
+            const crawlPode = parte > 0 && anterior !== 'crawl'
             const opcoes = nados.filter((n) => n !== anterior)
-            if (crawlPode && random() < (regra.parteDeCrawl ?? 0.3)) lista.push('crawl')
+            if (crawlPode && random() < chance) lista.push('crawl')
             else lista.push(opcoes.length > 0 ? pick(opcoes) : 'crawl')
         }
         return lista
@@ -844,6 +865,8 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
         nado: 'misto',
         porSerie,
         melhorEstilo: melhor,
+        // Borboleta dividida: troca na metade da repetição ("BO/CO T/100")
+        ...(porSerie.flat().some((n) => n.includes('/')) && { trocaACada: metade }),
         padrao: 'sem_material',
         material: [],
         // 100 medley só existe na piscina de 25 m

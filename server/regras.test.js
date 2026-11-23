@@ -367,15 +367,50 @@ test('mistura de nados: nunca o mesmo estilo seguido; crawl em cerca de 30%; às
       if (!serie.includes('crawl')) soEstilo++
     }
   }
+  // 75% das séries com 30% de crawl e 25% sem crawl: ~22%
   const parte = crawl / total
-  assert.ok(parte > 0.15 && parte < 0.35, `crawl: ${parte}`)
+  assert.ok(parte > 0.17 && parte < 0.3, `crawl: ${parte}`)
   assert.ok(soEstilo > 0, 'nenhuma série 100% em estilo')
+})
+
+test('mistura de nados do intermediário: metade crawl; às vezes 70% estilo e 30% crawl', () => {
+  let crawl = 0
+  let total = 0
+  let soEstilo = 0
+  let comTrinta = 0
+  for (const mistura of draws('pri-4x4x100', { ...avancadoCompleto, level: 'intermediario' })) {
+    for (const serie of mistura.porSerie) {
+      serie.slice(1).forEach((n, k) => assert.notEqual(n, serie[k], serie.join(', ')))
+      const c = serie.filter((n) => n === 'crawl').length
+      crawl += c
+      total += serie.length
+      if (c === 0) soEstilo++
+      if (c === 1) comTrinta++
+    }
+  }
+  // 75% das séries com 50% de crawl e 25% com 30%: ~45%
+  const parte = crawl / total
+  assert.ok(parte > 0.4 && parte < 0.5, `crawl: ${parte}`)
+  assert.ok(comTrinta > 0, 'nenhuma série com menos crawl')
+  assert.ok(soEstilo < comTrinta / 3, `séries sem crawl: ${soEstilo}`)
+})
+
+test('borboleta dividida: repetição de 200 vira BO/CO ou BO/CR (100 de cada)', () => {
+  const nados = new Set(draws('pri-4x3x200', { ...avancadoCompleto, poolLength: 25 }, 500).flatMap((m) => m.porSerie.flat()))
+  assert.ok(nados.has('borboleta/costas') && nados.has('borboleta/crawl'), [...nados].join())
+  assert.ok(!nados.has('borboleta'))
+  // Quem não nada borboleta não ganha a dividida
+  const semBo = new Set(draws('pri-4x3x200', { ...avancadoCompleto, strokes: ['crawl', 'costas', 'peito'] }, 200).flatMap((m) => m.porSerie.flat()))
+  assert.ok(![...semBo].some((n) => n.startsWith('borboleta')))
+  // 100 de borboleta cabem inteiros: nada de dividida
+  const cem = new Set(draws('pri-4x4x100', avancadoCompleto, 300).flatMap((m) => m.porSerie.flat()))
+  assert.ok(![...cem].some((n) => n.includes('/')))
 })
 
 test('borboleta na principal: só até 100 m, mais rara', () => {
   // 200: sem borboleta (nem para o avançado)
   for (const mistura of draws('pri-4x3x200', avancadoCompleto, 300)) {
-    assert.ok(!mistura.porSerie.flat().includes('borboleta'))
+    assert.ok(!mistura.porSerie.flat().includes('borboleta')) // inteira não (só a dividida, BO/CO)
   }
   // 100: entra, mas menos que os outros estilos
   const contagem = {}
@@ -387,7 +422,7 @@ test('borboleta na principal: só até 100 m, mais rara', () => {
 
 test('mistura de nados: o texto mostra cada série', () => {
   const [mistura] = draws('pri-4x3x200', avancadoCompleto, 1)
-  assert.match(mistura.texto, /^\(4x\) 3 x 200 · 1ª série [a-z, ]+; 2ª série [a-z, ]+; 3ª série [a-z, ]+; 4ª série [a-z, ]+$/)
+  assert.match(mistura.texto, /^\(4x\) 3 x 200 · 1ª série [a-z, /]+; 2ª série [a-z, /]+; 3ª série [a-z, /]+; 4ª série [a-z, /]+$/)
 })
 
 test('mistura de nados: o melhor estilo aparece mais', () => {
@@ -737,7 +772,7 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.material.perna.semMaterial = 'nunca' }, 'material.perna.semMaterial'],
     [(r) => { r.material.perna.pesoComMaterial = 0 }, 'material.perna.pesoComMaterial'],
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
-    [(r) => { r.misturaDeNados.parteDeCrawl = 3 }, 'misturaDeNados.parteDeCrawl'],
+    [(r) => { r.misturaDeNados.parteDeCrawl.avancado = 3 }, 'misturaDeNados.parteDeCrawl'],
     [(r) => { r.descansos.iniciante['50'] = [40, 25] }, 'descansos.iniciante.50'],
     [(r) => { r.intensidades.A1.esforco.iniciante = [60, 120] }, 'intensidades.A1.esforco.iniciante'],
     [(r) => { r.tabelaDeTempos['100'].divisor = 0 }, 'tabelaDeTempos.100.divisor'],

@@ -209,13 +209,13 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
                 const nados = l.split(' · ').find((x) => x.includes(' / ') && !/cd|\d/.test(x))?.split(' / ') ?? []
                 confere('Estilos misturados: nunca o mesmo estilo seguido', nados.every((n, i) => i === 0 || n !== nados[i - 1]),
                     () => `${quem}: ${l}`)
-                if (/\bBO\b/.test(l)) {
+                if (/\bBO\b(?!\/)/.test(l)) {
                     contaBorboleta.linhas++
                     if (/c\/PALM \+ BOIA/.test(l)) contaBorboleta.palmarBoia++
                 }
             }
             // O medley sem crawl ("MD (BO, CO, PE)") tem só um trecho de borboleta: não conta
-            if (/\bBO\b/.test(p.texto.replace(/\((?:BO|CO|PE)(?:, (?:BO|CO|PE))*\)/g, ''))) {
+            if (/\bBO\b(?!\/)/.test(p.texto.replace(/\((?:BO|CO|PE)(?:, (?:BO|CO|PE))*\)/g, ''))) {
                 const maior = Math.max(...[...(p.serieTexto ?? '').matchAll(/x (\d+)/g)].map((m) => Number(m[1])))
                 confere('Borboleta na principal só até 100 m', maior <= 100, () => `${quem}: ${p.texto}`)
             }

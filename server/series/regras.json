@@ -23,12 +23,13 @@
     }
   },
   "misturaDeNados": {
-    "_comentario": "Séries com estilos misturados: nunca o mesmo estilo duas repetições seguidas (ex.: ME, BO, ME, BO); o crawl entra em cerca de 'parteDeCrawl' das repetições (o resto em estilo); 'chanceSoEstilo' das séries ficam 100% em estilo.",
+    "_comentario": "Séries com estilos misturados: nunca o mesmo estilo duas repetições seguidas (ex.: ME, BO, ME, BO). O crawl entra em cerca de 'parteDeCrawl' das repetições, por nível (o resto em estilo). Em 'variacao.chance' das séries a parte de crawl é a de 'variacao.parteDeCrawl' (avançado: 0 = 100% em estilo; intermediário: 30%). 'borboletaDividida': repetição longa demais para borboleta inteira vira metade borboleta, metade costas ou crawl (BO/CO, BO/CR), bom para o medley.",
     "partes": ["principal"],
     "minimoDeSeries": 3,
     "pesoMelhorEstilo": 2,
-    "parteDeCrawl": 0.3,
-    "chanceSoEstilo": 0.25
+    "parteDeCrawl": { "iniciante": 0.5, "intermediario": 0.5, "avancado": 0.3 },
+    "variacao": { "chance": 0.25, "parteDeCrawl": { "iniciante": 0.3, "intermediario": 0.3, "avancado": 0 } },
+    "borboletaDividida": { "com": ["costas", "crawl"] }
   },
   "borboleta": {
     "_comentario": "Na série principal a borboleta é mais rara ('pesoNaPrincipal') e só em repetições de até 'maiorRepeticaoNaPrincipal' m; de preferência com pé de pato e quase nunca com palmar + pull buoy. Na velocidade pode à vontade.",

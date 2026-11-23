@@ -1241,7 +1241,7 @@ test('regra da borboleta na principal: até 100 m, de preferência com pé de pa
           if (/c\/PALM \+ BOIA/.test(l)) comPalmarBoia++
           if (/c\/PÉ/.test(l)) comPe++
         }
-        if (/\bBO\b/.test(p.texto)) {
+        if (/\bBO\b(?!\/)/.test(p.texto)) {
           const maior = Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1])))
           assert.ok(maior <= 100, p.texto)
         }
@@ -1260,7 +1260,7 @@ test('avançado voltando de parada: borboleta da principal bem rara e curta nos 
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       const treinos = generateTrainings({ rules, library, athlete, today: '2026-11-23', inicioDosTreinos: inicio, random: seeded(seed) })
       for (const t of treinos.filter((x) => x.date < '2026-12-20')) {
-        for (const p of t.partes.filter((x) => x.parte === 'principal' && /\bBO\b/.test(x.texto))) {
+        for (const p of t.partes.filter((x) => x.parte === 'principal' && /\bBO\b(?!\/)/.test(x.texto))) {
           linhas += (p.texto.match(/\bBO\b/g) ?? []).length
           const maior = Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1])))
           if (maior > 50) longas++
@@ -1287,7 +1287,7 @@ test('avançado voltando com borboleta de melhor estilo: um pouco menos de borbo
     let longas = 0
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       for (const t of generateTrainings({ rules, library, athlete, today: '2026-11-23', inicioDosTreinos: inicio, random: seeded(seed) }).filter((x) => x.date < '2026-12-20')) {
-        for (const p of t.partes.filter((x) => x.parte === 'principal' && /\b(BO|ME)\b/.test(x.texto))) {
+        for (const p of t.partes.filter((x) => x.parte === 'principal' && /\b(BO|ME)\b(?!\/)/.test(x.texto))) {
           reps += (p.texto.match(/\b(BO|ME)\b/g) ?? []).length
           if (Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) > 100) longas++
         }
@@ -1306,4 +1306,17 @@ test('avançado voltando com borboleta de melhor estilo: um pouco menos de borbo
   assert.equal(emAdaptacaoDaBorboleta(generator.rules, generator.athlete, '2026-11-01', '2026-11-29'), true)
   assert.equal(emAdaptacaoDaBorboleta(generator.rules, generator.athlete, '2026-11-01', '2026-12-02'), false)
   assert.equal(emAdaptacaoDaBorboleta(generator.rules, { ...generator.athlete, bestStroke: 'costas' }, '2026-11-01', '2026-12-02'), true)
+})
+
+test('borboleta dividida no card: "BO/CO T/100" na repetição de 200', () => {
+  const linhas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap((seed) => gerar({ ...avancado, sessionMinutes: 90 }, seed))
+    .flatMap((t) => t.partes.filter((p) => p.parte === 'principal'))
+    .flatMap((p) => p.texto.split('\n').map((l) => ({ l, serie: p.serieTexto })))
+    .filter(({ l }) => /BO\/(CO|CR)/.test(l))
+  assert.ok(linhas.length > 0, 'nenhuma borboleta dividida')
+  for (const { l, serie } of linhas) {
+    const metade = Math.max(...[...serie.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) / 2
+    const trocas = [...l.matchAll(/BO\/(?:CO|CR)( T\/\d+)?/g)].map((m) => m[1]?.trim())
+    for (const t of trocas) assert.equal(t, `T/${metade}`, l)
+  }
 })
