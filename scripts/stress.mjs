@@ -206,7 +206,9 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         for (const p of principais) {
             for (const l of p.texto.split('\n')) {
                 confere('Linha da principal na ordem: como nada · intensidade · estilo · tempo', ordemDaLinha(l), () => `${quem}: ${l}`)
-                const nados = l.split(' · ').find((x) => x.includes(' / ') && !/cd|\d/.test(x))?.split(' / ') ?? []
+                const nados = l.split(' · ').find((x) => x.includes(' | '))?.split(' | ') ?? []
+                confere('Troca de estilo dentro da série com "|" (nunca "/" entre estilos)', !/\b(CR|CO|PE|BO|MD|ME) \/ (CR|CO|PE|BO|MD|ME)\b/.test(l),
+                    () => `${quem}: ${l}`)
                 confere('Estilos misturados: nunca o mesmo estilo seguido', nados.every((n, i) => i === 0 || n !== nados[i - 1]),
                     () => `${quem}: ${l}`)
                 if (/\bBO\b(?!\/)/.test(l)) {

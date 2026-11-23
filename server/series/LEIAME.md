@@ -552,7 +552,7 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 
 - **O card sempre diz o estilo.** Série principal "livre" é de crawl: o card mostra **CR**. Séries com estilos misturados mostram os estilos de cada série (ME, PE, MD...). Na velocidade, o estilo é sorteado entre os que o atleta nada.
 - **cd dos estilos:** os tempos da tabela são do crawl (teste de 400 m). Nos estilos **o descanso é o mesmo** e só o tempo de nado é maior: tempo do crawl × `saidas.fatorDoEstilo`: **+35% para todos os estilos** (costas, borboleta, peito, medley e estilos misturados). Calibrado com a experiência do treinador (avançado): 100 de estilo a cada 2'00" contra 1'30" no crawl, e 200 a cada 4'00" contra 3'10" a 3'20". Série que mistura estilos: vale o mais lento, para todas as repetições caberem.
-- **Estilos misturados (regra `misturaDeNados`):** numa série com vários estilos, **nunca o mesmo estilo duas vezes seguidas** (ME / BO / BO / ME está errado; ME / BO / ME / BO está certo). A parte de crawl depende do nível (`parteDeCrawl`):
+- **Estilos misturados (regra `misturaDeNados`):** numa série com vários estilos, **nunca o mesmo estilo duas vezes seguidas** (ME | BO | BO | ME está errado; ME | BO | ME | BO está certo). A parte de crawl depende do nível (`parteDeCrawl`):
   - **Avançado:** cerca de 70% em estilo e 30% em crawl. Em cerca de 1 de cada 4 séries (`variacao`) a série sai **100% em estilo**.
   - **Intermediário (e iniciante):** metade em estilo e metade em crawl. Em cerca de 1 de cada 4 séries, 70% em estilo e 30% em crawl.
 - **Borboleta dividida (`borboletaDividida`):** quando a repetição é longa demais para a borboleta inteira (ex.: 200 m), ela vira **metade borboleta e metade costas ou crawl**: "BO/CO T/100", "BO/CR T/100" (100 de borboleta + 100 do outro, trocando aos 100 m). Bom para treinar o medley e não sobrecarrega. A metade de borboleta segue os mesmos limites (até 100 m; na adaptação de quem volta de parada, até 50 m) e precisa fechar na piscina.
@@ -597,6 +597,8 @@ Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m 
 - A regra fica em `testeNaPeriodizacao` no `regras.json`. Quem não nada 400 m sem parar (condicionamento) não faz o teste.
 
 ### Como a série aparece no card
+
+- **Regra da troca de estilo:** sempre que o estilo troca dentro de uma mesma série, as repetições são separadas por **barra vertical "|"**, para a troca ficar fácil de ver. Ex.: `1ª série: c/PÉ · A1 · BO/CR T/100 | CO | ME | CR · cd 4'40"`. A barra "/" fica só dentro da repetição (BO/CR T/100 = 100 borboleta + 100 crawl) e nos tempos por distância (100 cd 1'40" / 75 cd 1'25").
 
 O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, MD, ME, NAD, c/PÉ, c/PALM, BOIA, SNK, PARA, PR), e o "m" entra depois das distâncias. Cada card tem um botão **Glossário** que mostra só os termos usados naquele treino; no **ME**, mostra o melhor estilo do atleta.
 

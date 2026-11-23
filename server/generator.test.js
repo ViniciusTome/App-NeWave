@@ -180,7 +180,7 @@ test('série com material ou nado mudando entre as séries: uma linha por série
     porSerie: [['medley', 'peito', 'medley'], ['costas', 'medley', 'costas'], ['costas', 'costas', 'costas'], ['costas', 'peito', 'medley']],
   }
   assert.equal(cardText(pri, mistura, { min: 120, max: 120 }),
-    "(4x) 3 x 200 m · c/2' de intervalo\n1ª série: MD / PE / MD\n2ª série: ME / MD / ME\n3ª série: ME\n4ª série: ME / PE / MD")
+    "(4x) 3 x 200 m · c/2' de intervalo\n1ª série: MD | PE | MD\n2ª série: ME | MD | ME\n3ª série: ME\n4ª série: ME | PE | MD")
   // Iniciante: intervalo de 2' a 3'
   assert.match(cardText(pri, mistura, { min: 120, max: 180 }), /^\(4x\) 3 x 200 m · c\/2' a 3' de intervalo\n/)
 })

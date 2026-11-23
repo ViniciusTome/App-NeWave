@@ -510,7 +510,7 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
             const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME'
                 : n.includes('/') ? `${n.split('/').map((x) => NADO_ABREV[x] ?? x).join('/')} T/${variation.trocaACada}`
                     : NADO_ABREV[n] ?? n))
-            return daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' / ')
+            return daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' | ')
         }
         if (variation.nados) return NADO_ABREV[variation.nados[i]] ?? variation.nados[i]
         return nadoDaSerie
