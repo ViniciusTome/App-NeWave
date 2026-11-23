@@ -9,3 +9,11 @@ createRoot(document.getElementById('root')).render(
       <App/>
   </StrictMode>
 )
+
+// App instalável no celular (PWA): só na versão publicada (no `npm run dev` o
+// service worker atrapalharia as atualizações enquanto se programa)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {})
+    })
+}

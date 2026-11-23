@@ -17,6 +17,20 @@
     text-decoration: none;
 }
 
+/* A página em que o atleta está */
+.active > div {
+    color: #9EDDFF;
+}
+
+.active svg path {
+    fill: #9EDDFF;
+}
+
+/* "Início": só no celular (no computador o início é a logo) */
+.soCelular {
+    display: none;
+}
+
 @media screen and (min-width: 1024px) and (max-width: 1400px) {
     .container {
         margin-top: 20px;
@@ -25,4 +39,35 @@
         height: 60%;
     }
 
+}
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    /* Barra fixa embaixo da tela, como nos aplicativos */
+    .container {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        width: 100%;
+        height: auto;
+        margin: 0;
+        padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+        flex-direction: row;
+        justify-content: space-around;
+        background-color: #171D1F;
+        box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.25);
+    }
+
+    .icon {
+        margin: 0;
+        flex: 1;
+        text-align: center;
+    }
+
+    .soCelular {
+        display: block;
+    }
 }

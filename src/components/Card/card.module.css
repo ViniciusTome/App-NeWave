@@ -162,3 +162,21 @@
 .content.real > div > div {
     margin-bottom: 10px;
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    /* Cartão grande (Início): quase a largura da tela */
+    /* Cabe na tela junto com o botão "Concluir treino" */
+    .container {
+        width: min(300px, calc(100vw - 56px));
+        height: clamp(360px, calc(100dvh - 330px), 470px);
+        margin-right: 0;
+    }
+
+    .content {
+        width: calc(100% - 12px);
+        height: calc(100% - 52px);
+        max-height: none;
+    }
+}

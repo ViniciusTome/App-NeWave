@@ -18,3 +18,30 @@
         font-size: 16px;
     }
 }
+
+
+.short {
+    display: none;
+}
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .container {
+        font-size: 11px;
+        line-height: 1.2;
+        gap: 2px;
+    }
+
+    .container svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .long {
+        display: none;
+    }
+
+    .short {
+        display: inline;
+    }
+}

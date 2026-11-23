@@ -29,3 +29,19 @@
         width: 263px;
     }
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        height: auto;
+        gap: 12px;
+    }
+
+    .box {
+        width: 100%;
+        min-height: 360px;
+        margin-right: 0;
+    }
+}

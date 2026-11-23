@@ -81,3 +81,15 @@
     text-align: right;
     font-size: 12px;
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .intensity {
+        min-height: 0;
+    }
+
+    .bars li {
+        grid-template-columns: 92px 1fr 58px;
+    }
+}

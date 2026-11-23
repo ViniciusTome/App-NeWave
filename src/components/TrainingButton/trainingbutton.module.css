@@ -34,3 +34,18 @@
         font-size: 18px;
     }
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .container {
+        margin: 0;
+    }
+
+    .button {
+        font-size: 15px;
+        padding: 6px 12px;
+        color: #9EDDFF;
+        border-color: #9EDDFF;
+    }
+}

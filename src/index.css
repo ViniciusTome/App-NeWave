@@ -26,3 +26,10 @@ body{
 
 
 
+
+/* Celular: espaço embaixo para a barra do menu (fixa) */
+@media screen and (max-width: 768px) {
+  body {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}

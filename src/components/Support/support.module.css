@@ -11,3 +11,17 @@
 .contact a:hover{
     text-decoration: underline;
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .contact {
+        flex-direction: column;
+        align-items: flex-start;
+        margin: 10px;
+    }
+
+    .contact a {
+        margin: 8px 10px;
+    }
+}

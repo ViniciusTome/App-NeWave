@@ -16,4 +16,10 @@ export default defineConfig({
       '/api': 'http://127.0.0.1:3001',
     },
   },
+  // `npm run preview` (a versão publicada, com o app instalável): mesma coisa
+  preview: {
+    proxy: {
+      '/api': 'http://127.0.0.1:3001',
+    },
+  },
 })

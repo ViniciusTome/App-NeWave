@@ -141,3 +141,31 @@
         width: 800px;
     }
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .carousel {
+        width: 100%;
+        scroll-snap-type: x mandatory;
+    }
+
+    .carousel h2 {
+        margin-top: 0;
+        font-size: 22px !important;
+    }
+
+    .cards {
+        margin: 0 0 8px;
+        padding: 16px 4px 6px;
+    }
+
+    .slide {
+        scroll-snap-align: center;
+    }
+
+    /* No celular passa com o dedo: as setas saem */
+    .buttons {
+        display: none;
+    }
+}
