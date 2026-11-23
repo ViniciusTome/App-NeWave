@@ -217,6 +217,14 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
                     if (/c\/PALM \+ BOIA/.test(l)) contaBorboleta.palmarBoia++
                 }
             }
+            // Quanto mais perto do 100%, maior o descanso: o AC mais forte nunca tem cd menor
+            {
+                const comAC = p.texto.split('\n').filter((l) => /^\dª série:.*\((\d+) AC\) · CR · cd /.test(l))
+                const cdDe = (l) => { const m = /cd (?:(\d+)')?(\d+)"/.exec(l); return Number(m[1] ?? 0) * 60 + Number(m[2]) }
+                const acDe = (l) => Number(/\((\d+) AC\)/.exec(l)[1])
+                const ok = comAC.every((a) => comAC.every((b) => !(acDe(b) < acDe(a)) || cdDe(b) >= cdDe(a)))
+                if (comAC.length > 1) confere('AC mais forte nunca com cd menor (descansa mais perto do 100%)', ok, () => `${quem}: ${p.texto}`)
+            }
             // O medley sem crawl ("MD (BO, CO, PE)") tem só um trecho de borboleta: não conta
             if (/\bBO\b(?!\/)/.test(p.texto.replace(/\((?:BO|CO|PE)(?:, (?:BO|CO|PE))*\)/g, ''))) {
                 const maior = Math.max(...[...(p.serieTexto ?? '').matchAll(/x (\d+)/g)].map((m) => Number(m[1])))

@@ -29,6 +29,10 @@ function seeded(seed) {
 }
 
 const QUATRO = ['crawl', 'costas', 'peito', 'borboleta']
+const avancadoPerfil = {
+  sessionMinutes: 60, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: 'mais_2000', strokes: QUATRO,
+  bestStroke: 'costas', equipment: ['pe_de_pato', 'palmar', 'pull_buoy'], time400: { hundredths: 33000 },
+}
 const avancado = {
   level: 'avancado', sessionMinutes: 60, trainingDays: [1, 3, 5], poolLength: 25,
   continuousDistance: 'mais_2000', strokes: QUATRO, bestStroke: 'costas',
@@ -601,10 +605,38 @@ test('AC em outras distâncias: melhor tempo estimado pela tabela de percentuais
   const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   // A1 do 100 = 1'30" a 75%: melhor = 90 ÷ 1,25 = 72"
   assert.equal(bestTimeFor(rules, avancado, 100), 72)
-  // 10 AC nos 100: 72 + 10 + 25" de descanso = 107 -> 1'45"
-  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '10 AC'), 105)
+  // 15 AC nos 100: 72 + 15 + 25" de descanso = 112 -> 1'50"
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '15 AC'), 110)
+  // 10 AC: 72 + 10 + 25" = 1'47" -> 1'45", mas fica no nível do 15 AC (descansa mais): 1'50"
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '10 AC'), 110)
   // Nos 400 vale o teste
   assert.equal(bestTimeFor(rules, avancado, 400), 360)
+})
+
+test('quanto mais perto do 100%, maior o descanso: 15, 10 e 5 AC com a mesma saída', () => {
+  const avancado = { level: 'avancado', tabela: timeTable(rules, 330), teste400: 330 }
+  for (const d of [50, 100, 200, 250]) {
+    const [c15, c10, c5] = ['15 AC', '10 AC', '5 AC'].map((v) => saidaFor(rules, avancado, { distancia: d }, v))
+    assert.equal(c10, c15, `${d} m`)
+    assert.equal(c5, c15, `${d} m`)
+  }
+  // Os mais leves (20, 30 AC) continuam com a saída deles (maior)
+  assert.ok(saidaFor(rules, avancado, { distancia: 100 }, '30 AC') > saidaFor(rules, avancado, { distancia: 100 }, '15 AC'))
+  // Na série: 30, 20 e 10 AC -> a saída não diminui, fica no nível do 30 AC
+  const serie = { blocos: [{ vezes: 3, repeticoes: 4, distancia: 100 }] }
+  const saidas = saidasDaSerie(rules, avancado, serie, { unidade: 'serie', valores: ['30 AC', '20 AC', '10 AC'] }, 'transicao')
+  assert.equal(new Set(saidas).size, 1, saidas.join(', '))
+  // Nos treinos gerados: numa série com vários AC, a saída nunca cai de uma série para a outra
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    const plano = generateTrainings({ rules, library, athlete: { ...avancado, ...avancadoPerfil }, today: '2026-11-23', random: seeded(seed),
+      periodizacao: { inicio: '2026-11-23', fim: '2027-02-28', semProva: true } })
+    for (const p of plano.flatMap((t) => t.partes).filter((x) => x.parte === 'principal')) {
+      const linhas = p.texto.split('\n').filter((l) => /^\dª série:.*\(\d+ AC\)/.test(l))
+      const cd = (l) => { const m = /cd (\d+)'(\d+)"/.exec(l) ?? /cd (\d+)"/.exec(l); return m[2] ? Number(m[1]) * 60 + Number(m[2]) : Number(m[1]) }
+      const ac = (l) => Number(/\((\d+) AC\)/.exec(l)[1])
+      for (const a of linhas) for (const b of linhas) if (ac(b) < ac(a) && /· CR · cd/.test(a) && /· CR · cd/.test(b)) assert.ok(cd(b) >= cd(a), p.texto)
+    }
+  }
 })
 
 test('NEG, POS e final forte: tempo do A2 + 20" a 30" nos 50 e 100 m', () => {

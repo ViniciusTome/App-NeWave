@@ -283,6 +283,10 @@
   "saidas": {
     "_comentario": "Saída = tempo da intensidade + descanso. Em A2/A3 com saída até 'igualarAoA1Ate' segundos menor que a do A1, usa a do A1 (exceto nas fases de 'fasesComSaidaPorIntensidade'). Saída maior que a do A1 (iniciante, descanso maior no A3) fica no máximo 'maximoAcimaDoA1' segundos acima. Nas repetições de 300 m ou mais, 'igualarAoA1AteNasLongas'. PROVISÓRIO.",
     "igualarAoA1Ate": 10,
+    "acNoMesmoNivel": {
+      "_comentario": "Quanto mais perto do 100%, maior o descanso: o AC abaixo de 'referencia' (ex.: 10 AC, 5 AC) fica com a saída do 'referencia' AC (o tempo de nado cai e o descanso cresce). Numa série com vários AC (ex.: 15, 10 e 5 AC), a saída nunca diminui: fica no nível do AC mais leve.",
+      "referencia": 15
+    },
     "igualarAoA1AteNasLongas": { "aPartirDeMetros": 300, "segundos": 20 },
     "fasesComSaidaPorIntensidade": ["transicao"],
     "maximoAcimaDoA1": 20,

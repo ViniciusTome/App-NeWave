@@ -130,7 +130,14 @@ export function saidaFor(rules, athlete, bloco, valor, fator = 1) {
     const descanso = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
         : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : 'A3') }, athlete)
-    return saidaComDescanso(athlete, nado, descanso)
+    const saida = saidaComDescanso(athlete, nado, descanso)
+    // Quanto mais perto do 100%, maior o descanso: o AC abaixo da referência (ex.: 5 AC)
+    // fica com a saída do 15 AC (nada mais rápido e descansa mais)
+    const referencia = rules.saidas?.acNoMesmoNivel?.referencia
+    if (ac && referencia && Number(ac[1]) < referencia) {
+        return Math.max(saida, saidaFor(rules, athlete, bloco, `${referencia} AC`, fator) ?? 0)
+    }
+    return saida
 }
 
 // Saída da velocidade: avançado nos 25 m a cada 30"; nos outros casos o tempo forte
@@ -218,13 +225,26 @@ export function saidasDaSerie(rules, athlete, serie, intensidades, fase = null, 
     // Grupos: cada distância com a sua saída -> { porBloco: [[saídas de cada série] de cada bloco] }
     if (serie.blocos.length > 1) {
         return {
-            porBloco: serie.blocos.map((b) => ajustarAoA1(rules, valores,
-                valores.map((v, i) => saidaFor(rules, athlete, b, v, fator(i))), saidaFor(rules, athlete, b, 'A1', todos), fase, b.distancia)),
+            porBloco: serie.blocos.map((b) => acNoMesmoNivel(rules, valores, ajustarAoA1(rules, valores,
+                valores.map((v, i) => saidaFor(rules, athlete, b, v, fator(i))), saidaFor(rules, athlete, b, 'A1', todos), fase, b.distancia))),
         }
     }
     const bloco = serie.blocos[0]
-    return ajustarAoA1(rules, valores, valores.map((v, i) => saidaFor(rules, athlete, bloco, v, fator(i))),
-        saidaFor(rules, athlete, bloco, 'A1', todos), fase, bloco.distancia)
+    return acNoMesmoNivel(rules, valores, ajustarAoA1(rules, valores, valores.map((v, i) => saidaFor(rules, athlete, bloco, v, fator(i))),
+        saidaFor(rules, athlete, bloco, 'A1', todos), fase, bloco.distancia))
+}
+
+// Série com vários AC (ex.: 15, 10 e 5 AC): a saída nunca diminui quando o AC aperta;
+// cada AC fica com a maior saída dos AC mais leves (número maior) da série
+function acNoMesmoNivel(rules, valores, saidas) {
+    if (!rules.saidas?.acNoMesmoNivel) return saidas
+    const acDe = (v) => Number(/^(\d+) AC$/.exec(v ?? '')?.[1] ?? NaN)
+    return saidas.map((s, i) => {
+        const n = acDe(valores[i])
+        if (!s || Number.isNaN(n)) return s
+        const maisLeves = saidas.filter((x, j) => x && acDe(valores[j]) >= n)
+        return Math.max(s, ...maisLeves)
+    })
 }
 
 // Fator do estilo da série `i` sobre o tempo do crawl (o mais lento quando a série
