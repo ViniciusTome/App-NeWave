@@ -5,6 +5,8 @@
 // As séries de cada prova, o ritmo de prova saindo da meta e o limite de 10x/15x a
 // distância da prova vêm na próxima entrega.
 
+import { readFileSync } from 'node:fs'
+
 export const MODELOS = ['geral', 'especifico']
 export const ESTILOS_DA_PROVA = ['crawl', 'costas', 'peito', 'borboleta', 'medley']
 // Modalidades em piscina: o estilo é escolhido; nas águas abertas é sempre crawl
@@ -72,4 +74,209 @@ export function nomeDaProva({ modality, distance, stroke }) {
     const nomes = { crawl: 'livre', costas: 'costas', peito: 'peito', borboleta: 'borboleta', medley: 'medley' }
     if (!PISCINA.includes(modality)) return distance >= 1000 ? `${String(distance / 1000).replace('.', ',')} km` : `${distance} m`
     return `${distance} m ${nomes[stroke] ?? ''}`.trim()
+}
+
+// ---------- Treino do Específico (Transição e Realização) ----------
+
+
+const ler = (arquivo) => JSON.parse(readFileSync(new URL(arquivo, import.meta.url), 'utf8'))
+const RITMOS = ['RP', 'max', 'A1', 'A2', 'A3']
+const ABREV = { crawl: 'CR', costas: 'CO', peito: 'PE', borboleta: 'BO', medley: 'MD' }
+
+// Confere as séries: ids únicos, grupos e fases conhecidos, ritmos válidos
+export function validarEspecifico({ regras, series }) {
+    const problemas = []
+    const grupos = new Set(regras.grupos.map((g) => g.grupo))
+    const ids = new Set()
+    for (const s of series) {
+        const onde = `série "${s.id}"`
+        if (!s.id || ids.has(s.id)) problemas.push(`${onde}: id vazio ou repetido.`)
+        ids.add(s.id)
+        if (!s.grupos?.length || s.grupos.some((g) => !grupos.has(g))) problemas.push(`${onde}: grupos: ${[...grupos].join(', ')}.`)
+        if (!s.fases?.length || s.fases.some((f) => !regras.fases.includes(f))) problemas.push(`${onde}: fases: ${regras.fases.join(', ')}.`)
+        for (const b of s.blocos ?? []) {
+            if (!(b.rep >= 1 && b.dist >= 10 && b.descanso >= 0) || !RITMOS.includes(b.ritmo)) problemas.push(`${onde}: bloco inválido (rep, dist, ritmo ${RITMOS.join('/')}, descanso).`)
+        }
+        if (!s.blocos?.length) problemas.push(`${onde}: sem blocos.`)
+    }
+    return problemas
+}
+
+export function loadEspecifico() {
+    const esp = { regras: ler('./regras.json'), series: ler('./series.json') }
+    const problemas = validarEspecifico(esp)
+    if (problemas.length > 0) throw new Error(`Modelo Específico com problemas:\n- ${problemas.join('\n- ')}`)
+    return esp
+}
+
+// Metragem máxima do treino inteiro: 15x a prova nos 50 e 100 m; 10x nas outras
+export const limiteDaProva = (regras, distancia) =>
+    distancia * (distancia <= 100 ? regras.limiteDaProva.ate100 : regras.limiteDaProva.outras)
+
+export const grupoDaProva = (regras, distancia) => (regras.grupos.find((g) => distancia <= g.ate) ?? regras.grupos.at(-1)).grupo
+
+// Tempo em segundos -> 37"5 (abaixo de 1 minuto, com décimos) ou 1'15"
+export function tempoText(segundos) {
+    if (segundos < 60) {
+        const d = Math.round(segundos * 10) / 10
+        return Number.isInteger(d) ? `${d}"` : `${Math.floor(d)}"${Math.round((d % 1) * 10)}`
+    }
+    const s = Math.round(segundos)
+    return `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`
+}
+const pausaText = (s) => (s >= 60 ? (s % 60 === 0 ? `${s / 60}'` : `${Math.floor(s / 60)}'${String(s % 60).padStart(2, '0')}"`) : `${s}"`)
+
+// Ritmo de prova: a meta dividida igualmente pela distância (200 m em 2'00" = 30" a cada 50 m)
+export const ritmoDeProva = (prova, distancia) => (prova.metaCentesimos / 100) * (distancia / prova.distancia)
+
+// A série como o atleta nada: piscina de 50 m (25 vira 50; 75 não dá), borboleta até 100 m
+function adaptar(serie, { prova, poolLength }, regras) {
+    let blocos = serie.blocos
+    if (poolLength === 50) {
+        if (blocos.some((b) => b.dist === 75 || b.quebrado)) return null
+        blocos = blocos.map((b) => (b.dist === 25 ? { ...b, dist: 50, rep: Math.max(1, Math.ceil(b.rep / 2)) } : b))
+    }
+    if (prova.estilo === 'borboleta' && blocos.some((b) => b.dist > (regras.borboletaAte ?? 100))) return null
+    return { ...serie, blocos }
+}
+
+const volumeDe = (s) => (s.vezes ?? 1) * s.blocos.reduce((t, b) => t + b.rep * b.dist, 0)
+
+// Segundos de nado de cada repetição: RP pela meta; A1/A2/A3 pelo ritmo do atleta (teste de 400 m)
+function segundosDaRep(b, prova, pace, regras) {
+    const rp = ritmoDeProva(prova, b.dist)
+    if (b.ritmo === 'RP') return rp
+    if (b.ritmo === 'max') return rp * regras.ritmos.max
+    return (b.dist / 100) * pace * (regras.ritmos[b.ritmo] ?? 1.1)
+}
+function segundosDe(s, prova, pace, regras) {
+    const umaVez = s.blocos.reduce((t, b) => t + b.rep * (segundosDaRep(b, prova, pace, regras) + b.descanso + (b.quebrado ? b.pausa * (b.quebrado.length - 1) : 0)), 0)
+    return (s.vezes ?? 1) * umaVez + ((s.vezes ?? 1) - 1) * (s.intervalo ?? 0)
+}
+
+// Diminui a série, um passo de cada vez: menos vezes, menos repetições, menos blocos,
+// e por fim repetições mais curtas. Devolve null quando não dá para diminuir mais.
+function diminuir(s) {
+    if ((s.vezes ?? 1) > 1) return { ...s, vezes: s.vezes - 1 }
+    const i = s.blocos.reduce((m, b, k) => (b.rep * b.dist > s.blocos[m].rep * s.blocos[m].dist ? k : m), 0)
+    const maior = s.blocos[i]
+    const troca = (b) => ({ ...s, blocos: s.blocos.map((x, k) => (k === i ? b : x)) })
+    if (maior.rep > 1) return troca({ ...maior, rep: maior.rep - 1 })
+    if (s.blocos.length > 1) return { ...s, blocos: s.blocos.filter((_, k) => k !== i) }
+    if (maior.dist > 50 && !maior.quebrado) return troca({ ...maior, dist: Math.max(50, Math.floor(maior.dist / 2 / 50) * 50) })
+    return null
+}
+
+// Estilo da série: o da prova; medley em repetições curtas vai estilo a estilo
+const estiloText = (prova, dist) => (prova.estilo === 'medley' && dist < 100 ? 'BO|CO|PE|CR' : ABREV[prova.estilo] ?? 'CR')
+
+function linhaDoBloco(b, prova) {
+    const quebrado = b.quebrado ? ` quebrado (${b.quebrado.join(' + ')}, D${b.pausa}")` : ''
+    const nota = b.nota ? ` ${b.nota}` : ''
+    const ritmo = b.ritmo === 'RP' ? `RP ${tempoText(ritmoDeProva(prova, b.dist))}` : b.ritmo === 'max' ? 'máx' : b.ritmo
+    return `${b.rep} x ${b.dist} m${quebrado}${nota} · ${ritmo} · ${estiloText(prova, b.dist)} · D${pausaText(b.descanso)} de descanso`
+}
+
+function textoDaSerie(s, prova) {
+    const linhas = s.blocos.map((b) => linhaDoBloco(b, prova))
+    if ((s.vezes ?? 1) === 1) return linhas.join('\n')
+    const intervalo = `c/${pausaText(s.intervalo ?? 120)} de intervalo`
+    return linhas.length === 1 ? `(${s.vezes}x) ${linhas[0]} · ${intervalo}` : `(${s.vezes}x) ${intervalo}\n${linhas.join('\n')}`
+}
+
+const INTENSIDADE = { RP: 'A3', max: 'A3', A3: 'A3', A2: 'A2', A1: 'A1' }
+
+// Troca a série principal do treino do Geral pela série da prova e respeita o limite
+// da prova (15x ou 10x a distância) no treino inteiro. Devolve as partes novas (ou as
+// mesmas, quando o Específico não vale nesse treino).
+export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null }) {
+    const { regras, series } = esp
+    const prova = athlete.prova
+    if (athlete.modelo !== 'especifico' || !prova?.distancia || !prova.metaCentesimos) return partes
+    if (!regras.fases.includes(athlete.fase) || partes.some((p) => p.parte === 'teste')) return partes
+    const posicao = partes.findIndex((p) => p.parte === 'principal')
+    if (posicao < 0) return partes
+
+    const limite = limiteDaProva(regras, prova.distancia)
+    const tempo = partes.filter((p) => p.parte === 'principal').reduce((s, p) => s + p.minutos * 60, 0)
+    // As outras partes, com a posição no treino (para a principal voltar ao mesmo lugar)
+    let resto = partes.map((p, i) => ({ ...p, _i: i })).filter((p) => p.parte !== 'principal')
+    const sobra = () => limite - resto.reduce((s, p) => s + p.metros, 0)
+
+    const grupo = grupoDaProva(regras, prova.distancia)
+    const candidatas = series
+        .filter((s) => s.grupos.includes(grupo) && s.fases.includes(athlete.fase))
+        .filter((s) => !s.material || (athlete.equipment ?? []).includes(s.material))
+        .map((s) => adaptar(s, { prova, poolLength: athlete.poolLength }, regras))
+        .filter(Boolean)
+    if (candidatas.length === 0) return partes
+    const menor = Math.min(...candidatas.map(volumeDe))
+
+    // Não cabe nem a menor série: sai a perna, depois o aquecimento fica curto
+    if (sobra() < menor) resto = resto.filter((p) => p.parte !== 'perna')
+    // (e o solto e a soltura ficam curtos, sem a técnica)
+    const curta = (p, cfg, serieId) => ({
+        _i: p._i, parte: p.parte, titulo: p.titulo, serieId, serieTexto: cfg.texto, texto: cfg.texto,
+        metros: cfg.metros, minutos: Math.max(1, Math.round((cfg.metros / 100) * pace * 1.3 / 60)),
+    })
+    // (por último, a velocidade fica curta: ela continua em todas as provas)
+    const velocidadeCurta = { ...regras.velocidadeCurta, texto: regras.velocidadeCurta.texto.replace('{estilo}', estiloText(prova, 25)) }
+    const encurtaveis = [['aquecimento', regras.aquecimentoCurto], ['solto', regras.soltoCurto], ['soltura', regras.soltoCurto], ['velocidade', velocidadeCurta]]
+    const encurtar = (precisa) => {
+        for (const [parte, cfg] of encurtaveis) {
+            if (!precisa()) break
+            resto = resto.map((p) => (p.parte === parte && p.metros > cfg.metros ? curta(p, cfg, `esp-${parte}`) : p))
+        }
+    }
+    encurtar(() => sobra() < menor)
+    const metrosLivres = Math.max(0, sobra())
+
+    // A que cabe (metros e tempo), sem repetir as dos últimos treinos; a maior, mais vezes
+    const vezes = (s) => recentes?.vezes(`esp:${s.id}`) ?? 0
+    const cabe = (s) => volumeDe(s) <= metrosLivres && segundosDe(s, prova, pace, regras) <= tempo * 1.1
+    const pool = candidatas.filter(cabe)
+    const lista = pool.length > 0 ? pool : candidatas
+    const menos = Math.min(...lista.map(vezes))
+    const livres = lista.filter((s) => vezes(s) === menos)
+    let r = random() * livres.reduce((t, s) => t + volumeDe(s), 0)
+    let escolhida = livres.at(-1)
+    for (const s of livres) {
+        r -= volumeDe(s)
+        if (r < 0) { escolhida = s; break }
+    }
+    // Nenhuma cabe: a que mais perto chega, diminuída até caber
+    if (pool.length === 0) {
+        const excesso = (s) => Math.max(volumeDe(s) / Math.max(metrosLivres, 1), segundosDe(s, prova, pace, regras) / Math.max(tempo, 1))
+        escolhida = livres.reduce((a, b) => (excesso(b) < excesso(a) ? b : a))
+        for (let menorAinda = diminuir(escolhida); !cabe(escolhida) && menorAinda; menorAinda = diminuir(escolhida)) escolhida = menorAinda
+    }
+    recentes?.add(`esp:${escolhida.id}`)
+    // Passou do tempo da aula (ex.: a técnica no aquecimento de uma aula curta): as outras partes ficam curtas
+    const minutosDaAula = (athlete.sessionMinutes ?? 60) * 1.1
+    encurtar(() => resto.reduce((t, p) => t + p.minutos, 0) + segundosDe(escolhida, prova, pace, regras) / 60 > minutosDaAula)
+
+    const segundos = segundosDe(escolhida, prova, pace, regras)
+    const intensidade = escolhida.blocos.map((b) => INTENSIDADE[b.ritmo]).sort().at(-1)
+    const rp = ritmoDeProva(prova, prova.distancia <= 100 ? 25 : 50)
+    const principal = {
+        parte: 'principal',
+        titulo: 'Série principal da prova',
+        serieId: escolhida.id,
+        serieTexto: escolhida.id,
+        texto: textoDaSerie(escolhida, prova),
+        nado: prova.estilo,
+        material: escolhida.material ? [escolhida.material] : [],
+        observacao: `RP = ritmo de prova, pela sua meta: ${tempoText(rp)} a cada ${prova.distancia <= 100 ? 25 : 50} m.${escolhida.nota ? ` ${escolhida.nota[0].toUpperCase()}${escolhida.nota.slice(1)}.` : ''}`,
+        metros: volumeDe(escolhida),
+        minutos: Math.round(segundos / 60),
+        intensidades: { tipo: 'especifico', unidade: 'serie_toda', valores: [intensidade] },
+        especifico: true,
+    }
+    // A principal vai no lugar da primeira principal do Geral
+    const limpa = (p) => {
+        const copia = { ...p }
+        delete copia._i
+        return copia
+    }
+    return [...resto.filter((p) => p._i < posicao).map(limpa), principal, ...resto.filter((p) => p._i > posicao).map(limpa)]
 }

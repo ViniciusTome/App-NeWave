@@ -1,0 +1,27 @@
+{
+  "_comentario": "Regras do modelo Específico da prova (só na Transição e na Realização).",
+  "fases": ["transicao", "realizacao"],
+  "limiteDaProva": { "_comentario": "Metragem máxima do treino inteiro: X vezes a distância da prova", "ate100": 15, "outras": 10 },
+  "grupos": [
+    { "grupo": "50", "ate": 50 },
+    { "grupo": "100", "ate": 100 },
+    { "grupo": "200", "ate": 200 },
+    { "grupo": "400", "ate": 400 },
+    { "grupo": "fundo", "ate": 1500 },
+    { "grupo": "aguas", "ate": 10000 },
+    { "grupo": "maratona", "ate": 25000 }
+  ],
+  "ritmos": {
+    "_comentario": "Ritmo de cada zona em relação ao ritmo de prova (RP); max = forte, mais rápido que o RP. A1, A2 e A3: pelo teste de 400 m (fator do ritmo)",
+    "max": 0.95, "A1": 1.2, "A2": 1.1, "A3": 1.03
+  },
+  "aquecimentoCurto": {
+    "_comentario": "Quando o limite da prova não deixa o aquecimento do Geral",
+    "texto": "200 m (100 m CR solto, 50 m perna, 50 m educativo)",
+    "metros": 200
+  },
+  "velocidadeCurta": { "texto": "6 x 25 m forte · {estilo} · D30\" de descanso", "metros": 150 },
+  "soltoCurto": { "texto": "100 m solto", "metros": 100 },
+  "borboletaAte": 100,
+  "esforco": { "transicao": "A3", "realizacao": "A3" }
+}

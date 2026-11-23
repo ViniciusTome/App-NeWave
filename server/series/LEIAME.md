@@ -678,7 +678,13 @@ O modelo **Específico da prova** fica separado do Geral, na pasta `server/espec
   - a meta precisa combinar com a distância (de 40" a 6' a cada 100 m).
 - **Quem pode usar o Específico:** quem tem prova alvo com distância e meta, e já nada a distância da prova sem parar (nas provas acima de 2 km, basta nadar mais de 2 km sem parar). Quem não pode fica no Geral, e o app diz o motivo.
 - **Onde escolher:** no "Gerar treinos" (no resumo) e no Perfil (Meu treino → Modelo de treino). Trocar no Perfil refaz os treinos que ainda não foram feitos.
-- **O que muda no treino:** vem na próxima entrega (séries de cada prova, ritmo de prova saindo da meta e o limite de 15x a distância nos 50 e 100 m e 10x nas outras, na Transição e na Realização). Até lá, os treinos do Específico saem iguais aos do Geral.
+- **O que muda no treino** (só na **Transição** e na **Realização**; a Acumulação e a semana de recuperação ficam iguais às do Geral, e o dia do teste também):
+  - A **série principal** vira a **série da prova** (`series.json`), pelo grupo da distância (50, 100, 200, 400, fundo 800/1500, águas abertas até 10 km e maratona até 25 km) e pela fase (Transição: força e resistência específica; Realização: ritmo de prova).
+  - **No estilo da prova** (medley em repetições curtas: estilo a estilo, `BO|CO|PE|CR`). Borboleta: repetições até 100 m. Piscina de 50 m: 25 m vira 50 m e as séries de 75 m ficam de fora.
+  - **RP (ritmo de prova):** a meta dividida igualmente pela distância (200 m em 2'30" = **RP 37"5** a cada 50 m). Embaixo da série vai a explicação.
+  - **Limite da prova:** o treino inteiro até **15x** a distância nos 50 e 100 m e **10x** nas outras. Quando não cabe, nesta ordem: sai a perna; o aquecimento, o solto e a soltura ficam curtos (sem a técnica); a velocidade fica curta (ela continua em todas as provas); a série da prova diminui.
+  - A série também cabe no **tempo** da série principal do Geral (que já cai na Realização).
+  - As séries e as regras ficam em `server/especifico/series.json` e `regras.json`; dá para acrescentar séries sem mexer no código.
 
 ### Teste de estresse
 

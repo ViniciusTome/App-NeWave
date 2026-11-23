@@ -15,6 +15,7 @@ import {
     partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
     drawIntensities, hardestIntensity, recoveryWaived,
 } from './series/regras.js'
+import { aplicarEspecifico, loadEspecifico } from './especifico/index.js'
 import { estadoDaTecnica, loadTecnica, montarTecnica, parteDaTecnica } from './tecnica/index.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
@@ -887,6 +888,9 @@ export function trainingDates(today, trainingDays, dias = DIAS_PADRAO) {
 // Técnica (educativos): módulo separado, carregado uma vez
 let tecnicaPadrao = null
 const tecnicaDoApp = () => (tecnicaPadrao ??= loadTecnica())
+// Modelo Específico da prova (módulo separado): só nos treinos da Transição e da Realização
+let especificoPadrao = null
+const especificoDoApp = () => (especificoPadrao ??= loadEspecifico())
 
 function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1, tecnica = null, estadoTecnica = null }) {
     const leve = soRitmoLeve(rules, athlete) || Boolean(athlete.soLeve)
@@ -1457,7 +1461,7 @@ function semanaDe(iso) {
 export function generateTrainings({
     rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
     inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null, semTeste = false,
-    tecnica = tecnicaDoApp(),
+    tecnica = tecnicaDoApp(), especifico = athlete.modelo === 'especifico' ? especificoDoApp() : null,
 }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
@@ -1568,9 +1572,12 @@ export function generateTrainings({
             !testeDaPeriodizacao && fase === 'transicao'
         if (testeSemTempo) testeMarcado = true
         if (testeNaTransicao) testeDaPeriodizacao = true
-        const partes = testeSemTempo || testeNaTransicao
+        const doGeral = testeSemTempo || testeNaTransicao
             ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
             : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal, tecnica, estadoTecnica })
+        // Específico da prova: na Transição e na Realização, a série principal é a da prova
+        // (estilo e ritmo da prova) e o treino inteiro fica dentro do limite (15x ou 10x a prova)
+        const partes = especifico ? aplicarEspecifico({ esp: especifico, partes: doGeral, athlete: doDia, pace, random, recentes }) : doGeral
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
         const tecnicaDoTreino = partes.map((p) => p._tecnica).filter(Boolean)
