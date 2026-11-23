@@ -10,7 +10,7 @@ import { computeLevel } from '../server/athlete.js'
 import { feedbackAdjustment, generateTrainings, planStages, refreshTimes, trainingDates } from '../server/generator.js'
 import { loadLibrary } from '../server/series/index.js'
 import { loadRules } from '../server/series/regras.js'
-import { loadTecnica } from '../server/tecnica/index.js'
+import { chanceNaFase, loadTecnica } from '../server/tecnica/index.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -75,8 +75,9 @@ function perfil(i) {
 }
 
 // ---------- Regras conferidas ----------
-const contaTecnica = { treino: { com: 0, total: 0 } }
-const tecnicaPorId = new Map(loadTecnica().itens.map((i) => [i.id, i]))
+const contaTecnica = { treino: { com: 0, total: 0 }, metade: { com: 0, total: 0 } }
+const tecnicaDoStress = loadTecnica()
+const tecnicaPorId = new Map(tecnicaDoStress.itens.map((i) => [i.id, i]))
 const regras = new Map() // nome -> { conferidas, falhas: [] }
 const contaBorboleta = { linhas: 0, palmarBoia: 0 }
 function confere(nome, ok, exemplo) {
@@ -131,9 +132,16 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         const aq = t.partes.find((p) => p.parte === 'aquecimento')
         const solto = t.partes.find((p) => p.parte === 'solto')
         confere('Técnica num lugar só (aquecimento ou solto, nunca nos dois)', !(com(aq) && com(solto)), () => `${quem}: ${aq?.texto}\n${solto?.texto}`)
-        if (aq && a.sessionMinutes >= 30) {
-            contaTecnica.treino.total++
-            if (com(aq) || com(solto)) contaTecnica.treino.com++
+        // Fase (regra do treinador): iniciante nunca na Realização; intermediário na
+        // Acumulação e em metade da Transição; avançado só na Acumulação
+        const chance = chanceNaFase(tecnicaDoStress.regras, a.level, t.plano.fase)
+        if (chance === 0) {
+            confere('Técnica só nas fases do nível (iniciante: fora da Realização; intermediário: Acumulação e metade da Transição; avançado: só Acumulação)',
+                !com(aq) && !com(solto), () => `${quem}: ${t.date} ${t.plano.fase}`)
+        } else if (aq && a.sessionMinutes >= 30) {
+            const conta = chance === 1 ? contaTecnica.treino : contaTecnica.metade
+            conta.total++
+            if (com(aq) || com(solto)) conta.com++
         }
         for (const r of t.plano.tecnica) {
             const item = tecnicaPorId.get(r.id)
@@ -415,8 +423,11 @@ for (const [nome, r] of regras) {
     console.log(`${ok ? 'OK   ' : 'FALHA'} ${nome}  (${r.conferidas} conferências${ok ? '' : `, ${r.total} falhas`})`)
     for (const f of r.falhas) console.log(`        - ${f.replace(/\n/g, '\n          ')}`)
 }
-confere('Treino com técnica (95% ou mais; sai só quando falta tempo)', contaTecnica.treino.com >= contaTecnica.treino.total * 0.95,
+confere('Treino com técnica nas fases em que ela entra (95% ou mais; sai só quando falta tempo)', contaTecnica.treino.com >= contaTecnica.treino.total * 0.95,
     () => `${contaTecnica.treino.com} de ${contaTecnica.treino.total}`)
+confere('Intermediário na Transição: técnica em metade dos treinos (35% a 65%)',
+    contaTecnica.metade.total > 0 && Math.abs(contaTecnica.metade.com / contaTecnica.metade.total - 0.5) <= 0.15,
+    () => `${contaTecnica.metade.com} de ${contaTecnica.metade.total}`)
 confere('Borboleta com palmar + boia é rara (menos de 10%)', contaBorboleta.palmarBoia <= contaBorboleta.linhas * 0.1, () => `${contaBorboleta.palmarBoia} de ${contaBorboleta.linhas}`)
 console.log(`\n${regras.size - falhou} de ${regras.size} regras sem falhas.`)
 process.exitCode = falhou ? 1 : 0

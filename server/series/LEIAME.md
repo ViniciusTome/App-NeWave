@@ -648,6 +648,11 @@ A técnica fica **separada do gerador**, na pasta `server/tecnica/` (mais fácil
 - `regras.json`: onde entra e quanto.
 
 Como entra no treino:
+- **Fase da periodização** (regra do treinador, `porNivelEFase` no `regras.json` da técnica):
+  - **Iniciante:** Acumulação, Transição e recuperação; **nunca na Realização**.
+  - **Intermediário:** na **Acumulação**; na **Transição em metade dos treinos**; nunca na recuperação nem na Realização.
+  - **Avançado:** **só na Acumulação**.
+  - Sem periodização (sem fase), conta como Acumulação.
 - **Num lugar só por treino:** no **aquecimento** (aula de 30 min ou mais) **ou** no **solto depois da velocidade** (45 min ou mais; treinar a técnica cansado ensina a manter o nado bom mesmo cansado). Nunca nos dois. Quando os dois servem, metade das vezes em cada (`chanceNoSolto`).
 - **Duas linhas:** o título e a série. Ex.:
   ```

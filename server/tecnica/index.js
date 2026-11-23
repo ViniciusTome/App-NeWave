@@ -11,6 +11,7 @@
 import { readFileSync } from 'node:fs'
 
 const NIVEIS = ['iniciante', 'intermediario', 'avancado']
+const FASES = ['acumulacao', 'transicao', 'recuperacao', 'realizacao']
 const ESTILOS = ['crawl', 'costas', 'peito', 'borboleta', 'medley']
 const QUATRO = ['crawl', 'costas', 'peito', 'borboleta']
 const ABREV = { crawl: 'CR', costas: 'CO', peito: 'PE', borboleta: 'BO', medley: 'MD' }
@@ -48,6 +49,14 @@ export function loadTecnica() {
     const regras = ler('./regras.json')
     const todos = [...ler('./educativos.json'), ...ler('./treinador.json')]
     const problemas = validarTecnica(todos)
+    for (const [nivel, tabela] of Object.entries(regras.porNivelEFase ?? {})) {
+        if (nivel.startsWith('_')) continue
+        if (!NIVEIS.includes(nivel)) problemas.push(`porNivelEFase: nível "${nivel}" não existe.`)
+        for (const [fase, chance] of Object.entries(tabela)) {
+            if (!FASES.includes(fase)) problemas.push(`porNivelEFase.${nivel}: fase "${fase}" não existe.`)
+            if (typeof chance !== 'number' || chance < 0 || chance > 1) problemas.push(`porNivelEFase.${nivel}.${fase}: use um número de 0 a 1.`)
+        }
+    }
     if (problemas.length > 0) throw new Error(`Técnica com problemas:\n- ${problemas.join('\n- ')}`)
     // Conteúdos que ficam de fora (ex.: as viradas passo a passo)
     const fora = new Set(regras.conteudosFora ?? [])
@@ -76,11 +85,22 @@ export function estadoDaTecnica(historico = []) {
 // (nunca nos dois). `soltoDepoisDaVelocidade` = o treino tem esse solto.
 export function parteDaTecnica({ tecnica, athlete, soltoDepoisDaVelocidade, random = Math.random }) {
     const { regras } = tecnica
+    // Fase da periodização (regra do treinador, por nível): ex.: avançado só na Acumulação;
+    // intermediário em metade dos treinos da Transição. Sem fase: como na Acumulação.
+    const chance = chanceNaFase(regras, athlete.level, athlete.fase)
+    if (chance <= 0 || (chance < 1 && random() >= chance)) return null
     const minutos = athlete.sessionMinutes ?? 0
     const noAquecimento = minutos >= (regras.partes.aquecimento?.apartirDeMinutos ?? Infinity)
     const noSolto = soltoDepoisDaVelocidade && minutos >= (regras.partes.soltoDepoisDaVelocidade?.apartirDeMinutos ?? Infinity)
     if (noSolto && (!noAquecimento || random() < (regras.chanceNoSolto ?? 0.5))) return 'solto'
     return noAquecimento ? 'aquecimento' : null
+}
+
+// Chance de ter técnica no treino, pela fase e pelo nível (1 = sempre, 0 = nunca)
+export function chanceNaFase(regras, nivel, fase) {
+    const tabela = regras.porNivelEFase?.[nivel]
+    if (!tabela) return 1
+    return tabela[fase ?? 'acumulacao'] ?? 1
 }
 
 // Nível (regra do treinador): técnica marcada com um nível só vai só para esse nível;
