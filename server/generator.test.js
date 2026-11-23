@@ -1149,3 +1149,12 @@ test('avançado: depois das faltas só o A3 sai (o resto fica como estava)', () 
     })
   })
 })
+
+test('a 2ª série principal nunca é igual à 1ª no mesmo treino', () => {
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    for (const t of gerar({ ...avancado, sessionMinutes: 90 }, seed)) {
+      const [a, b] = t.partes.filter((p) => p.parte === 'principal')
+      if (b) assert.notEqual(a.serieTexto, b.serieTexto, `${t.date}: ${a.serieTexto}`)
+    }
+  }
+})

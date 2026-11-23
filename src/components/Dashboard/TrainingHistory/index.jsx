@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Modal } from '../../Modal'
 import { Training } from '../../Training'
+import { TrainingGlossary } from '../../TrainingGlossary'
 import { api, TRAININGS_CHANGED } from '../../../services/api'
 import { formatDate, formatShortDate, todayIso } from '../../../utils/format'
 import styles from './traininghistory.module.css'
@@ -91,6 +92,8 @@ export const TrainingHistory = () => {
                         {!selected.completed && (
                             <p className={styles.missedNote}>Este treino passou da data sem ser concluído.</p>
                         )}
+                        {/* Glossário só dos termos deste treino */}
+                        {selected.partes && <div style={{ marginBottom: 12 }}><TrainingGlossary training={selected} /></div>}
                         <Training training={selected} />
                         {selected.notes && (
                             <div className={styles.notes}>

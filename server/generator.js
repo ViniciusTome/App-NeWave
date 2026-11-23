@@ -629,8 +629,9 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
         if (primeiraPrincipal && original.id === primeiraPrincipal.serie.id) continue
         // (2x), (3x), (4x)...: o número de séries que melhor cabe no tempo da parte.
         // Fora as que ficariam iguais à do treino anterior (ex.: (4x) 4 x 50 e (6x) 4 x 50 viram (3x) 4 x 50)
+        // (e a 2ª principal nunca igual à 1ª, mesmo vindo de outra série da biblioteca)
         const opcoes = setOptions(rules, parte, original, athlete.level, athlete.sessionMinutes)
-            .filter((s) => !evitar?.has(`texto:${s.texto}`))
+            .filter((s) => !evitar?.has(`texto:${s.texto}`) && s.texto !== primeiraPrincipal?.serie.texto)
         if (opcoes.length === 0) continue
         const serie = opcoes.length === 1 ? opcoes[0] : opcoes
             .map((s) => ({ s, fora: foraDoTempo(estimateSeconds(rules, parte, s, { material: [] }, athlete, pace)) }))
