@@ -250,6 +250,40 @@ function ajustarAoA1(rules, valores, saidas, saidaA1, fase, distancia) {
     })
 }
 
+// Borboleta na série principal (regra do treinador): de preferência com pé de pato;
+// com palmar + pull buoy, bem rara; só em repetições curtas (até 100 m) e mais rara
+// que os outros estilos. Na velocidade pode à vontade.
+// Avançado voltando de uma parada: nos primeiros 1 ou 2 meses (regras.borboleta.voltandoDaParada)
+// a borboleta da principal fica bem rara e só em repetições curtas, para o corpo se acostumar.
+export function emAdaptacaoDaBorboleta(rules, athlete, inicioDosTreinos, date) {
+    const cfg = adaptacaoDaBorboleta(rules, athlete)
+    const dias = cfg?.diasDeAdaptacao?.[athlete.recentBreak]
+    if (!dias || !rules.borboleta.voltandoDaParada.niveis.includes(athlete.nivelAntesDaParada ?? athlete.level)) return false
+    return daysBetween(inicioDosTreinos, date) < dias
+}
+// Borboleta como melhor estilo: adaptação mais leve e só no primeiro mês
+const adaptacaoDaBorboleta = (rules, athlete) => {
+    const cfg = rules.borboleta?.voltandoDaParada
+    return athlete.bestStroke === 'borboleta' && cfg?.seForOMelhorEstilo ? cfg.seForOMelhorEstilo : cfg
+}
+function rulesVoltando(rules, athlete, inicioDosTreinos, date) {
+    if (!emAdaptacaoDaBorboleta(rules, athlete, inicioDosTreinos, date)) return rules
+    const { pesoNaPrincipal, maiorRepeticaoNaPrincipal } = adaptacaoDaBorboleta(rules, athlete)
+    return { ...rules, borboleta: { ...rules.borboleta, pesoNaPrincipal, maiorRepeticaoNaPrincipal } }
+}
+
+const temBorboleta = (v) => v.nado === 'borboleta' || v.nados?.includes('borboleta') || v.porSerie?.flat().includes('borboleta')
+function butterflyRule(rules, serie, variations) {
+    const cfg = rules.borboleta
+    if (!cfg) return variations
+    const evitar = (m) => (cfg.evitarMaterial ?? []).some((e) => e.every((x) => m.includes(x)))
+    return variations
+        .filter((v) => !temBorboleta(v) || serie.maiorDistancia <= cfg.maiorRepeticaoNaPrincipal)
+        .map((v) => (temBorboleta(v)
+            ? { ...v, peso: (v.peso ?? 1) * cfg.pesoNaPrincipal * (evitar(v.material) && v.padrao === 'serie_inteira' ? 0.1 : 1) }
+            : v))
+}
+
 // Velocidade escrita como "livre": o atleta precisa saber o que nadar. Sorteia o estilo
 // entre os que ele nada (crawl com mais chance) e escreve no card (CR, CO, PE, BO).
 export function withSpeedStroke(rules, variation, athlete, random = Math.random) {
@@ -289,12 +323,21 @@ export function rotateSetMaterials(rules, parte, serie, variation, intensidades,
     const comecaNadando = random() * 100 < (cfg.comecarNadando?.[athlete.level] ?? 0)
     const soBracos = (m) => m.includes('palmar') && !m.includes('pe_de_pato')
     const forca = parte === 'principal' && athlete.foco === 'forca'
+    // Série com borboleta (principal): evita palmar + pull buoy e prefere pé de pato
+    const borboletaNa = (i) => parte === 'principal' && (variation.nado === 'borboleta' ||
+        variation.nados?.[i] === 'borboleta' || variation.porSerie?.[i]?.includes('borboleta'))
+    const evitarNaBorboleta = (m) => (rules.borboleta?.evitarMaterial ?? []).some((e) => e.every((x) => m.includes(x)))
     // Ordem de preferência de cada série: a 1ª nadando (iniciante e intermediário quase
     // sempre); depois, vai colocando material (faltou força: palmar e palmar + pull buoy)
     const preferencia = (i) => {
-        const lista = embaralha(permitidas(i))
+        let lista = embaralha(permitidas(i))
+        if (borboletaNa(i)) {
+            const semEvitar = lista.filter((m) => !evitarNaBorboleta(m))
+            if (semEvitar.length > 0 && random() < 0.9) lista = semEvitar
+        }
         const peso = (m) => (i === 0 && comecaNadando && m.length === 0 ? -3 : 0) +
-            (i > 0 && m.length === 0 ? (random() < 0.8 ? 2 : 0) : 0) + (forca && soBracos(m) && random() < 0.8 ? -2 : 0)
+            (i > 0 && m.length === 0 ? (random() < 0.8 ? 2 : 0) : 0) + (forca && soBracos(m) && random() < 0.8 ? -2 : 0) +
+            (borboletaNa(i) && m.includes('pe_de_pato') ? -2.5 : 0)
         return lista.sort((a, b) => peso(a) - peso(b))
     }
     // Procura uma combinação em que nenhuma série repete o material da anterior. Só
@@ -682,6 +725,8 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
         // Série adaptada com os 75 m: só com pé de pato
         const serve = (v) => variationFits(v, athlete) && (!serie.exigePe || v.material.includes('pe_de_pato'))
         let variations = seriesVariations(rules, parte, serie, athlete).filter(serve)
+        // Borboleta na principal: só até 100 m, mais rara, e quase nunca com palmar + pull buoy
+        if (parte === 'principal') variations = butterflyRule(rules, serie, variations)
         const mistura = drawMixedStrokes(rules, parte, serie, athlete, random)
         if (mistura && serve(mistura)) variations.push(mistura)
         if (primeiraPrincipal && !semAlternar) {
@@ -1348,7 +1393,7 @@ export function generateTrainings({
         if (testeNaTransicao) testeDaPeriodizacao = true
         const partes = testeSemTempo || testeNaTransicao
             ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
-            : buildTraining({ rules, library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
+            : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal })
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
         partes.forEach((p) => delete p._montagem)

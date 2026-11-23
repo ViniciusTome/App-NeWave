@@ -17,7 +17,6 @@ const TIPOS_DE_INTENSIDADE = ['intensidades', 'AC', 'finalForte', 'NEG', 'POS']
 
 // Formatos de cada série na mistura de nados: igual (costas, costas, costas),
 // espelhado (medley, peito, medley) e diferentes (melhor estilo, peito, medley)
-const FORMATOS = ['igual', 'espelhado', 'diferentes']
 
 // Fases da periodização ATR: Acumulação, Transição, Realização
 export const FASES = ['acumulacao', 'transicao', 'realizacao']
@@ -202,8 +201,10 @@ export function validateRules(rules) {
         if (!(Number.isInteger(m?.minimoDeSeries) && m.minimoDeSeries >= 2)) {
             problems.push(`${where}.minimoDeSeries precisa ser um número a partir de 2 (ex.: 3 para "(3x)", "(4x)").`)
         }
-        if (!Array.isArray(m?.formatos) || m.formatos.length === 0 || m.formatos.some((f) => !FORMATOS.includes(f))) {
-            problems.push(`${where}.formatos precisa ser uma lista com: ${FORMATOS.join(', ')}.`)
+        for (const k of ['parteDeCrawl', 'chanceSoEstilo']) {
+            if (m?.[k] !== undefined && !(typeof m[k] === 'number' && m[k] >= 0 && m[k] <= 1)) {
+                problems.push(`${where}.${k} precisa ser um número de 0 a 1 (ex.: 0.3 = 30%).`)
+            }
         }
         if (!(Number.isInteger(m?.pesoMelhorEstilo) && m.pesoMelhorEstilo >= 1)) {
             problems.push(`${where}.pesoMelhorEstilo precisa ser um número a partir de 1 (1 = sem preferência).`)
@@ -767,6 +768,9 @@ export function allowedAsSecondMain(rules, first, second, athleteStrokes) {
 // velocidade (borboleta, costas, peito) entre os que ele pode nadar
 function bestStrokeOf(athlete, possiveis) {
     if (possiveis.includes(athlete.bestStroke)) return athlete.bestStroke
+    // O melhor estilo não cabe nesta série (ex.: borboleta de 200): nada de "ME" para outro
+    // estilo, que o glossário diria ser o melhor do atleta
+    if (athlete.bestStroke) return null
     return ESTILOS.find((s) => possiveis.includes(s)) ?? null
 }
 
@@ -785,8 +789,12 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
 
     const bloco = serie.blocos[0]
     const has = new Set(athlete.strokes)
+    // Borboleta na principal: só em repetições curtas (até 100 m)
+    const borboleta = rules.borboleta
+    const borboletaCabe = !borboleta || bloco.distancia <= borboleta.maiorRepeticaoNaPrincipal
     const estilos = canSwimInStroke(serie.blocos)
-        ? ESTILOS.filter((s) => has.has(s) && bloco.distancia <= limitFor(rules, s, athlete.level))
+        ? ESTILOS.filter((s) => has.has(s) && bloco.distancia <= limitFor(rules, s, athlete.level) &&
+            (s !== 'borboleta' || borboletaCabe))
         : []
     // Medley aqui é o medley individual: cada repetição um medley completo
     const medleyPools = ORDEM_MEDLEY.every((s) => has.has(s)) ? individualMedleyPools(serie.blocos) : []
@@ -794,7 +802,9 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
     if (nados.length < 2) return null
 
     const melhor = bestStrokeOf(athlete, estilos)
-    const peso = (nado) => (nado === melhor ? regra.pesoMelhorEstilo : 1)
+    // Melhor estilo aparece mais; borboleta, menos
+    const peso = (nado) => (nado === melhor ? regra.pesoMelhorEstilo : 1) *
+        (nado === 'borboleta' ? borboleta?.pesoNaPrincipal ?? 1 : 1)
     const pick = (opcoes) => {
         const total = opcoes.reduce((sum, n) => sum + peso(n), 0)
         let r = random() * total
@@ -805,20 +815,21 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
         return opcoes.at(-1)
     }
     const reps = bloco.repeticoes
-    const formatos = regra.formatos.filter((f) =>
-        f === 'igual' || (f === 'espelhado' && reps >= 3) || (f === 'diferentes' && reps <= nados.length))
+    const comCrawl = has.has('crawl') && bloco.distancia <= limitFor(rules, 'crawl', athlete.level)
 
+    // Cada série: nunca o mesmo estilo duas vezes seguidas; o crawl entra em cerca de
+    // 30% das repetições (às vezes a série é 100% em estilo)
     const porSerie = Array.from({ length: sets }, () => {
-        const formato = formatos[Math.floor(random() * formatos.length)]
-        if (formato === 'igual') return Array(reps).fill(pick(nados))
-        if (formato === 'espelhado') {
-            const ponta = pick(nados)
-            const meio = pick(nados.filter((n) => n !== ponta))
-            return Array.from({ length: reps }, (_, i) => (i === 0 || i === reps - 1 ? ponta : meio))
+        const soEstilo = !comCrawl || random() < (regra.chanceSoEstilo ?? 0)
+        const lista = []
+        for (let k = 0; k < reps; k++) {
+            const anterior = lista[k - 1]
+            const crawlPode = !soEstilo && anterior !== 'crawl'
+            const opcoes = nados.filter((n) => n !== anterior)
+            if (crawlPode && random() < (regra.parteDeCrawl ?? 0.3)) lista.push('crawl')
+            else lista.push(opcoes.length > 0 ? pick(opcoes) : 'crawl')
         }
-        const usados = []
-        for (let i = 0; i < reps; i++) usados.push(pick(nados.filter((n) => !usados.includes(n))))
-        return usados
+        return lista
     })
 
     const usaMedley = porSerie.some((s) => s.includes('medley'))

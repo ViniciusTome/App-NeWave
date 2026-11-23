@@ -208,6 +208,7 @@ test('cálculo do nível', () => {
     level: 'intermediario',
     returning: true,
     recemIntermediario: false, // caiu de avançado: não é recém intermediário
+    nivelAntesDaParada: 'avancado', // para a adaptação da borboleta
   })
   // Recém intermediário: na metade de baixo da faixa do intermediário
   const recem = computeLevel({ swimmingSince: '6m_2a', recentBreak: 'nao', continuousDistance: '200_400' }, { hundredths: 8 * 6000 })

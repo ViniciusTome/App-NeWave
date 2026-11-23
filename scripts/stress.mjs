@@ -75,6 +75,7 @@ function perfil(i) {
 
 // ---------- Regras conferidas ----------
 const regras = new Map() // nome -> { conferidas, falhas: [] }
+const contaBorboleta = { linhas: 0, palmarBoia: 0 }
 function confere(nome, ok, exemplo) {
     if (!regras.has(nome)) regras.set(nome, { conferidas: 0, falhas: [] })
     const r = regras.get(nome)
@@ -205,6 +206,18 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         for (const p of principais) {
             for (const l of p.texto.split('\n')) {
                 confere('Linha da principal na ordem: como nada · intensidade · estilo · tempo', ordemDaLinha(l), () => `${quem}: ${l}`)
+                const nados = l.split(' · ').find((x) => x.includes(' / ') && !/cd|\d/.test(x))?.split(' / ') ?? []
+                confere('Estilos misturados: nunca o mesmo estilo seguido', nados.every((n, i) => i === 0 || n !== nados[i - 1]),
+                    () => `${quem}: ${l}`)
+                if (/\bBO\b/.test(l)) {
+                    contaBorboleta.linhas++
+                    if (/c\/PALM \+ BOIA/.test(l)) contaBorboleta.palmarBoia++
+                }
+            }
+            // O medley sem crawl ("MD (BO, CO, PE)") tem só um trecho de borboleta: não conta
+            if (/\bBO\b/.test(p.texto.replace(/\((?:BO|CO|PE)(?:, (?:BO|CO|PE))*\)/g, ''))) {
+                const maior = Math.max(...[...(p.serieTexto ?? '').matchAll(/x (\d+)/g)].map((m) => Number(m[1])))
+                confere('Borboleta na principal só até 100 m', maior <= 100, () => `${quem}: ${p.texto}`)
             }
             confere('Série principal com o estilo escrito (CR, CO, PE, BO, MD, ME)', /\b(CR|CO|PE|BO|MD|ME)\b|estilo/.test(p.texto),
                 () => `${quem} ${t.date}: ${p.texto}`)
@@ -343,5 +356,6 @@ for (const [nome, r] of regras) {
     console.log(`${ok ? 'OK   ' : 'FALHA'} ${nome}  (${r.conferidas} conferências${ok ? '' : `, ${r.total} falhas`})`)
     for (const f of r.falhas) console.log(`        - ${f.replace(/\n/g, '\n          ')}`)
 }
+confere('Borboleta com palmar + boia é rara (menos de 10%)', contaBorboleta.palmarBoia <= contaBorboleta.linhas * 0.1, () => `${contaBorboleta.palmarBoia} de ${contaBorboleta.linhas}`)
 console.log(`\n${regras.size - falhou} de ${regras.size} regras sem falhas.`)
 process.exitCode = falhou ? 1 : 0

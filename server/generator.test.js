@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, adaptToDistance, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, emAdaptacaoDaBorboleta, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, strokeFactor, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -1227,4 +1227,83 @@ test('regra: cada linha da principal segue a ordem como nada · intensidade · e
     }
   }
   assert.ok(linhas > 100)
+})
+
+test('regra da borboleta na principal: até 100 m, de preferência com pé de pato, quase nunca com palmar + boia', () => {
+  let comBorboleta = 0
+  let comPalmarBoia = 0
+  let comPe = 0
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    for (const t of gerar({ ...avancado, sessionMinutes: 90 }, seed)) {
+      for (const p of t.partes.filter((x) => x.parte === 'principal')) {
+        for (const l of p.texto.split('\n').filter((x) => /\bBO\b/.test(x))) {
+          comBorboleta++
+          if (/c\/PALM \+ BOIA/.test(l)) comPalmarBoia++
+          if (/c\/PÉ/.test(l)) comPe++
+        }
+        if (/\bBO\b/.test(p.texto)) {
+          const maior = Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1])))
+          assert.ok(maior <= 100, p.texto)
+        }
+      }
+    }
+  }
+  assert.ok(comBorboleta > 5, `borboleta em ${comBorboleta} linhas`)
+  assert.ok(comPalmarBoia / comBorboleta < 0.1, `${comPalmarBoia} de ${comBorboleta} com palmar + boia`)
+  assert.ok(comPe / comBorboleta > 0.4, `${comPe} de ${comBorboleta} com pé de pato`)
+})
+
+test('avançado voltando de parada: borboleta da principal bem rara e curta nos primeiros meses', () => {
+  const contar = (athlete, inicio) => {
+    let linhas = 0
+    let longas = 0
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const treinos = generateTrainings({ rules, library, athlete, today: '2026-11-23', inicioDosTreinos: inicio, random: seeded(seed) })
+      for (const t of treinos.filter((x) => x.date < '2026-12-20')) {
+        for (const p of t.partes.filter((x) => x.parte === 'principal' && /\bBO\b/.test(x.texto))) {
+          linhas += (p.texto.match(/\bBO\b/g) ?? []).length
+          const maior = Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1])))
+          if (maior > 50) longas++
+        }
+      }
+    }
+    return { linhas, longas }
+  }
+  const base = { ...avancado, sessionMinutes: 90 }
+  const normal = contar({ ...base, recentBreak: 'nao' }, '2026-11-23')
+  const voltando = contar({ ...base, recentBreak: '1_6m' }, '2026-11-23')
+  const depois = contar({ ...base, recentBreak: '1_6m' }, '2026-09-01')
+  const inicio2meses = '2026-10-22'
+  assert.equal(voltando.longas, 0, 'nada de borboleta acima de 50 m')
+  assert.ok(voltando.linhas < normal.linhas / 2, `voltando ${voltando.linhas} x normal ${normal.linhas}`)
+  assert.ok(depois.linhas > voltando.linhas, 'depois da adaptação a borboleta volta')
+  // Quem caiu de nível (parado mais de 6 meses) também conta como avançado voltando: 2 meses
+  assert.equal(contar({ ...base, level: 'intermediario', nivelAntesDaParada: 'avancado', recentBreak: 'mais_6m' }, inicio2meses).longas, 0)
+})
+
+test('avançado voltando com borboleta de melhor estilo: um pouco menos de borboleta só no primeiro mês', () => {
+  const contar = (athlete, inicio) => {
+    let reps = 0
+    let longas = 0
+    for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      for (const t of generateTrainings({ rules, library, athlete, today: '2026-11-23', inicioDosTreinos: inicio, random: seeded(seed) }).filter((x) => x.date < '2026-12-20')) {
+        for (const p of t.partes.filter((x) => x.parte === 'principal' && /\b(BO|ME)\b/.test(x.texto))) {
+          reps += (p.texto.match(/\b(BO|ME)\b/g) ?? []).length
+          if (Math.max(...[...p.serieTexto.matchAll(/x (\d+)/g)].map((m) => Number(m[1]))) > 100) longas++
+        }
+      }
+    }
+    return { reps, longas }
+  }
+  const base = { ...avancado, bestStroke: 'borboleta', sessionMinutes: 90 }
+  const normal = contar({ ...base, recentBreak: 'nao' }, '2026-11-23')
+  const voltando = contar({ ...base, recentBreak: 'mais_6m', nivelAntesDaParada: 'avancado' }, '2026-11-23')
+  assert.equal(voltando.longas, 0)
+  assert.ok(voltando.reps < normal.reps * 0.8, `voltando ${voltando.reps} x normal ${normal.reps}`)
+  assert.ok(voltando.reps > 0, 'continua tendo um pouco de borboleta')
+  // Passado o primeiro mês, volta ao normal (mesmo parado mais de 6 meses)
+  const generator = { rules, athlete: { ...base, recentBreak: 'mais_6m', nivelAntesDaParada: 'avancado' } }
+  assert.equal(emAdaptacaoDaBorboleta(generator.rules, generator.athlete, '2026-11-01', '2026-11-29'), true)
+  assert.equal(emAdaptacaoDaBorboleta(generator.rules, generator.athlete, '2026-11-01', '2026-12-02'), false)
+  assert.equal(emAdaptacaoDaBorboleta(generator.rules, { ...generator.athlete, bestStroke: 'costas' }, '2026-11-01', '2026-12-02'), true)
 })

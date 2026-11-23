@@ -70,13 +70,14 @@ export function computeLevel(profile, time400) {
 
   // Parado há mais de 6 meses: começa um nível abaixo, em readaptação
   const returning = profile.recentBreak === 'mais_6m'
+  const nivelAntesDaParada = LEVELS[index]
   if (returning) index = Math.max(index - 1, 0)
 
   // Recém intermediário: está na metade de baixo da faixa do intermediário
   // (PROVISÓRIO). Usa o descanso por intensidade, como o iniciante.
   const recemIntermediario = LEVELS[index] === 'intermediario' && ratio < 0.525
 
-  return { level: LEVELS[index], returning, recemIntermediario }
+  return { level: LEVELS[index], returning, recemIntermediario, nivelAntesDaParada }
 }
 
 // ---------- Validação ----------
@@ -444,7 +445,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
           .map((c) => c.date),
       },
       athlete: {
-        ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400, modalidade,
+        ...profile, level: level.level, recemIntermediario: level.recemIntermediario, nivelAntesDaParada: level.nivelAntesDaParada, time400, modalidade,
       },
     }
   }
@@ -486,7 +487,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       if (upcomingWithPlan.all(userId, today).length === 0) return 0
       return buildPeriodization(userId, today).trainings.length
     }
-    const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 }
+    const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, nivelAntesDaParada: level.nivelAntesDaParada, time400 }
     let atualizados = 0
     db.exec('BEGIN')
     try {
@@ -643,7 +644,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       const proximos = upcomingOrdered.all(userId, today, regra.treinosMaisLeves)
       // Já ficaram mais leves por essas faltas
       if (proximos.length === 0 || JSON.parse(proximos[0].plan).maisLeve) return 0
-      const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, time400 }
+      const athlete = { ...profile, level: level.level, recemIntermediario: level.recemIntermediario, nivelAntesDaParada: level.nivelAntesDaParada, time400 }
       db.exec('BEGIN')
       try {
         for (const row of proximos) {

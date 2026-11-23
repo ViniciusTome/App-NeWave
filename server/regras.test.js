@@ -352,21 +352,37 @@ const draws = (id, athlete, n = 2000) => {
   return Array.from({ length: n }, () => drawMixedStrokes(rules, 'principal', principalSerie(id), athlete, random))
 }
 
-test('mistura de nados: (4x) 3 x 200 com medley, melhor estilo e estilos, sem crawl', () => {
-  const formatos = new Set()
-  for (const mistura of draws('pri-4x3x200', avancadoCompleto)) {
+test('mistura de nados: nunca o mesmo estilo seguido; crawl em cerca de 30%; às vezes 100% estilo', () => {
+  let crawl = 0
+  let total = 0
+  let soEstilo = 0
+  for (const mistura of draws('pri-4x4x100', avancadoCompleto)) {
     assert.equal(mistura.porSerie.length, 4)
     for (const serie of mistura.porSerie) {
-      assert.equal(serie.length, 3)
-      assert.ok(serie.every((n) => ['borboleta', 'costas', 'peito', 'medley'].includes(n)), serie.join())
-      const [a, b, c] = serie
-      if (a === b && b === c) formatos.add('igual')
-      else if (a === c && a !== b) formatos.add('espelhado')
-      else if (new Set(serie).size === 3) formatos.add('diferentes')
-      else assert.fail(`formato inválido: ${serie.join(', ')}`)
+      assert.equal(serie.length, 4)
+      serie.slice(1).forEach((n, k) => assert.notEqual(n, serie[k], serie.join(', ')))
+      assert.ok(serie.every((n) => ['crawl', 'borboleta', 'costas', 'peito', 'medley'].includes(n)), serie.join())
+      crawl += serie.filter((n) => n === 'crawl').length
+      total += serie.length
+      if (!serie.includes('crawl')) soEstilo++
     }
   }
-  assert.deepEqual([...formatos].sort(), ['diferentes', 'espelhado', 'igual'])
+  const parte = crawl / total
+  assert.ok(parte > 0.15 && parte < 0.35, `crawl: ${parte}`)
+  assert.ok(soEstilo > 0, 'nenhuma série 100% em estilo')
+})
+
+test('borboleta na principal: só até 100 m, mais rara', () => {
+  // 200: sem borboleta (nem para o avançado)
+  for (const mistura of draws('pri-4x3x200', avancadoCompleto, 300)) {
+    assert.ok(!mistura.porSerie.flat().includes('borboleta'))
+  }
+  // 100: entra, mas menos que os outros estilos
+  const contagem = {}
+  for (const mistura of draws('pri-4x4x100', { ...avancadoCompleto, bestStroke: null })) {
+    for (const n of mistura.porSerie.flat()) contagem[n] = (contagem[n] ?? 0) + 1
+  }
+  assert.ok(contagem.borboleta > 0 && contagem.borboleta < contagem.costas && contagem.borboleta < contagem.peito, JSON.stringify(contagem))
 })
 
 test('mistura de nados: o texto mostra cada série', () => {
@@ -379,7 +395,7 @@ test('mistura de nados: o melhor estilo aparece mais', () => {
   for (const mistura of draws('pri-4x3x200', avancadoCompleto)) {
     for (const n of mistura.porSerie.flat()) contagem[n] = (contagem[n] ?? 0) + 1
   }
-  for (const outro of ['borboleta', 'peito', 'medley']) {
+  for (const outro of ['peito', 'medley']) {
     assert.ok(contagem.costas > contagem[outro], JSON.stringify(contagem))
   }
 })
@@ -420,10 +436,11 @@ test('mistura de nados: precisa de pelo menos dois nados para misturar', () => {
 
 test('mistura de nados: sem melhor estilo na anamnese, vale a ordem de velocidade', () => {
   const semResposta = { ...avancadoCompleto, bestStroke: null }
-  const [mistura] = draws('pri-4x3x200', semResposta, 1)
+  const [mistura] = draws('pri-4x4x100', semResposta, 1)
   assert.equal(mistura.melhorEstilo, 'borboleta')
-  const [intermediario] = draws('pri-4x3x200', { ...semResposta, level: 'intermediario' }, 1)
-  assert.equal(intermediario.melhorEstilo, 'costas') // borboleta de 200 não vale para ele
+  // Repetições de 200: borboleta não entra na principal, então vale o seguinte
+  const [de200] = draws('pri-4x3x200', semResposta, 1)
+  assert.equal(de200.melhorEstilo, 'costas')
 })
 
 // ---------- 150 m: estilo, medley sem crawl, melhor estilo e medley ----------
@@ -720,7 +737,7 @@ test('a validação das regras aponta os erros', () => {
     [(r) => { r.material.perna.semMaterial = 'nunca' }, 'material.perna.semMaterial'],
     [(r) => { r.material.perna.pesoComMaterial = 0 }, 'material.perna.pesoComMaterial'],
     [(r) => { r.limitesPorNivel.crawl = { iniciante: 100 } }, 'limitesPorNivel.crawl: "crawl" precisa ser'],
-    [(r) => { r.misturaDeNados.formatos = ['zigue-zague'] }, 'misturaDeNados.formatos'],
+    [(r) => { r.misturaDeNados.parteDeCrawl = 3 }, 'misturaDeNados.parteDeCrawl'],
     [(r) => { r.descansos.iniciante['50'] = [40, 25] }, 'descansos.iniciante.50'],
     [(r) => { r.intensidades.A1.esforco.iniciante = [60, 120] }, 'intensidades.A1.esforco.iniciante'],
     [(r) => { r.tabelaDeTempos['100'].divisor = 0 }, 'tabelaDeTempos.100.divisor'],

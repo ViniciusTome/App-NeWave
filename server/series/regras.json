@@ -23,10 +23,31 @@
     }
   },
   "misturaDeNados": {
+    "_comentario": "Séries com estilos misturados: nunca o mesmo estilo duas repetições seguidas (ex.: ME, BO, ME, BO); o crawl entra em cerca de 'parteDeCrawl' das repetições (o resto em estilo); 'chanceSoEstilo' das séries ficam 100% em estilo.",
     "partes": ["principal"],
     "minimoDeSeries": 3,
-    "formatos": ["igual", "espelhado", "diferentes"],
-    "pesoMelhorEstilo": 2
+    "pesoMelhorEstilo": 2,
+    "parteDeCrawl": 0.3,
+    "chanceSoEstilo": 0.25
+  },
+  "borboleta": {
+    "_comentario": "Na série principal a borboleta é mais rara ('pesoNaPrincipal') e só em repetições de até 'maiorRepeticaoNaPrincipal' m; de preferência com pé de pato e quase nunca com palmar + pull buoy. Na velocidade pode à vontade.",
+    "pesoNaPrincipal": 0.4,
+    "maiorRepeticaoNaPrincipal": 100,
+    "evitarMaterial": [["palmar", "pull_buoy"]],
+    "voltandoDaParada": {
+      "_comentario": "Avançado que ficou parado: o corpo se acostuma primeiro. Nos primeiros dias de treino (por tempo parado), borboleta bem rara na principal e só em repetições curtas. Na velocidade continua livre.",
+      "niveis": ["avancado"],
+      "diasDeAdaptacao": { "1_6m": 30, "mais_6m": 60 },
+      "pesoNaPrincipal": 0.1,
+      "maiorRepeticaoNaPrincipal": 50,
+      "seForOMelhorEstilo": {
+        "_comentario": "Borboleta é o melhor estilo: aguenta mais, mas no retorno ainda pode ser demais. Só no primeiro mês, um pouco menos de borboleta (metade do normal) e repetições de até 100 m.",
+        "diasDeAdaptacao": { "1_6m": 30, "mais_6m": 30 },
+        "pesoNaPrincipal": 0.2,
+        "maiorRepeticaoNaPrincipal": 100
+      }
+    }
   },
   "segundaPrincipal": {
     "alternarCrawlEEstilo": true
