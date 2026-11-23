@@ -38,6 +38,12 @@
     },
     "intervaloMinimo": 120
   },
+  "intensidadeNaTransicao": {
+    "_comentario": "Regra do treinador: na Transição, 60% dos treinos em A3 (séries com ritmo de prova, máximo ou A3) e 40% em A2 (séries em A2, sem nada mais forte), na 'sequencia' (repete): nunca dois A2 seguidos.",
+    "A3": 0.6,
+    "A2": 0.4,
+    "sequencia": ["A3", "A2", "A3", "A2", "A3"]
+  },
   "borboletaAte": 100,
   "esforco": { "transicao": "A3", "realizacao": "A3" }
 }
