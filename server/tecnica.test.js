@@ -158,8 +158,8 @@ test('técnica por fase: iniciante fora da Realização; intermediário na Acumu
   const tecnica = loadTecnica()
   const esperado = {
     iniciante: { acumulacao: 1, transicao: 1, recuperacao: 1, realizacao: 0 },
-    intermediario: { acumulacao: 1, transicao: 0.5, recuperacao: 0, realizacao: 0 },
-    avancado: { acumulacao: 1, transicao: 0, recuperacao: 0, realizacao: 0 },
+    intermediario: { acumulacao: 1, transicao: 0.5, recuperacao: 1, realizacao: 0 },
+    avancado: { acumulacao: 1, transicao: 0, recuperacao: 1, realizacao: 0 },
   }
   for (const [nivel, fases] of Object.entries(esperado)) {
     for (const [fase, chance] of Object.entries(fases)) assert.equal(chanceNaFase(tecnica.regras, nivel, fase), chance, `${nivel} ${fase}`)
@@ -176,7 +176,8 @@ test('técnica por fase: iniciante fora da Realização; intermediário na Acumu
     return com / 400
   }
   assert.equal(conta('avancado', 'acumulacao'), 1)
-  for (const fase of ['transicao', 'recuperacao', 'realizacao']) assert.equal(conta('avancado', fase), 0, fase)
+  for (const fase of ['transicao', 'realizacao']) assert.equal(conta('avancado', fase), 0, fase)
+  assert.equal(conta('avancado', 'recuperacao'), 1)
   assert.ok(Math.abs(conta('intermediario', 'transicao') - 0.5) < 0.1)
   assert.equal(conta('intermediario', 'realizacao'), 0)
   assert.equal(conta('iniciante', 'transicao'), 1)

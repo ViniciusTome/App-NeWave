@@ -136,7 +136,7 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         // Acumulação e em metade da Transição; avançado só na Acumulação
         const chance = chanceNaFase(tecnicaDoStress.regras, a.level, t.plano.fase)
         if (chance === 0) {
-            confere('Técnica só nas fases do nível (iniciante: fora da Realização; intermediário: Acumulação e metade da Transição; avançado: só Acumulação)',
+            confere('Técnica só nas fases do nível (iniciante: fora da Realização; intermediário: Acumulação e metade da Transição; avançado: só Acumulação; recuperação: todos)',
                 !com(aq) && !com(solto), () => `${quem}: ${t.date} ${t.plano.fase}`)
         } else if (aq && a.sessionMinutes >= 30) {
             const conta = chance === 1 ? contaTecnica.treino : contaTecnica.metade
