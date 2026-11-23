@@ -97,3 +97,21 @@
     }
 
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .boxLogin {
+        width: calc(100% - 24px);
+        margin: 24px auto;
+        border-radius: 24px;
+    }
+
+    .title {
+        font-size: 26px;
+    }
+
+    .description {
+        font-size: 18px;
+    }
+}

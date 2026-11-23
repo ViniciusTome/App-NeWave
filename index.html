@@ -1,11 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./src/assets/logoBranco.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- viewport-fit=cover: no iPhone o app ocupa a tela toda (respeitando o entalhe) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!-- O link de "esqueci a senha" tem um token na URL: não repassar para outros sites -->
     <meta name="referrer" content="no-referrer" />
+    <!-- App instalável no celular (PWA): ícone na tela inicial e tela cheia -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#171D1F" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NeWave" />
+    <meta name="description" content="Treinos de natação montados para você, com periodização, tempos e evolução." />
     <title>NeWave</title>
   </head>
   <body>

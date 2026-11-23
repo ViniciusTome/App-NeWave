@@ -4,48 +4,37 @@ import { IconFeed } from '../icons/IconFeed'
 import { IconInfo } from '../icons/IconInfo'
 import { IconBook } from '../icons/IconBook'
 import { IconLogin } from '../icons/IconLogin'
+import { IconHome } from '../icons/IconHome'
 import { AsideIcon } from '../AsideIcon'
-import { Link } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
+
+// No computador: menu na lateral. No celular: barra fixa embaixo da tela, com os
+// nomes curtos e o "Início" (no computador o início é a logo).
+const ITENS = [
+    { to: '/page/home', icon: <IconHome />, nome: 'Início', short: 'Início', soCelular: true },
+    { to: '/page/profile', icon: <IconAccount />, nome: 'Perfil', short: 'Perfil' },
+    { to: '/page/training', icon: <IconFeed />, nome: 'Treinos/Periodização', short: 'Treinos' },
+    { to: '/page/performance', icon: <IconInfo />, nome: 'Desempenho/Feedback', short: 'Desempenho' },
+    { to: '/page/glossario', icon: <IconBook />, nome: 'Glossário', short: 'Glossário' },
+    { to: '/auth/logout', icon: <IconLogin />, nome: 'Sair', short: 'Sair' },
+]
 
 export const Menu = () => {
 
     return (
-        <div className={styles.container}>
-            <div className={styles.icon}>
-                <Link to='/page/profile' className={styles.link}>
-                    <AsideIcon icon={<IconAccount/>} className={styles.asideicon}>
-                        Perfil
-                    </AsideIcon>
-                </Link>
-            </div>
-            <div className={styles.icon}>
-                <Link to='/page/training' className={styles.link}>
-                    <AsideIcon icon={<IconFeed/>} className={styles.asideicon}>
-                        Treinos/Periodização
-                    </AsideIcon>
-                </Link>
-            </div>
-            <div className={styles.icon}>
-                <Link to='/page/performance' className={styles.link}>
-                    <AsideIcon icon={<IconInfo/>} className={styles.asideicon}>
-                        Desempenho/Feedback
-                    </AsideIcon>
-                </Link>
-            </div>
-            <div className={styles.icon}>
-                <Link to='/page/glossario' className={styles.link}>
-                    <AsideIcon icon={<IconBook/>} className={styles.asideicon}>
-                        Glossário
-                    </AsideIcon>
-                </Link>
-            </div>
-            <div className={styles.icon}>
-                <Link to='/auth/logout' className={styles.link}>
-                    <AsideIcon icon={<IconLogin/>} className={styles.asideicon}>
-                        Sair
-                    </AsideIcon>
-                </Link>
-            </div>
-        </div>
+        <nav className={styles.container} aria-label='Menu principal'>
+            {ITENS.map((item) => (
+                <div key={item.to} className={`${styles.icon} ${item.soCelular ? styles.soCelular : ''}`}>
+                    <NavLink
+                        to={item.to}
+                        className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}
+                    >
+                        <AsideIcon icon={item.icon} short={item.short}>
+                            {item.nome}
+                        </AsideIcon>
+                    </NavLink>
+                </div>
+            ))}
+        </nav>
     )
 }

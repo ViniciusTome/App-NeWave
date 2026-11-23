@@ -16,3 +16,17 @@
 .plan a:hover {
     text-decoration: underline;
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .plan {
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .name,
+    .plan a {
+        margin: 6px 10px;
+    }
+}

@@ -23,3 +23,23 @@
 @media screen and (min-width: 1024px) and (max-width: 1400px) {
     
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    /* Cabeçalho no topo: logo, nome e "Gerar treinos" */
+    .container {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        width: 100%;
+        height: auto;
+        margin: 0 0 12px;
+        padding: 6px 12px;
+        padding-top: calc(6px + env(safe-area-inset-top));
+        border-radius: 0;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 8px;
+    }
+}

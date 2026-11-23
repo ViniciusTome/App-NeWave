@@ -475,7 +475,7 @@ Ao gerar os treinos, o app monta **todos os treinos da periodização**: do dia 
   | Transição 1 | 14 a 30 | Especificidade: resistência mista, A3 e aeróbica intensa (entram A3, AC, NEG, POS, final forte); volume 85%; velocidade do avançado nos 25 m cd 25" |
   | Transição 2 | 14 a 30 | Força específica: como a Transição 1, puxando para palmar e palmar + pull buoy; volume 85%; velocidade do avançado nos 25 m cd 25" |
   | Semana de recuperação | 7 | Depois de cada Transição: só ritmo leve, volume 60%, sem velocidade |
-  | Realização | 6 a 8 | Ritmo de prova e velocidade: mais AC e final forte, volume caindo de 85% no 1º treino a 60% no último, **Só uma semana:** com duas, o atleta perde condicionamento e sofre mais na volta aos treinos |
+  | Realização | 6 a 8 | Ritmo de prova e velocidade: mais AC e final forte, volume caindo de 85% no 1º treino a 60% no último, **descansos 30 a 40% maiores** (`descansoMaior`), **Só uma semana:** com duas, o atleta perde condicionamento e sofre mais na volta aos treinos |
 
   - **Montada de trás para frente**, como o treinador faz: primeiro a **Realização** (antes da prova), depois a **semana de recuperação**, a **Transição** e a **Acumulação**, repetindo o ciclo do nível até encaixar tudo (`periodizacao.ciclo`):
     - **Iniciante e intermediário:** **duas Acumulações para cada Transição** (A1-A2-T).
@@ -543,7 +543,9 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 - **Iniciante:** como o descanso do A3 é maior, a saída do A3 pode ficar acima da do A1, mas **no máximo 20" acima**. O A2 fica com a sua (ex.: 1'40" / 1'45" / 1'55").
 - **Iniciante com equipamento:** a saída não diminui com pé de pato ou palmar. O card mostra um aviso: se fizer muito abaixo do tempo proposto, descanse o tempo de descanso antes da próxima.
 - **AC (acima do melhor):** nos 400, melhor tempo do teste + o AC. Nas outras distâncias, o melhor tempo é **estimado pela tabela de percentuais** a partir do A1: melhor = tempo do A1 ÷ (1 + (100 − esforço do A1) ÷ 100). Ex. (avançado, A1 a 75%): 100 m A1 1'30" → melhor 1'12"; 10 AC = 1'22" + 25" = **cd 1'45"**.
+- **Quanto mais perto do 100%, maior o descanso (regra `acNoMesmoNivel`):** o AC abaixo de 15 (10 AC, 5 AC...) fica com a **mesma saída do 15 AC**: o tempo de nado cai e o descanso cresce. Numa série com vários AC (ex.: 15, 10 e 5 AC, ou 30, 20 e 10 AC), a saída **nunca diminui** de uma série para a outra: fica no nível do AC mais leve. Ex. (teste em 5'30", 100 m): 15 AC, 10 AC e 5 AC, todos cd 1'45" (antes 1'45", 1'40" e 1'35").
 - **NEG, POS e final forte:** tempo do A2 + **20" a 30"** (usa 25") nos 50 e 100 m. Nas outras distâncias, a tabela de descanso.
+- **Realização: descansos 30 a 40% maiores (regra `descansoMaior`).** Vale para todos os descansos das repetições (A1, A2, A3, AC, NEG, POS, final forte e velocidade), menos o solto. Usa o meio (35%) e, se der número quebrado, **arredonda para múltiplo de 5**. Ex.: 100 m A1 com 25" de descanso: 25" x 1,35 = 33,75" → **35"** (cd 1'55" → **2'05"**). O cd sempre fica pelo menos 5" maior que o normal (o arredondamento não pode apagar o descanso a mais). Sem tempos, o descanso escrito também cresce (ex.: c/30" → c/40").
 - **Velocidade:** avançado nos 25 m **cd 30"** (25" na Transição, para apertar mais). Nos outros casos: o tempo forte (melhor dos 50 estimado, proporcional à distância) **+ 20" a 30" de descanso**; sem tempo, `c/20" a 30" de descanso`. **Nunca 1/1.**
 - **Estilo da velocidade:** a série "livre" vai com o estilo escrito no card (CR, CO, PE, BO), sorteado entre os que o atleta nada (crawl com o dobro de chance). As que têm medley ou estilos continuam com eles.
 - **Grupos** (ex.: 3x(1x100; 2x75; 3x50; 4x25)): cada distância com a sua saída. Se a saída é a mesma em todas as séries, vai na linha da distância; se muda, vai na linha de cada série (`100 cd 1'45" / 75 cd 1'30" / ...`).
@@ -598,6 +600,8 @@ Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m 
 - A regra fica em `testeNaPeriodizacao` no `regras.json`. Quem não nada 400 m sem parar (condicionamento) não faz o teste.
 
 ### Como a série aparece no card
+
+- **Perna (regra `perna.estilos`):** o card sempre diz o estilo da pernada: **um estilo** (ex.: `4 x 100 m PR · c/PÉ · CO`), **dois alternando a cada repetição** (ex.: `8 x 50 m PR · CR | BO`) ou **medley** (`MD`, quando a repetição fecha o medley na piscina: 100 m na de 25 m). Só entram os estilos que o atleta nada. **Perna com pé de pato: nada de peito nem medley** (com o pé de pato não dá para fazer a pernada de peito). Essa regra é só da perna: nadando (principal, velocidade) pode peito com pé de pato (perna de crawl ou de borboleta).
 
 - **Regra da troca de estilo:** sempre que o estilo troca dentro de uma mesma série, as repetições são separadas por **barra vertical "|"**, para a troca ficar fácil de ver. Ex.: `1ª série: c/PÉ · A1 · BO/CR T/100 | CO | ME | CR · cd 4'40"`. A barra "/" fica só dentro da repetição (BO/CR T/100 = 100 borboleta + 100 crawl) e nos tempos por distância (100 cd 1'40" / 75 cd 1'25").
 

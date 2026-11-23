@@ -49,6 +49,19 @@ npm run test:server  # roda os testes do backend
 npm run seed -- seu@email.com  # coloca testes e treinos de exemplo nessa conta
 ```
 
+## App no celular (versão 0.1)
+
+O NeWave funciona no celular de dois jeitos:
+
+- **No navegador do celular:** as telas se ajustam à largura (até 768 px). Em cima fica um cabeçalho com a logo e o "Gerar treinos"; embaixo, um menu fixo (Início, Perfil, Treinos, Desempenho, Glossário, Sair), e as janelas abrem em tela cheia.
+- **Instalado como aplicativo (PWA):** depois de publicado o site (com HTTPS), o atleta abre o endereço no celular e instala:
+  - **Android (Chrome):** menu ⋮ → "Instalar app" (ou "Adicionar à tela inicial").
+  - **iPhone (Safari):** botão Compartilhar → "Adicionar à Tela de Início".
+
+  O NeWave ganha o ícone do nadador na tela inicial e abre em tela cheia, sem a barra do navegador. Sem internet, ele abre a última versão guardada; os treinos e tempos sempre vêm do servidor.
+
+Arquivos: `public/manifest.webmanifest` (nome, cores e ícones), `public/sw.js` (service worker, só na versão publicada) e `public/icons/`. Para testar a versão publicada localmente: `npm run build && npm run preview` (com o backend rodando).
+
 ## Documentos de referência
 
 - [`docs/tabela-de-percentuais.md`](docs/tabela-de-percentuais.md): tabela do treinador com os tempos de treino em cada porcentagem (100% a 60%) a partir do melhor tempo. Guardada para usar quando o atleta registrar testes de 50, 100 ou 200 m.

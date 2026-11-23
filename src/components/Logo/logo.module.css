@@ -19,3 +19,23 @@
         width: 100px;
     }
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .container {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .img {
+        width: 42px;
+        margin: 0;
+    }
+
+    .name {
+        margin: 0;
+        font-size: 20px;
+    }
+}

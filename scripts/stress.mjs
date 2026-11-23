@@ -203,6 +203,12 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
             }
         }
 
+        for (const p of t.partes.filter((x) => x.parte === 'perna')) {
+            confere('Perna com o estilo escrito (CR, CO, PE, BO, MD)', /\b(CR|CO|PE|BO|MD)\b/.test(p.texto), () => `${quem}: ${p.texto}`)
+            const semTroca = p.texto.replace(/\(no lugar do PE[^)]*\)/, '')
+            confere('Perna com pé de pato: sem peito nem medley', !/c\/PÉ(?! de)/.test(p.texto) || !/\b(PE|MD)\b/.test(semTroca),
+                () => `${quem}: ${p.texto}`)
+        }
         for (const p of principais) {
             for (const l of p.texto.split('\n')) {
                 confere('Linha da principal na ordem: como nada · intensidade · estilo · tempo', ordemDaLinha(l), () => `${quem}: ${l}`)
@@ -216,6 +222,14 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
                     contaBorboleta.linhas++
                     if (/c\/PALM \+ BOIA/.test(l)) contaBorboleta.palmarBoia++
                 }
+            }
+            // Quanto mais perto do 100%, maior o descanso: o AC mais forte nunca tem cd menor
+            {
+                const comAC = p.texto.split('\n').filter((l) => /^\dª série:.*\((\d+) AC\) · CR · cd /.test(l))
+                const cdDe = (l) => { const m = /cd (?:(\d+)')?(\d+)"/.exec(l); return Number(m[1] ?? 0) * 60 + Number(m[2]) }
+                const acDe = (l) => Number(/\((\d+) AC\)/.exec(l)[1])
+                const ok = comAC.every((a) => comAC.every((b) => !(acDe(b) < acDe(a)) || cdDe(b) >= cdDe(a)))
+                if (comAC.length > 1) confere('AC mais forte nunca com cd menor (descansa mais perto do 100%)', ok, () => `${quem}: ${p.texto}`)
             }
             // O medley sem crawl ("MD (BO, CO, PE)") tem só um trecho de borboleta: não conta
             if (/\bBO\b(?!\/)/.test(p.texto.replace(/\((?:BO|CO|PE)(?:, (?:BO|CO|PE))*\)/g, ''))) {

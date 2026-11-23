@@ -83,3 +83,15 @@
     outline: 2px solid #ffffff;
     outline-offset: 2px;
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .highlights {
+        grid-template-columns: 1fr;
+    }
+
+    .answers {
+        grid-template-columns: 1fr 1fr;
+    }
+}

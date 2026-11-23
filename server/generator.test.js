@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, adaptToDistance, emAdaptacaoDaBorboleta, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, descansoFor, emAdaptacaoDaBorboleta, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, strokeFactor, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -29,6 +29,10 @@ function seeded(seed) {
 }
 
 const QUATRO = ['crawl', 'costas', 'peito', 'borboleta']
+const avancadoPerfil = {
+  sessionMinutes: 60, trainingDays: [1, 3, 5], poolLength: 25, continuousDistance: 'mais_2000', strokes: QUATRO,
+  bestStroke: 'costas', equipment: ['pe_de_pato', 'palmar', 'pull_buoy'], time400: { hundredths: 33000 },
+}
 const avancado = {
   level: 'avancado', sessionMinutes: 60, trainingDays: [1, 3, 5], poolLength: 25,
   continuousDistance: 'mais_2000', strokes: QUATRO, bestStroke: 'costas',
@@ -522,6 +526,41 @@ test('saída = tempo da intensidade + descanso, de 5 em 5 segundos', () => {
   assert.equal(saidaFor(rules, { level: 'avancado' }, { distancia: 100 }, 'A1'), null)
 })
 
+test('Realização: descansos 30 a 40% maiores (35%), arredondados de 5 em 5', () => {
+  const realizacao = rules.periodizacao.etapas.realizacao.descansoMaior
+  assert.deepEqual(realizacao, [0.3, 0.4])
+  const base = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  const naR = { ...base, descansoMaior: realizacao }
+  // 100 m A1: 1'30" + 25" de descanso = 1'55"; na Realização 25" x 1,35 = 33,75 -> 35": 2'05"
+  assert.equal(saidaFor(rules, base, { distancia: 100 }, 'A1'), 115)
+  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'A1'), 125)
+  // 400 com 30 AC: 1' de descanso -> 81" -> 1'20": 7'30" -> 7'50"
+  assert.equal(saidaFor(rules, naR, { distancia: 400 }, '30 AC'), 470)
+  // NEG/POS nos 100: 25" -> 35"
+  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'NEG') - saidaFor(rules, base, { distancia: 100 }, 'NEG'), 10)
+  // Sem tempos: o descanso escrito também cresce (iniciante A3: 30" -> 40,5 -> 40")
+  assert.equal(descansoFor(rules, { level: 'iniciante' }, { distancia: 100 }, 'A3'), 30)
+  assert.equal(descansoFor(rules, { level: 'iniciante', descansoMaior: realizacao }, { distancia: 100 }, 'A3'), 40)
+  // Velocidade: o avançado nos 25 m (cd 30") descansa mais: cd 35"
+  assert.equal(saidaVelocidade(rules, base, { distancia: 25 }), 30)
+  assert.equal(saidaVelocidade(rules, naR, { distancia: 25 }), 35)
+  // Sempre múltiplo de 5
+  for (const d of [25, 50, 75, 100, 150, 200, 400]) {
+    for (const v of ['A1', 'A2', 'A3', '10 AC', 'NEG']) assert.equal(saidaFor(rules, naR, { distancia: d }, v) % 5, 0, `${d} ${v}`)
+  }
+})
+
+test('Realização no gerador: as saídas ficam maiores que na Transição', () => {
+  const [a] = gerar(avancado, 1)
+  assert.ok(a)
+  const plano = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(3),
+    periodizacao: { inicio: '2026-11-23', fim: '2027-02-28', semProva: true } })
+  const daEtapa = (e) => plano.filter((t) => t.plano.etapa === e)
+  assert.ok(daEtapa('realizacao').length > 0)
+  const montagem = daEtapa('realizacao').flatMap((t) => t.plano.montagem).filter(Boolean)
+  assert.ok(montagem.every((m) => m.dia.descansoMaior?.[0] === 0.3), 'o dia da Realização guarda a regra (para atualizar o tempo depois)')
+})
+
 test('texto da saída', () => {
   assert.equal(saidaText(45), '45"')
   assert.equal(saidaText(60), "1'00\"")
@@ -566,10 +605,38 @@ test('AC em outras distâncias: melhor tempo estimado pela tabela de percentuais
   const avancado = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   // A1 do 100 = 1'30" a 75%: melhor = 90 ÷ 1,25 = 72"
   assert.equal(bestTimeFor(rules, avancado, 100), 72)
-  // 10 AC nos 100: 72 + 10 + 25" de descanso = 107 -> 1'45"
-  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '10 AC'), 105)
+  // 15 AC nos 100: 72 + 15 + 25" de descanso = 112 -> 1'50"
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '15 AC'), 110)
+  // 10 AC: 72 + 10 + 25" = 1'47" -> 1'45", mas fica no nível do 15 AC (descansa mais): 1'50"
+  assert.equal(saidaFor(rules, avancado, { distancia: 100 }, '10 AC'), 110)
   // Nos 400 vale o teste
   assert.equal(bestTimeFor(rules, avancado, 400), 360)
+})
+
+test('quanto mais perto do 100%, maior o descanso: 15, 10 e 5 AC com a mesma saída', () => {
+  const avancado = { level: 'avancado', tabela: timeTable(rules, 330), teste400: 330 }
+  for (const d of [50, 100, 200, 250]) {
+    const [c15, c10, c5] = ['15 AC', '10 AC', '5 AC'].map((v) => saidaFor(rules, avancado, { distancia: d }, v))
+    assert.equal(c10, c15, `${d} m`)
+    assert.equal(c5, c15, `${d} m`)
+  }
+  // Os mais leves (20, 30 AC) continuam com a saída deles (maior)
+  assert.ok(saidaFor(rules, avancado, { distancia: 100 }, '30 AC') > saidaFor(rules, avancado, { distancia: 100 }, '15 AC'))
+  // Na série: 30, 20 e 10 AC -> a saída não diminui, fica no nível do 30 AC
+  const serie = { blocos: [{ vezes: 3, repeticoes: 4, distancia: 100 }] }
+  const saidas = saidasDaSerie(rules, avancado, serie, { unidade: 'serie', valores: ['30 AC', '20 AC', '10 AC'] }, 'transicao')
+  assert.equal(new Set(saidas).size, 1, saidas.join(', '))
+  // Nos treinos gerados: numa série com vários AC, a saída nunca cai de uma série para a outra
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    const plano = generateTrainings({ rules, library, athlete: { ...avancado, ...avancadoPerfil }, today: '2026-11-23', random: seeded(seed),
+      periodizacao: { inicio: '2026-11-23', fim: '2027-02-28', semProva: true } })
+    for (const p of plano.flatMap((t) => t.partes).filter((x) => x.parte === 'principal')) {
+      const linhas = p.texto.split('\n').filter((l) => /^\dª série:.*\(\d+ AC\)/.test(l))
+      const cd = (l) => { const m = /cd (\d+)'(\d+)"/.exec(l) ?? /cd (\d+)"/.exec(l); return m[2] ? Number(m[1]) * 60 + Number(m[2]) : Number(m[1]) }
+      const ac = (l) => Number(/\((\d+) AC\)/.exec(l)[1])
+      for (const a of linhas) for (const b of linhas) if (ac(b) < ac(a) && /· CR · cd/.test(a) && /· CR · cd/.test(b)) assert.ok(cd(b) >= cd(a), p.texto)
+    }
+  }
 })
 
 test('NEG, POS e final forte: tempo do A2 + 20" a 30" nos 50 e 100 m', () => {
@@ -893,9 +960,12 @@ test('feedback: os próximos treinos menores; sem A3 nos 2 primeiros quando foi 
   const treinos = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(1), historico })
   assert.ok(treinos.every((t) => t.plano.fatorPrincipal === 0.9 && t.plano.carga === -1))
   for (const t of treinos.slice(0, 2)) assert.notEqual(t.plano.intensidade, 'A3')
-  const normais = gerar(avancado)
+  // (vários sorteios: um só pode cair numa série maior por acaso)
+  const seeds = [1, 2, 3, 4, 5, 6]
+  const menores = seeds.flatMap((seed) => generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(seed), historico }))
+  const normais = seeds.flatMap((seed) => gerar(avancado, seed))
   const metros = (ts) => ts.reduce((s, t) => s + t.plano.metrosPrincipal, 0)
-  assert.ok(metros(treinos) < metros(normais), `${metros(treinos)} >= ${metros(normais)}`)
+  assert.ok(metros(menores) < metros(normais), `${metros(menores)} >= ${metros(normais)}`)
 })
 
 test('feedback: faltou ar -> repetições curtas; faltou força -> palmar', () => {
@@ -1323,3 +1393,28 @@ test('borboleta dividida no card: "BO/CO T/100" na repetição de 200', () => {
     for (const t of trocas) assert.equal(t, `T/${metade}`, l)
   }
 })
+
+test('perna: o card diz o estilo (um, dois alternando ou medley); com pé de pato, nada de peito', () => {
+  const formatos = { um: 0, dois: 0, medley: 0 }
+  const QUATRO_PERNA = { ...avancado, sessionMinutes: 90, bestStroke: 'peito', equipment: ['pe_de_pato', 'palmar', 'pull_buoy'] }
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+    for (const t of gerar(QUATRO_PERNA, seed)) {
+      for (const p of t.partes.filter((x) => x.parte === 'perna')) {
+        assert.match(p.texto, /\b(CR|CO|PE|BO|MD)\b/, p.texto)
+        const comPe = /c\/PÉ(?! de)/.test(p.texto)
+        // Com pé de pato: nem peito nem medley
+        if (comPe) assert.ok(!/· (PE|MD)\b|\| PE\b/.test(p.texto), p.texto)
+        if (/ \| /.test(p.texto)) formatos.dois++
+        else if (/· MD\b/.test(p.texto)) formatos.medley++
+        else formatos.um++
+      }
+    }
+  }
+  assert.ok(formatos.um > 0 && formatos.dois > 0, JSON.stringify(formatos))
+  // Sem pé de pato: o medley e o peito podem entrar
+  const semPe = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap((seed) => gerar({ ...QUATRO_PERNA, equipment: [] }, seed))
+    .flatMap((t) => t.partes.filter((x) => x.parte === 'perna').map((p) => p.texto))
+  assert.ok(semPe.some((tx) => /\bMD\b/.test(tx)), semPe.join('\n'))
+  assert.ok(semPe.some((tx) => /\bPE\b/.test(tx)), semPe.join('\n'))
+})
+

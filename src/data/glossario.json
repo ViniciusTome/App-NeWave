@@ -39,7 +39,8 @@
       { "sigla": "Velocidade", "explicacao": "Tiros curtos e fortes (ex.: 25 m)." },
       { "sigla": "Solto", "explicacao": "Nado bem leve, para recuperar." },
       { "sigla": "Série principal", "explicacao": "A parte mais importante do treino, com o objetivo do dia." },
-      { "sigla": "PR", "nome": "Perna (pernada)", "explicacao": "Série só de pernada." },
+      { "sigla": "PR", "nome": "Perna (pernada)", "explicacao": "Série só de pernada, no estilo escrito (ex.: PR · CO = perna de costas; PR · MD = perna de medley). Com pé de pato não tem perna de peito." },
+      { "sigla": "|", "nome": "Troca de estilo", "detectar": " \\| ", "explicacao": "Separa os estilos de cada repetição, na ordem. Ex.: ME | BO | ME | BO = 1ª repetição no melhor estilo, 2ª borboleta... Na perna, dois estilos (ex.: 8 x 50 m PR · CR | CO) se alternam a cada repetição: 1ª CR, 2ª CO, 3ª CR..." },
       { "sigla": "BR", "nome": "Braçada", "explicacao": "Série só de braçada, normalmente com pull buoy entre as pernas." },
       { "sigla": "Soltura", "explicacao": "Final do treino, bem leve, para soltar o corpo." },
       { "sigla": "Hidratação", "explicacao": "Pausa nos treinos longos para beber água e comer algo leve (uma fruta)." }

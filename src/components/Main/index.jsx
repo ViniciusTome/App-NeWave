@@ -1,9 +1,9 @@
-// import styles from './main.module.css'
+import styles from './main.module.css'
 
 export const Main = ({ children }) => {
 
     return (
-        <div>
+        <div className={styles.main}>
             {children}
         </div>
     )

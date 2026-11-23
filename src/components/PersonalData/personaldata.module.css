@@ -44,3 +44,26 @@
 .birth p {
     margin: 0px;
 }
+
+
+/* ---------- Celular ---------- */
+@media screen and (max-width: 768px) {
+    .name,
+    .email,
+    .phone,
+    .password,
+    .birth {
+        width: calc(50% - 20px);
+        overflow-wrap: anywhere;
+    }
+
+    .email {
+        width: 100%;
+    }
+
+    /* O texto dentro de cada campo ocupa a largura do campo */
+    .description p {
+        width: auto;
+        margin: 0;
+    }
+}

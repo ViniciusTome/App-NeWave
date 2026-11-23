@@ -1,5 +1,5 @@
 import styles from './logo.module.css'
-import logo from '../../assets/logoColorida.png'
+import logo from '../../assets/logo.svg'
 
 export const Logo = () => {
 
