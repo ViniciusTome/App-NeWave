@@ -122,7 +122,7 @@ Como funciona: o botão do Google entrega ao navegador um token assinado; o serv
 ## Perfil (conta)
 
 - **Treinos realizados e sequência sem falhar:** calculados pelos treinos do atleta. A sequência conta, do mais recente para trás, os treinos feitos; para na primeira falta ou no primeiro treino que passou da data sem resposta (o de hoje ainda não feito não quebra).
-- **Dados pessoais:** nome, telefone (com DDD) e data de nascimento editáveis; o email é o do login. **Trocar senha** pede a senha atual e encerra as outras sessões abertas.
+- **Dados pessoais:** nome e data de nascimento editáveis; o email é o do login. **Trocar senha** pede a senha atual e encerra as outras sessões abertas.
 - **Suporte:** "Entre em contato" guarda a mensagem (e manda para `SUPPORT_EMAIL`, se configurado). **Excluir conta** pede a senha e apaga a conta e tudo dela (treinos, testes, provas, respostas).
 - **Pagamentos:** por enquanto o app é gratuito; quando houver planos, a escolha e o pagamento entram aqui.
 - Backend: `server/account.js` (rotas `GET/PATCH/DELETE /api/account`, `POST /api/account/password`, `POST /api/support`).

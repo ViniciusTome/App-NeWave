@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useAccount, formatPhone } from '../../hooks/useAccount'
+import { useAccount } from '../../hooks/useAccount'
 import { formatDate } from '../../utils/format'
 import { ChangePassword, EditPersonalData } from '../AccountForms'
 import { Modal } from '../Modal'
 import styles from './personaldata.module.css'
 
-// Dados pessoais do atleta: nome, email, telefone, nascimento e senha (pode editar)
+// Dados pessoais do atleta: nome, email, nascimento e senha (pode editar)
 export const PersonalData = () => {
     const { data, error } = useAccount()
     const [aberto, setAberto] = useState(null) // 'dados' | 'senha'
@@ -25,10 +25,6 @@ export const PersonalData = () => {
                 <div className={styles.email}>
                     <label>Email</label>
                     <p>{conta.email}{conta.google && <span className={styles.empty}> · conta Google</span>}</p>
-                </div>
-                <div className={styles.phone}>
-                    <label>Telefone</label>
-                    <p>{conta.phone ? formatPhone(conta.phone) : naoInformado}</p>
                 </div>
                 <div className={styles.password}>
                     <label>Senha</label>

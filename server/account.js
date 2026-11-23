@@ -5,15 +5,6 @@ import { createRateLimiter, hashPassword, verifyPassword } from './security.js'
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/
 
-// Telefone: só os números, com DDD (10 ou 11 dígitos). Vazio apaga.
-function readPhone(value) {
-  if (value === undefined) return undefined
-  if (value === null || String(value).trim() === '') return null
-  const digits = String(value).replace(/\D/g, '')
-  if (digits.length < 10 || digits.length > 11) throw new HttpError(400, 'Informe o telefone com DDD (10 ou 11 números).')
-  return digits
-}
-
 // Nascimento: data válida, entre 1900 e 3 anos atrás. Vazio apaga.
 function readBirthDate(value, today) {
   if (value === undefined) return undefined
@@ -41,8 +32,8 @@ export function trainingStats(rows, today) {
 // `sessionTokenHash(req)`: o hash da sessão atual (ela continua aberta ao trocar a senha);
 // `logoutCookie()`: o cookie que encerra a sessão (ao excluir a conta)
 export function createAccountRoutes({ db, requireUser, mailer, supportEmail = null, sessionTokenHash, logoutCookie }) {
-  const findUser = db.prepare('SELECT id, name, email, phone, birth_date, created_at, password_hash, password_set, google_sub FROM users WHERE id = ?')
-  const updateUser = db.prepare('UPDATE users SET name = ?, phone = ?, birth_date = ? WHERE id = ?')
+  const findUser = db.prepare('SELECT id, name, email, birth_date, created_at, password_hash, password_set, google_sub FROM users WHERE id = ?')
+  const updateUser = db.prepare('UPDATE users SET name = ?, birth_date = ? WHERE id = ?')
   const updatePassword = db.prepare('UPDATE users SET password_hash = ?, password_set = 1 WHERE id = ?')
   const deleteOtherSessions = db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?')
   const deleteUser = db.prepare('DELETE FROM users WHERE id = ?')
@@ -53,7 +44,7 @@ export function createAccountRoutes({ db, requireUser, mailer, supportEmail = nu
   const supportLimiter = createRateLimiter({ max: 5, windowMs: 60 * 60 * 1000 })
 
   const publicAccount = (row) => ({
-    id: row.id, name: row.name, email: row.email, phone: row.phone ?? null,
+    id: row.id, name: row.name, email: row.email,
     birthDate: row.birth_date ?? null, createdAt: row.created_at,
     // Quem entrou só pelo Google não tem senha no app (pode criar uma)
     hasPassword: row.password_set !== 0, google: Boolean(row.google_sub),
@@ -86,7 +77,7 @@ export function createAccountRoutes({ db, requireUser, mailer, supportEmail = nu
       })
     },
 
-    // PATCH /api/account { name?, phone?, birthDate? }
+    // PATCH /api/account { name?, birthDate? } (o telefone saiu: não é preciso)
     async updateAccount(req, res) {
       const user = requireUser(req)
       const body = await readJson(req)
@@ -98,9 +89,8 @@ export function createAccountRoutes({ db, requireUser, mailer, supportEmail = nu
         }
         name = body.name.trim()
       }
-      const phone = readPhone(body.phone)
       const birthDate = readBirthDate(body.birthDate, readToday(req))
-      updateUser.run(name, phone === undefined ? row.phone : phone, birthDate === undefined ? row.birth_date : birthDate, user.id)
+      updateUser.run(name, birthDate === undefined ? row.birth_date : birthDate, user.id)
       sendJson(res, 200, { account: publicAccount(findUser.get(user.id)) })
     },
 
