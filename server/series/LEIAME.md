@@ -551,7 +551,7 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 ### Estilo e cd dos estilos
 
 - **O card sempre diz o estilo.** Série principal "livre" é de crawl: o card mostra **CR**. Séries com estilos misturados mostram os estilos de cada série (ME, PE, MD...). Na velocidade, o estilo é sorteado entre os que o atleta nada.
-- **cd dos estilos:** os tempos da tabela são do crawl (teste de 400 m). Nos estilos **o descanso é o mesmo** e só o tempo de nado é maior: tempo do crawl × `saidas.fatorDoEstilo`: costas e borboleta 1,30; medley e estilos misturados 1,35; peito 1,40. Calibrado com a experiência do treinador (avançado): 100 de estilo a cada 2'00" contra 1'30" no crawl, e 200 a cada 4'00" contra 3'10" a 3'20". Série que mistura estilos: vale o mais lento, para todas as repetições caberem.
+- **cd dos estilos:** os tempos da tabela são do crawl (teste de 400 m). Nos estilos **o descanso é o mesmo** e só o tempo de nado é maior: tempo do crawl × `saidas.fatorDoEstilo`: **+35% para todos os estilos** (costas, borboleta, peito, medley e estilos misturados). Calibrado com a experiência do treinador (avançado): 100 de estilo a cada 2'00" contra 1'30" no crawl, e 200 a cada 4'00" contra 3'10" a 3'20". Série que mistura estilos: vale o mais lento, para todas as repetições caberem.
 - **Medley na anamnese:** a opção "Medley (os quatro)" marca os quatro estilos de uma vez.
 
 ### Remarcar o teste

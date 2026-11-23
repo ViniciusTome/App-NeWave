@@ -1174,12 +1174,14 @@ test('cd dos estilos: o tempo de nado do crawl x o fator do estilo; o descanso Ã
   const a = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
   const crawl = saidaFor(rules, a, { distancia: 100 }, 'A1')
   const peito = saidaFor(rules, a, { distancia: 100 }, 'A1', rules.saidas.fatorDoEstilo.peito)
-  // 100 A1 = 1'30" de crawl; de peito 2'06" + 25" de descanso -> 2'30"
+  // 100 A1 = 1'30" de crawl; de peito (+35%) 2'01" + 25" de descanso -> 2'25"
   assert.equal(crawl, 115)
-  assert.equal(peito, 150)
+  assert.equal(peito, 145)
   // SÃ©rie que mistura estilos: vale o mais lento
   const variation = { nado: 'misto', porSerie: [['costas', 'peito'], ['crawl']] }
-  assert.equal(strokeFactor(rules, variation, 0), rules.saidas.fatorDoEstilo.peito)
+  // (todos os estilos com +35%)
+  for (const estilo of ['costas', 'peito', 'borboleta', 'medley']) assert.equal(rules.saidas.fatorDoEstilo[estilo], 1.35)
+  assert.equal(strokeFactor(rules, variation, 0), 1.35)
   assert.equal(strokeFactor(rules, variation, 1), 1)
   assert.equal(strokeFactor(rules, { nado: 'livre', nadoAbrev: 'CR' }), 1)
   assert.equal(strokeFactor(rules, { nado: 'medley' }), rules.saidas.fatorDoEstilo.medley)
