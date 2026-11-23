@@ -5,12 +5,13 @@ import { RaceFields } from '../RaceFields'
 import { EMPTY_RACE, racePayload, raceProblem } from '../../utils/race'
 import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
-    IMPORTANCE_OPTIONS, MODEL_TEXT, NO_COMPETITION_GOALS, TRAINING_MODELS, competitionLabel, daysUntil, daysUntilText,
+    IMPORTANCE_OPTIONS, MODEL_TEXT, POOL_MODALITIES, NO_COMPETITION_GOALS, TRAINING_MODELS, competitionLabel, daysUntil, daysUntilText,
     goalLabel, labelOf, levelText, profileSummary, specificBlocker,
 } from '../../utils/athlete'
-import { formatDate, todayIso } from '../../utils/format'
+import { formatDate, formatSwimTime, todayIso } from '../../utils/format'
 import styles from './wizard.module.css'
 
+const TEST_OPTIONS = [{ value: true, label: 'Sim, quero fazer' }, { value: false, label: 'Não, meu tempo já vale' }]
 const EMPTY_COMPETITION = { name: '', date: '', ...EMPTY_RACE }
 
 // Fluxo do botão "Gerar treinos":
@@ -32,6 +33,7 @@ export const GenerateTrainings = ({ onClose }) => {
     const [noCompetitionGoal, setNoCompetitionGoal] = useState(null)
     const [targetError, setTargetError] = useState('')
     const [model, setModel] = useState('geral') // geral | especifico
+    const [withTest, setWithTest] = useState(null) // quer o teste de 400 m nesta preparação?
 
     const [saving, setSaving] = useState(false)
     const [saveError, setSaveError] = useState('')
@@ -82,18 +84,25 @@ export const GenerateTrainings = ({ onClose }) => {
         return null
     }
     const specificProblem = phase === 'resumo' ? specificBlocker(targetCompetition(), athlete?.profile) : ''
+    // Teste de 400 m: quem já tem tempo escolhe se faz (sem tempo, o teste entra depois de 1 mês).
+    // Prova alvo de 400 m em piscina: o teste é a própria prova
+    const alvo = phase === 'resumo' ? targetCompetition() : null
+    const provaDe400 = Boolean(alvo && POOL_MODALITIES.includes(alvo.modality) && alvo.distance === 400)
+    const askTest = Boolean(athlete?.time400) && !provaDe400
     const chosenModel = specificProblem ? 'geral' : model
+
+    const testChoice = () => (askTest ? { withTest } : {})
 
     // O que vai para o servidor, conforme a escolha
     function targetPayload() {
         if (mode === 'atual') {
             return preparation.goal === 'competir'
-                ? { goal: 'competir', competitionId: preparation.competition.id, model: chosenModel }
-                : { goal: preparation.goal }
+                ? { goal: 'competir', competitionId: preparation.competition.id, model: chosenModel, ...testChoice() }
+                : { goal: preparation.goal, ...testChoice() }
         }
-        if (mode === 'calendario') return { goal: 'competir', competitionId: chosenId, model: chosenModel }
-        if (mode === 'nova') return { goal: 'competir', competition: newCompetitionPayload(), model: chosenModel }
-        return { goal: noCompetitionGoal }
+        if (mode === 'calendario') return { goal: 'competir', competitionId: chosenId, model: chosenModel, ...testChoice() }
+        if (mode === 'nova') return { goal: 'competir', competition: newCompetitionPayload(), model: chosenModel, ...testChoice() }
+        return { goal: noCompetitionGoal, ...testChoice() }
     }
 
     // Provas do calendário que não são a alvo escolhida (as intermediárias)
@@ -144,6 +153,7 @@ export const GenerateTrainings = ({ onClose }) => {
     }
 
     const confirm = async () => {
+        if (askTest && withTest === null) return setSaveError('Responda se quer fazer o teste de 400 m nesta preparação.')
         setSaving(true)
         setSaveError('')
         try {
@@ -337,6 +347,18 @@ export const GenerateTrainings = ({ onClose }) => {
                                 value={c.priority === 'A' ? 'B' : c.priority} onChange={(priority) => changePriority(c, priority)} />
                         ))}
                         {priorityError && <p className={styles.error} role='alert'>{priorityError}</p>}
+                    </div>
+                )}
+
+                {askTest && (
+                    <div className={styles.intermediate}>
+                        <ChoiceGroup
+                            label='Quer fazer o teste de 400 m nesta preparação?'
+                            hint={`O teste entra no começo da Transição e atualiza os seus tempos. Se o seu tempo atual (${formatSwimTime(athlete.time400.hundredths)}) ainda vale, não precisa.`}
+                            options={TEST_OPTIONS}
+                            value={withTest}
+                            onChange={(v) => { setWithTest(v); setSaveError('') }}
+                        />
                     </div>
                 )}
 

@@ -368,7 +368,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     SELECT * FROM preparations WHERE user_id = ? ORDER BY id DESC LIMIT 1
   `)
   const insertPreparation = db.prepare(`
-    INSERT INTO preparations (user_id, goal, competition_id, model, created_at) VALUES (?, ?, ?, ?, ?)
+    INSERT INTO preparations (user_id, goal, competition_id, model, with_test, created_at) VALUES (?, ?, ?, ?, ?, ?)
   `)
   const setModel = db.prepare('UPDATE preparations SET model = ? WHERE id = ? AND user_id = ?')
 
@@ -452,7 +452,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     const provaDe400 = regra?.excecao?.modalidades?.includes(modalidade) && (ativa?.competition?.distance
       ? ativa.competition.distance === Number(regra.excecao.prova)
       : new RegExp(`\\b${regra.excecao.prova}\\b`).test(ativa?.competition?.event ?? ''))
-    const testeNaTransicao = Boolean(regra && time400 && geracao >= aPartirDe && !provaDe400)
+    // O atleta respondeu se quer o teste: vale a resposta. Sem resposta: a regra (a partir da geração)
+    const escolheu = ativa?.withTest ?? null
+    const testeNaTransicao = Boolean(regra && time400 && !provaDe400 && (escolheu === null ? geracao >= aPartirDe : escolheu))
 
     let seriesAnteriores = []
     try {
@@ -560,6 +562,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       competition,
       // Modelo de treino: Geral ou Específico da prova (só para quem pode usar)
       model: especifico.ok ? row.model : 'geral',
+      // Quer o teste de 400 m nesta preparação? (null = não perguntado)
+      withTest: row.with_test === null || row.with_test === undefined ? null : row.with_test === 1,
       especifico,
       createdAt: row.created_at,
       // Preparação ainda vale se não tem prova ou se a prova ainda não passou
@@ -868,7 +872,13 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
           const pode = podeUsarEspecifico({ goal, competition: competitionId ? publicCompetition(findCompetition.get(competitionId, user.id)) : null, profile: profileOf(user.id) })
           if (!pode.ok) throw new HttpError(400, pode.motivo)
         }
-        insertPreparation.run(user.id, goal, competitionId, model, now)
+        // Teste de 400 m na periodização: o atleta que já tem tempo escolhe (sim ou não)
+        if (body.withTest !== undefined && body.withTest !== null && typeof body.withTest !== 'boolean') {
+          throw new HttpError(400, 'Responda se quer fazer o teste de 400 m.')
+        }
+        // (sem resposta, ex.: "Tornar prova alvo" no calendário: vale a da preparação anterior)
+        const withTest = typeof body.withTest === 'boolean' ? Number(body.withTest) : findCurrentPreparation.get(user.id)?.with_test ?? null
+        insertPreparation.run(user.id, goal, competitionId, model, withTest, now)
         db.exec('COMMIT')
       } catch (err) {
         db.exec('ROLLBACK')

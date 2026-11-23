@@ -835,3 +835,26 @@ test('nado contínuo: "precisei parar" ao concluir faz os próximos treinos volt
   const depois = (await lista()).find(continuoDe)
   assert.equal(continuoDe(depois).metros, 100)
 })
+
+test('teste de 400 m: quem já tem tempo escolhe se faz o teste na preparação', async () => {
+  const cookie = await userFor('periodizacao')
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  const hoje = daysFromToday(0)
+  const competition = { name: 'Copa Teste', date: daysFromToday(70), modality: 'piscina_25', distance: 200, stroke: 'crawl' }
+  const temTeste = (res) => res.body.trainings.some((t) => t.partes.some((p) => p.parte === 'teste'))
+  const gerar = async (withTest) => {
+    const prep = await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...competition, name: `Copa ${withTest}` }, withTest } })
+    assert.equal(prep.status, 201)
+    assert.equal(prep.body.preparation.withTest, withTest)
+    return api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  }
+  // Sim: o teste entra (mesmo só com o tempo informado)
+  assert.equal(temTeste(await gerar(true)), true)
+  // Não: sem teste
+  assert.equal(temTeste(await gerar(false)), false)
+  // Resposta inválida
+  assert.equal((await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude', withTest: 'talvez' } })).status, 400)
+  // Sem responder (ex.: "Tornar prova alvo"): vale a resposta anterior (não)
+  const sem = await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  assert.equal(sem.body.preparation.withTest, false)
+})
