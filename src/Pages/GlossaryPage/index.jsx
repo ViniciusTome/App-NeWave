@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Aside } from '../../components/Aside'
 import glossario from '../../data/glossario.json'
 import styles from './glossarypage.module.css'
@@ -9,7 +10,9 @@ const normaliza = (texto) => texto.normalize('NFD').replace(/\p{Diacritic}/gu, '
 // Glossário: o que quer dizer cada abreviação e termo dos treinos.
 // Os termos ficam em src/data/glossario.json (dá para editar e acrescentar).
 export const GlossaryPage = () => {
-    const [busca, setBusca] = useState('')
+    // Vindo do "?" de um termo do treino: já abre procurando por ele
+    const [params] = useSearchParams()
+    const [busca, setBusca] = useState(params.get('termo') ?? '')
     const termo = normaliza(busca.trim())
 
     const categorias = glossario

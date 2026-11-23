@@ -1,3 +1,4 @@
+import { TermText } from "../TermText"
 import { MainSeries } from "./MainSeries"
 import { Release } from "./Release"
 import { Speed } from "./Speed"
@@ -29,7 +30,7 @@ export const Training = ({ training }) => {
                 {training.partes.map((parte, i) => (
                     <div key={i} className={styles.section}>
                         <h3>{parte.titulo}</h3>
-                        <p className={styles.text}>{parte.texto}</p>
+                        <p className={styles.text}><TermText texto={parte.texto} extenso={Boolean(parte.extenso)} /></p>
                         {parte.observacao && <p className={styles.note}>{parte.observacao}</p>}
                         {parte.aviso && <p className={styles.note}>⚠️ {parte.aviso}</p>}
                         {MOSTRAR_METRAGEM_E_TEMPO && parte.metros > 0 && (

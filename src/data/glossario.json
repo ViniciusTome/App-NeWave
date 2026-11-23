@@ -63,6 +63,7 @@
       { "sigla": "NAD", "nome": "Nadando", "explicacao": "Nadando normal, sem material." },
       { "sigla": "AC", "nome": "Acima", "explicacao": "Acima do seu melhor tempo. Ex.: 10 AC = 10 segundos acima do seu melhor tempo naquela distância." },
       { "sigla": "NEG", "nome": "Negativo", "explicacao": "A segunda metade mais rápida que a primeira: vai nadando e volta mais forte." },
+      { "sigla": "sai/che", "nome": "Saída e chegada", "explicacao": "Nas repetições de 50 m: sai forte até a metade da piscina e depois desacelera; na volta, vai nadando até a metade da piscina e acelera até chegar na borda." },
       { "sigla": "POS", "nome": "Positivo", "explicacao": "O contrário do negativo: vai mais forte e volta nadando." },
       { "sigla": "75 NAD x 25 fo", "detectar": "\\d+ NAD x \\d+ fo", "nome": "Final forte", "explicacao": "Dentro de cada repetição, os primeiros metros nadando e os últimos 25 m forte. Ex.: num 100 m, 75 m nadando + 25 m forte; num 50 m, 25 nadando + 25 forte." },
       { "sigla": "Tempo", "explicacao": "Repetição para marcar o seu tempo (valendo, o mais forte que conseguir)."  },

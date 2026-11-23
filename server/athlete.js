@@ -467,6 +467,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       inicioDosTreinos: [firstTrainingDate.get(userId)?.date ?? today, today].sort()[0],
       periodizacao: {
         inicio, fim, testeNaTransicao, numeroInicial: countSince.get(userId, inicio, today).total + 1,
+        // 1ª preparação: nomes por extenso nos treinos (com a abreviação entre parênteses)
+        primeira: geracao <= 1,
         // Sem prova (condicionamento ou saúde): periodização padrão A-T-R
         semProva: !(ativa?.goal === 'competir' && ativa.competition),
         // As importantes (prioridade A ou B), menos a prova alvo

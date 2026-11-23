@@ -13,7 +13,7 @@ import {
 const NIVEIS = ['iniciante', 'intermediario', 'avancado']
 const ESTILOS = ['borboleta', 'costas', 'peito'] // "estilo" = qualquer um que não seja o crawl
 // Tipos de "como nadar" na série principal (nunca dois juntos)
-const TIPOS_DE_INTENSIDADE = ['intensidades', 'AC', 'finalForte', 'NEG', 'POS']
+const TIPOS_DE_INTENSIDADE = ['intensidades', 'AC', 'finalForte', 'NEG', 'POS', 'saiChe']
 
 // Formatos de cada série na mistura de nados: igual (costas, costas, costas),
 // espelhado (medley, peito, medley) e diferentes (melhor estilo, peito, medley)
@@ -1060,6 +1060,8 @@ export function drawIntensities(rules, serie, variation, athlete, {
     // Tipos possíveis (NEG, POS e final forte precisam de repetições de pelo menos 50 m)
     const tipos = { ...(tiposDaEtapa ?? regra.tipos) }
     if (todasAsDistancias.some((d) => d < 50)) delete tipos.NEG, delete tipos.POS, delete tipos.finalForte
+    // Saída e chegada (sai/che): só nas séries de 50 m
+    if (!todasAsDistancias.every((d) => d === 50)) delete tipos.saiChe
     if (proibidas.includes('AC')) delete tipos.AC
     const tipo = pickWeighted(tipos, random)
 
@@ -1105,9 +1107,9 @@ export function drawIntensities(rules, serie, variation, athlete, {
         unidade = 'serie_toda'
         valores = [`${distancias[0] - 25} NAD x 25 fo`]
     } else {
-        // NEG ou POS: a série toda
+        // NEG, POS ou saída e chegada: a série toda
         unidade = 'serie_toda'
-        valores = [tipo]
+        valores = [tipo === 'saiChe' ? 'sai/che' : tipo]
     }
 
     // Tudo igual em todas as séries: vale para a série toda

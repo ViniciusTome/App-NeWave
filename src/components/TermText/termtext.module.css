@@ -1,0 +1,44 @@
+.term {
+    white-space: normal;
+}
+
+/* O "?" ao lado do termo: abre a explicação do glossário */
+.help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    margin: 0 2px 0 3px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid #1d6fb8;
+    background-color: #eaf5fd;
+    color: #1d6fb8;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: 2px;
+    cursor: pointer;
+}
+
+.help:focus-visible {
+    outline: 2px solid #0b2f57;
+    outline-offset: 2px;
+}
+
+.box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #0b2f57;
+}
+
+.link {
+    align-self: flex-start;
+    font-weight: 700;
+    color: #1d6fb8;
+}

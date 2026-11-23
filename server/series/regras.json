@@ -140,7 +140,7 @@
     "excetoModalidades": ["triatlo"]
   },
   "intensidadesNaPrincipal": {
-    "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 },
+    "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5, "saiChe": 10 },
     "padroes": [
       ["A1", "A2", "A3"],
       ["A1", "A2", "A1", "A3"],
@@ -212,12 +212,12 @@
       "transicao1": {
         "nome": "Transição 1", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Especificidade: resistência mista, A3 e aeróbica intensa",
-        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "velocidadeAvancado25": 25
+        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5, "saiChe": 10 }, "volume": 0.85, "velocidadeAvancado25": 25
       },
       "transicao2": {
         "nome": "Transição 2", "fase": "transicao", "dias": [14, 30],
         "objetivo": "Força específica, resistência mista e aeróbica intensa",
-        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5 }, "volume": 0.85, "foco": "forca", "velocidadeAvancado25": 25
+        "tipos": { "intensidades": 50, "AC": 20, "finalForte": 15, "NEG": 10, "POS": 5, "saiChe": 10 }, "volume": 0.85, "foco": "forca", "velocidadeAvancado25": 25
       },
       "recuperacao": {
         "nome": "Semana de recuperação", "fase": "recuperacao", "dias": [7, 7],

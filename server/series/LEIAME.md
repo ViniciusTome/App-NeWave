@@ -466,13 +466,14 @@ Ao **concluir o treino**, o app pergunta:
 
 1. **Como foi a série principal?** de 1 (muito fácil) a 10 (muito difícil).
 2. **A partir de 8:** o que deixou mais difícil? **A respiração** (faltou ar) ou **a força** (os braços ficaram pesados).
+3. **Treino com nado contínuo:** você nadou os X m sem parar? (veja "Séries de teste")
 
 Vale para todos os níveis. A nota (e o motivo) aparece na página **Desempenho/Feedback**. Fica em `feedback` no `regras.json` (o 8 também está em `server/swimming.js`).
 
 **Como o feedback muda os treinos:** só depois de **3 treinos seguidos** fora do esperado (1 ou 2 podem ser do dia do atleta: dormiu mal, trabalhou muito, não comeu direito).
 
 - **Pesados:** os 3 com nota **8 ou mais**, sem o treino ser para isso (esforço esperado abaixo da nota). No **avançado**, que já está acostumado, só contam **9 e 10** (`pesadoAPartirDe`). Ao concluir o 3º, os **treinos já montados são refeitos**: 10% a menos de tempo na principal e os 2 primeiros sem A3. O atleta vê o aviso "ajustamos os próximos para você".
-- **Fáceis:** os 3 com nota 2 ou mais abaixo do esperado: refeitos com 10% a mais.
+- **Fáceis:** os 3 com nota 2 ou mais abaixo do esperado, **ou os 3 com nota 3 ou menos** (regra do treinador): refeitos com 10% a mais (`facilAteNota`).
 - **Faltou ar (respiração):** ele tem força, falta condicionamento. A principal prefere **repetições curtas (até 50 m) com mais repetições** (ex.: no lugar de 3 x 4 x 50, 3 x 6 x 50, evoluindo para 3 x 8 x 50 ou 2 x 8 x 50).
 - **Faltou força:** ele precisa empurrar mais água. A principal prefere **palmar e palmar + pull buoy** (sem pé de pato).
 - Os mesmos 3 treinos não ajustam duas vezes. O tempo da principal fica entre 60% e 110%.
@@ -668,11 +669,32 @@ Como entra no treino:
 - A técnica conta na metragem e no tempo do treino. Se o treino passaria do tempo (a série principal já no mínimo), sai a técnica do solto e, se precisar, a do aquecimento.
 - Com um tempo novo (teste), o treino é reescrito e a técnica continua igual.
 
+### Séries de teste (o atleta vê "Nado contínuo")
+
+Só para o treinador: o atleta não sabe que é um teste.
+
+- **Quem recebe:** quem tem prova alvo **mais longa** do que nada sem parar hoje (anamnese). Com várias provas na competição, vale a mais longa. No Específico não entra (ele já nada a distância da prova).
+- **O que é:** em cada treino (menos o dia do teste), antes da série principal, um nado contínuo em ritmo leve, no crawl (ou no estilo da prova, se for costas ou peito). Ele fica no lugar da 2ª série principal.
+- **Começo:** um passo acima do que o atleta nada hoje (quem nada "100 a 200 m" começa nos 150 m).
+- **Passos** (`regras.json` → `serieDeTeste`): +50 m até 400 m; +100 m até 1 km; +250 m até 2 km; +500 m acima disso. Nunca passa da prova, nem de 40% do tempo da aula.
+- **Sobe** um passo depois de **3 treinos seguidos** nessa distância nadados **sem parar** e **sem ficar pesado**.
+- **Desce** um passo se o atleta **precisou parar** (pergunta ao concluir o treino: "Você nadou os X m do nado contínuo sem parar?"), se deu **10 onde era para ser 8 ou 9**, ou se ficou **pesado 3 vezes seguidas**.
+- **Mantém** nos outros casos. Quando a distância muda, os próximos treinos são refeitos.
+- **Tempo da aula:** se o treino passar do tempo, saem a perna, o solto do meio e a velocidade, nessa ordem.
+
+### Série principal pela prova (modelo Geral)
+
+- **Prova no crawl** (triatlo, águas abertas ou livre na piscina): a série principal é **só crawl**.
+- **Prova num estilo** (costas, peito, borboleta): a principal fica nesse estilo e no crawl, e o "ME" é o estilo da prova. Com várias provas, entram os estilos de todas.
+- **Medley:** fica como antes (todos os estilos).
+- **Um estilo só:** a mistura de nados alterna o estilo com o crawl (nunca o mesmo seguido).
+
 ### Modelo de treino: Geral ou Específico da prova
 
 O modelo **Específico da prova** fica separado do Geral, na pasta `server/especifico/`. Os dois só se encontram na escolha do modelo (a preparação guarda `model`).
 
-- **A prova** tem distância, estilo e meta (o tempo que quer fazer, opcional):
+- **A competição** tem uma ou mais **provas** (até 6), cada uma com distância, estilo e meta (o tempo que quer fazer, opcional). A **1ª é a principal**: é para ela que os treinos são montados (o Específico, o RP e o limite usam a principal).
+- **Cada prova**:
   - piscina: crawl 50 a 1500 m; costas, peito e borboleta 50, 100 e 200 m; medley 100 (só piscina de 25 m), 200 e 400 m;
   - águas abertas (triatlo e maratona aquática): sempre crawl, de 250 m a 25 km;
   - a meta precisa combinar com a distância (de 40" a 6' a cada 100 m).

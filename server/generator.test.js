@@ -298,7 +298,7 @@ test('a série principal sempre tem um jeito de nadar, e os tipos nunca se mistu
     assert.ok(aLevels.length === 0 || aLevels.length === p.intensidades.valores.length, p.intensidades.valores.join())
     assert.equal(p.intensidades.tipo === 'intensidades', aLevels.length > 0)
   }
-  assert.deepEqual([...tipos].sort(), ['AC', 'NEG', 'POS', 'finalForte', 'intensidades'])
+  assert.deepEqual([...tipos].sort(), ['AC', 'NEG', 'POS', 'finalForte', 'intensidades', 'saiChe'])
 })
 
 test('A3 sempre com equipamento (c/PÉ ou c/PÉ + PALM)', () => {

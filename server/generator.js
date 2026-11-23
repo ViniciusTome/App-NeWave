@@ -120,7 +120,7 @@ export function saidaFor(rules, athlete, bloco, valor, fator = 1) {
     if (!athlete.tabela || !valor) return null
     const intensidade = /^A[123]$/.test(valor) ? valor : null
     const ac = /^(\d+) AC$/.exec(valor)
-    const ritmoLivre = valor === 'NEG' || valor === 'POS' || / NAD x 25 fo$/.test(valor)
+    const ritmoLivre = valor === 'NEG' || valor === 'POS' || valor === 'sai/che' || / NAD x 25 fo$/.test(valor)
     let nado = null
     if (intensidade) nado = repSeconds(rules, athlete.tabela, bloco.distancia, intensidade)
     else if (ac) {
@@ -170,7 +170,7 @@ export function saidaVelocidade(rules, athlete, bloco, fator = 1) {
 // no lugar dela vai o descanso entre as repetições ("D20\" de descanso", notação do treinador).
 export function descansoFor(rules, athlete, bloco, valor, fator = 1) {
     const intensidade = /^A[123]$/.test(valor ?? '') ? valor : null
-    const ritmoLivre = valor === 'NEG' || valor === 'POS' || / NAD x 25 fo$/.test(valor ?? '')
+    const ritmoLivre = valor === 'NEG' || valor === 'POS' || valor === 'sai/che' || / NAD x 25 fo$/.test(valor ?? '')
     const regra = rules.saidas?.negPosFinalForte
     const segundos = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
@@ -1705,6 +1705,9 @@ export function generateTrainings({
             delete p._montagem
             delete p._tecnica
         })
+        // 1ª preparação do atleta: as telas mostram os nomes por extenso, com a abreviação
+        // entre parênteses, para ele ir se acostumando
+        if (periodizacao?.primeira) partes.forEach((p) => { p.extenso = true })
         bloqueadas = seriesUsadas(partes)
         recentes.fecharTreino()
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))

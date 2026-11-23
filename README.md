@@ -159,11 +159,11 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `GET /api/trainings?limit=10&today=AAAA-MM-DD` | Histórico: treinos concluídos e os que passaram da data (`completed: false`), do mais recente |
 | `GET /api/trainings/upcoming?today=AAAA-MM-DD` | Próximos treinos (de hoje em diante, não concluídos), do mais próximo |
 | `POST /api/trainings` | Registra um treino realizado (`date`, `title`, `warmUp`, `speed`, `mainSeries`, `release`, `notes`); com `planned: true`, agenda um treino (até um ano à frente) |
-| `POST /api/trainings/:id/complete` | Marca um treino agendado como concluído |
+| `POST /api/trainings/:id/complete` | Marca um treino agendado como concluído (`difficulty` 1 a 10, `reason`, e `nonstop` true/false quando o treino tem o nado contínuo) |
 | `GET /api/athlete-profile` | Anamnese do atleta (ou `null`), tempo nos 400 m e nível calculado |
 | `PUT /api/athlete-profile` | Salva ou atualiza a anamnese |
 | `GET /api/competitions?today=AAAA-MM-DD` | Calendário: competições de hoje em diante |
-| `POST /api/competitions` | Cadastra competição (`name`, `date`, `modality`, `distance`, `stroke`, `goalHundredths` (meta, opcional), `priority` A/B/C) |
+| `POST /api/competitions` | Cadastra competição (`name`, `date`, `modality`, `events` = `[{ distance, stroke, goalHundredths? }]` (a 1ª é a principal; ou uma só com `distance`, `stroke`, `goalHundredths`), `priority` A/B/C) |
 | `GET /api/preparations/current?today=AAAA-MM-DD` | Preparação atual (objetivo, prova alvo, `model` e se o Específico pode: `especifico`) |
 | `PATCH /api/preparations/current` | Troca o modelo de treino (`model`: `geral` ou `especifico`) e refaz os treinos que ainda não foram feitos |
 | `POST /api/trainings/generate?today=AAAA-MM-DD` | Gera os treinos das próximas duas semanas e substitui os agendados que não foram feitos |
