@@ -3,7 +3,7 @@ import { ChoiceGroup } from '../ChoiceGroup'
 import { api } from '../../services/api'
 import {
     CONTINUOUS_DISTANCE, EQUIPMENT, POOL_LENGTH, RECENT_BREAK, SESSION_MINUTES,
-    STROKES, SWIMMING_SINCE, WEEK_DAYS,
+    MEDLEY, STROKES, STROKES_WITH_MEDLEY, SWIMMING_SINCE, WEEK_DAYS,
 } from '../../utils/athlete'
 import { formatDate, formatSwimTime } from '../../utils/format'
 import styles from './wizard.module.css'
@@ -58,6 +58,16 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
 
     // Melhor estilo: só entre borboleta, costas e peito que o atleta marcou
     const bestStrokeOptions = STROKES.filter((s) => s.value !== 'crawl' && answers.strokes.includes(s.value))
+    // "Medley" marca (ou desmarca) os quatro estilos; desmarcar um deles tira o medley
+    const quatro = STROKES.map((s) => s.value)
+    const temMedley = quatro.every((s) => answers.strokes.includes(s))
+    const setStrokesWithMedley = (escolhidos) => {
+        const marcouMedley = escolhidos.includes(MEDLEY) && !temMedley
+        const desmarcouMedley = !escolhidos.includes(MEDLEY) && temMedley && quatro.every((s) => escolhidos.includes(s))
+        if (marcouMedley) return setStrokes(quatro)
+        if (desmarcouMedley) return setStrokes(['crawl'])
+        setStrokes(escolhidos.filter((s) => s !== MEDLEY))
+    }
     const setStrokes = (strokes) => {
         setAnswers((current) => ({
             ...current,
@@ -86,7 +96,8 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
                     <ChoiceGroup label='Quanto você nada sem parar?' options={CONTINUOUS_DISTANCE}
                         value={answers.continuousDistance} onChange={set('continuousDistance')} />
                     <ChoiceGroup label='Quais estilos você nada bem?' hint='Pode marcar mais de um.'
-                        options={STROKES} value={answers.strokes} onChange={setStrokes} multiple />
+                        options={STROKES_WITH_MEDLEY} value={temMedley ? [...answers.strokes, MEDLEY] : answers.strokes}
+                        onChange={setStrokesWithMedley} multiple />
                     {bestStrokeOptions.length > 0 && (
                         <ChoiceGroup label='Qual é o seu melhor estilo?'
                             hint='Sem contar o crawl: o estilo em que você é mais rápido.'

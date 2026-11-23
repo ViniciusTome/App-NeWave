@@ -6,6 +6,7 @@ import { Input } from '../../components/Input'
 import { Modal } from '../../components/Modal'
 import { TestAndTimes } from '../../components/TestAndTimes';
 import { Training } from '../../components/Training'
+import { TrainingGlossary } from '../../components/TrainingGlossary'
 import { api } from '../../services/api'
 import { formatDate, todayIso } from '../../utils/format'
 import styles from './performancepage.module.css'
@@ -114,6 +115,8 @@ export const PerformancePage = () => {
                                 {selected.difficulty && (
                                     <p className={styles.status}>Nota da série principal: {notaText(selected)}</p>
                                 )}
+                                {/* Glossário só dos termos deste treino */}
+                                {selected.partes && <div style={{ marginBottom: 12 }}><TrainingGlossary training={selected} /></div>}
                                 <Training training={selected} />
                                 {selected.notes && (
                                     <div className={styles.modalNotes}>

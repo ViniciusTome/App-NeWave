@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card } from '../Card'
 import { CompleteTraining } from '../CompleteTraining'
 import { Modal } from '../Modal'
+import { RescheduleTest } from '../RescheduleTest'
 import { api, notifyTrainingsChanged, TRAININGS_CHANGED } from '../../services/api'
 import { todayIso } from '../../utils/format'
 import chevron from '../../assets/chevron.svg'
@@ -102,6 +103,10 @@ export const Carousel = () => {
                                         training={training}
                                         className={isFeatured ? styles.featuredCard : ''}
                                     />
+                                    {/* Dia do teste de 400 m: dá para remarcar */}
+                                    {training.partes?.some((p) => p.parte === 'teste') && (
+                                        <RescheduleTest training={training} trainings={trainings} />
+                                    )}
                                     {isFeatured && (
                                         <>
                                             <button

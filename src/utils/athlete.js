@@ -34,6 +34,9 @@ export const STROKES = options([
     ['peito', 'Peito'],
     ['borboleta', 'Borboleta'],
 ])
+// Na anamnese, "Medley" marca os quatro estilos de uma vez (o app guarda os quatro)
+export const MEDLEY = 'medley'
+export const STROKES_WITH_MEDLEY = [...STROKES, { value: MEDLEY, label: 'Medley (os quatro)' }]
 
 // Começa na segunda, que é como os atletas costumam pensar a semana (0 = domingo)
 export const WEEK_DAYS = options([

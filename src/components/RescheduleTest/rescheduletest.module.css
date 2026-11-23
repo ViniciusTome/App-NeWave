@@ -1,0 +1,83 @@
+.link {
+    font: inherit;
+    font-size: 13px;
+    background: none;
+    border: none;
+    color: #ffffff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    margin-top: 6px;
+}
+
+.box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color: #0b2f57;
+    font-size: 15px;
+}
+
+.options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.options button {
+    font: inherit;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid #1d6fb8;
+    background: #ffffff;
+    color: #1d6fb8;
+    cursor: pointer;
+}
+
+.options button[aria-pressed='true'] {
+    background-color: #1d6fb8;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+}
+
+.field input {
+    font: inherit;
+    padding: 8px 10px;
+    border: 1px solid #b9d3ea;
+    border-radius: 8px;
+    max-width: 220px;
+}
+
+.hint {
+    font-size: 13px;
+    color: #4a6a8a;
+}
+
+.error {
+    color: #b00020;
+    font-size: 14px;
+}
+
+.primary {
+    font: inherit;
+    font-weight: 700;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    background-color: #1d6fb8;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.primary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}

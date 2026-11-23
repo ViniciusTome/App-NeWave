@@ -548,6 +548,16 @@ A saída é **o tempo que o atleta tem que fazer + o descanso**, arredondada de 
 - **Estilo da velocidade:** a série "livre" vai com o estilo escrito no card (CR, CO, PE, BO), sorteado entre os que o atleta nada (crawl com o dobro de chance). As que têm medley ou estilos continuam com eles.
 - **Grupos** (ex.: 3x(1x100; 2x75; 3x50; 4x25)): cada distância com a sua saída. Se a saída é a mesma em todas as séries, vai na linha da distância; se muda, vai na linha de cada série (`100 cd 1'45" / 75 cd 1'30" / ...`).
 
+### Estilo e cd dos estilos
+
+- **O card sempre diz o estilo.** Série principal "livre" é de crawl: o card mostra **CR**. Séries com estilos misturados mostram os estilos de cada série (ME, PE, MD...). Na velocidade, o estilo é sorteado entre os que o atleta nada.
+- **cd dos estilos:** os tempos da tabela são do crawl (teste de 400 m). Nos estilos **o descanso é o mesmo** e só o tempo de nado é maior: tempo do crawl × `saidas.fatorDoEstilo`: **+35% para todos os estilos** (costas, borboleta, peito, medley e estilos misturados). Calibrado com a experiência do treinador (avançado): 100 de estilo a cada 2'00" contra 1'30" no crawl, e 200 a cada 4'00" contra 3'10" a 3'20". Série que mistura estilos: vale o mais lento, para todas as repetições caberem.
+- **Medley na anamnese:** a opção "Medley (os quatro)" marca os quatro estilos de uma vez.
+
+### Remarcar o teste
+
+No card do teste de 400 m tem **"Não vou conseguir ir: remarcar o teste"**. O atleta escolhe outro dia (o app sugere os próximos dias de treino; de preferência na semana seguinte) ou qualquer data futura. Se nesse dia já tem treino, os dois trocam de dia (o "Treino N" de cada dia fica); se não tem, o teste só muda de data.
+
 ### Tempo novo nos treinos já montados
 
 Quando o atleta registra um **teste de 400 m** (ou apaga um), os treinos que ele **ainda não fez** são reescritos com os tempos atuais: o **cd**, o ritmo (A1, A2, A3 no lugar de "ritmo leve...") e a saída da velocidade. **As séries, o material e as intensidades não mudam.** Para isso, cada treino guarda no plano interno como cada parte foi montada (`plano.montagem`).

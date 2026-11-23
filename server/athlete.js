@@ -296,6 +296,15 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     UPDATE trainings SET parts = ?, plan = ?, warm_up = ?, speed = ?, main_series = ?, release = ? WHERE id = ? AND user_id = ?
   `)
   const setPlan = db.prepare('UPDATE trainings SET plan = ? WHERE id = ? AND user_id = ?')
+  const trainingOnDate = db.prepare(`
+    SELECT id, title, parts, plan, warm_up, speed, main_series, release, completed_at FROM trainings
+    WHERE user_id = ? AND date = ? ORDER BY id LIMIT 1
+  `)
+  const moveTraining = db.prepare('UPDATE trainings SET date = ? WHERE id = ? AND user_id = ?')
+  const swapContent = db.prepare(`
+    UPDATE trainings SET title = ?, parts = ?, plan = ?, warm_up = ?, speed = ?, main_series = ?, release = ?
+    WHERE id = ? AND user_id = ?
+  `)
   // Treinos que já passaram, do mais recente (para contar as faltas seguidas)
   const pastTrainings = db.prepare(`
     SELECT date, completed_at, missed_at FROM trainings WHERE user_id = ? AND date < ? ORDER BY date DESC, id DESC LIMIT 30
@@ -664,6 +673,39 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       const f = legacyFields(novo.partes)
       replaceTraining.run(JSON.stringify(novo.partes), JSON.stringify(novo.plano), f.warmUp, f.speed, f.mainSeries, f.release, row.id, user.id)
       sendJson(res, 200, { mantido: false })
+    },
+
+    // POST /api/trainings/:id/reschedule-test { date } -> o atleta não pode ir no dia do
+    // teste: o teste vai para o dia que ele escolher (de preferência na semana seguinte).
+    // Se nesse dia já tem treino, os dois trocam de dia; se não tem, o teste só muda de data.
+    async rescheduleTest(req, res, { id }) {
+      const user = requireUser(req)
+      const { date } = await readJson(req)
+      const today = readToday(req)
+      if (!isRealDate(date) || date <= today) throw new HttpError(400, 'Escolha um dia daqui para a frente.')
+      const row = findTrainingRow.get(parseId(id), user.id)
+      const plano = row?.plan ? JSON.parse(row.plan) : null
+      if (!row || row.completed_at || !plano?.diaDeTeste) throw new HttpError(404, 'Teste não encontrado.')
+      if (date === row.date) throw new HttpError(400, 'Escolha um dia diferente do que está marcado.')
+      const outro = trainingOnDate.get(user.id, date)
+      if (outro?.completed_at) throw new HttpError(409, 'Nesse dia você já tem um treino concluído.')
+      const teste = trainingOnDate.get(user.id, row.date)
+      db.exec('BEGIN')
+      try {
+        if (outro) {
+          // Troca o conteúdo: o teste vai para o dia escolhido; o treino daquele dia vem para cá
+          // (o "Treino N" de cada dia fica, para a numeração seguir a ordem das datas)
+          swapContent.run(teste.title, outro.parts, outro.plan, outro.warm_up, outro.speed, outro.main_series, outro.release, teste.id, user.id)
+          swapContent.run(outro.title, teste.parts, teste.plan, teste.warm_up, teste.speed, teste.main_series, teste.release, outro.id, user.id)
+        } else {
+          moveTraining.run(date, row.id, user.id)
+        }
+        db.exec('COMMIT')
+      } catch (err) {
+        db.exec('ROLLBACK')
+        throw err
+      }
+      sendJson(res, 200, { date, trocado: Boolean(outro) })
     },
 
     // Depois de concluir um treino: se os últimos 3 seguidos saíram do esperado,

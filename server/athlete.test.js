@@ -645,3 +645,46 @@ test('avançado que treina pouco: 3 dias ou mais sem treinar deixam o 1º treino
   assert.ok(planos[0].maisLeve && !planos[1].maisLeve)
   db.close()
 })
+
+test('remarcar o teste: vai para o dia que o atleta escolher', async () => {
+  const cookie = await userFor('periodizacao')
+  const { user } = (await api('/api/auth/me', { cookie })).body
+  const { DatabaseSync } = await import('node:sqlite')
+  const db = new DatabaseSync(join(dir, 'test.db'))
+  db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
+  db.prepare('DELETE FROM trainings WHERE user_id = ?').run(user.id)
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: null })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const proximos = async () => (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
+  const ehTeste = (t) => t.partes.some((p) => p.parte === 'teste')
+  const lista = await proximos()
+  const teste = lista.find(ehTeste)
+  const depois = lista.filter((t) => t.date > teste.date)
+  // Para um dia com treino: os dois trocam de dia
+  const r1 = await api(`/api/trainings/${teste.id}/reschedule-test?today=${hoje}`, { method: 'POST', cookie, body: { date: depois[1].date } })
+  assert.equal(r1.status, 200)
+  assert.equal(r1.body.trocado, true)
+  let agora = await proximos()
+  assert.ok(ehTeste(agora.find((t) => t.date === depois[1].date)))
+  assert.ok(!ehTeste(agora.find((t) => t.date === teste.date)))
+  // O número do treino segue o dia
+  assert.equal(agora.find((t) => t.date === depois[1].date).title, depois[1].title)
+  // Para um dia sem treino: o teste só muda de data
+  const novoTeste = agora.find(ehTeste)
+  const livre = (() => {
+    const datas = new Set(agora.map((t) => t.date))
+    for (let d = 1; d < 60; d++) { const x = daysFromToday(d); if (x > novoTeste.date && !datas.has(x)) return x }
+  })()
+  const r2 = await api(`/api/trainings/${novoTeste.id}/reschedule-test?today=${hoje}`, { method: 'POST', cookie, body: { date: livre } })
+  assert.equal(r2.body.trocado, false)
+  agora = await proximos()
+  assert.ok(ehTeste(agora.find((t) => t.date === livre)))
+  // Dia que já passou ou o mesmo dia: não
+  assert.equal((await api(`/api/trainings/${novoTeste.id}/reschedule-test?today=${hoje}`, { method: 'POST', cookie, body: { date: daysFromToday(-1) } })).status, 400)
+  // Treino que não é teste: não
+  const normal = agora.find((t) => !ehTeste(t))
+  assert.equal((await api(`/api/trainings/${normal.id}/reschedule-test?today=${hoje}`, { method: 'POST', cookie, body: { date: livre } })).status, 404)
+  db.close()
+})

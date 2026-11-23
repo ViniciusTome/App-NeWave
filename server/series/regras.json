@@ -265,6 +265,8 @@
     "fasesComSaidaPorIntensidade": ["transicao"],
     "maximoAcimaDoA1": 20,
     "_comentarioRitmos": "NEG, POS e final forte: tempo do A2 + 20\" a 30\" de descanso nos 50 e 100 m (nas outras distâncias, a tabela de descanso).",
+    "_comentarioEstilos": "Os tempos (tabela) são do crawl (teste de 400 m). Nos estilos o descanso é o mesmo e só o tempo de nado é maior: tempo do crawl x 'fatorDoEstilo'. Calibrado com a experiência do treinador (avançado): 100 de estilo misturado a cada 2'00\" contra 1'30\" no crawl, 200 a cada 4'00\" contra 3'10\" a 3'20\" = nado uns 35% maior. O treinador usa +35% para todos os estilos.",
+    "fatorDoEstilo": { "crawl": 1, "costas": 1.35, "borboleta": 1.35, "medley": 1.35, "peito": 1.35 },
     "negPosFinalForte": { "ateMetros": 100, "descanso": [20, 30] },
     "_comentarioVelocidade": "Velocidade: avançado nos 25 m sai a cada 30\" (25\" na Realização); nos outros casos o tempo forte (melhor estimado pela tabela de percentuais) + 20\" a 30\" de descanso. Sem tempo: 'c/20\" a 30\" de descanso'. Nunca 1/1. O estilo da velocidade é sorteado entre os que o atleta nada (crawl com o dobro de chance).",
     "velocidade": { "avancado": { "25": 30 }, "descanso": [20, 30], "pesoDoCrawl": 2 }
