@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApp } from './app.js'
 import {
-  abbreviate, adaptToDistance, emAdaptacaoDaBorboleta, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
+  abbreviate, adaptToDistance, descansoFor, emAdaptacaoDaBorboleta, bestTimeFor, cardText, feedbackAdjustment, lightenTraining, periodPhases, planStages, estimateSeconds, generateTrainings, saidaFor, saidasDaSerie, saidaText,
   saidaVelocidade, setOptions, strokeFactor, trainingDates, withMeters,
 } from './generator.js'
 import { loadLibrary } from './series/index.js'
@@ -520,6 +520,41 @@ test('saída = tempo da intensidade + descanso, de 5 em 5 segundos', () => {
   assert.deepEqual(['A1', 'A2', 'A3'].map((v) => saidaFor(rules, iniciante, { distancia: 100 }, v)), [100, 105, 115])
   // Sem o teste (sem tabela) fica sem saída
   assert.equal(saidaFor(rules, { level: 'avancado' }, { distancia: 100 }, 'A1'), null)
+})
+
+test('Realização: descansos 20 a 30% maiores (25%), arredondados de 5 em 5', () => {
+  const realizacao = rules.periodizacao.etapas.realizacao.descansoMaior
+  assert.deepEqual(realizacao, [0.2, 0.3])
+  const base = { level: 'avancado', tabela: timeTable(rules, 360), teste400: 360 }
+  const naR = { ...base, descansoMaior: realizacao }
+  // 100 m A1: 1'30" + 25" de descanso = 1'55"; na Realização 25" x 1,25 = 31,25 -> 30": 2'00"
+  assert.equal(saidaFor(rules, base, { distancia: 100 }, 'A1'), 115)
+  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'A1'), 120)
+  // 400 com 30 AC: 1' de descanso -> 1'15": 7'30" -> 7'45"
+  assert.equal(saidaFor(rules, naR, { distancia: 400 }, '30 AC'), 465)
+  // NEG/POS nos 100: 25" -> 30"
+  assert.equal(saidaFor(rules, naR, { distancia: 100 }, 'NEG') - saidaFor(rules, base, { distancia: 100 }, 'NEG'), 5)
+  // Sem tempos: o descanso escrito também cresce (iniciante A3: 30" -> 40")
+  assert.equal(descansoFor(rules, { level: 'iniciante' }, { distancia: 100 }, 'A3'), 30)
+  assert.equal(descansoFor(rules, { level: 'iniciante', descansoMaior: realizacao }, { distancia: 100 }, 'A3'), 40)
+  // Velocidade: o avançado nos 25 m (cd 30") descansa mais: cd 35"
+  assert.equal(saidaVelocidade(rules, base, { distancia: 25 }), 30)
+  assert.equal(saidaVelocidade(rules, naR, { distancia: 25 }), 35)
+  // Sempre múltiplo de 5
+  for (const d of [25, 50, 75, 100, 150, 200, 400]) {
+    for (const v of ['A1', 'A2', 'A3', '10 AC', 'NEG']) assert.equal(saidaFor(rules, naR, { distancia: d }, v) % 5, 0, `${d} ${v}`)
+  }
+})
+
+test('Realização no gerador: as saídas ficam maiores que na Transição', () => {
+  const [a] = gerar(avancado, 1)
+  assert.ok(a)
+  const plano = generateTrainings({ rules, library, athlete: avancado, today: '2026-11-23', random: seeded(3),
+    periodizacao: { inicio: '2026-11-23', fim: '2027-02-28', semProva: true } })
+  const daEtapa = (e) => plano.filter((t) => t.plano.etapa === e)
+  assert.ok(daEtapa('realizacao').length > 0)
+  const montagem = daEtapa('realizacao').flatMap((t) => t.plano.montagem).filter(Boolean)
+  assert.ok(montagem.every((m) => m.dia.descansoMaior?.[0] === 0.2), 'o dia da Realização guarda a regra (para atualizar o tempo depois)')
 })
 
 test('texto da saída', () => {

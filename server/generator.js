@@ -76,6 +76,22 @@ function blockRest(rules, bloco, athlete) {
     return descanso
 }
 
+// Realização: descansos 20 a 30% maiores (usa o meio, 25%), arredondados para
+// múltiplo de 5 (regras.periodizacao.etapas.realizacao.descansoMaior)
+function restOfPhase(athlete, descanso) {
+    const faixa = athlete.descansoMaior
+    if (!faixa) return descanso
+    return Math.max(Math.round((descanso * (1 + (faixa[0] + faixa[1]) / 2)) / 5) * 5, Math.round(descanso / 5) * 5 + 5)
+}
+
+// Saída com o descanso da fase: na Realização, sempre pelo menos 5" a mais que a
+// saída normal (o arredondamento de 5 em 5 não pode apagar o descanso a mais)
+function saidaComDescanso(athlete, nado, descanso) {
+    const normal = Math.round((nado + descanso) / 5) * 5
+    if (!athlete.descansoMaior) return normal
+    return Math.max(Math.round((nado + restOfPhase(athlete, descanso)) / 5) * 5, normal + 5)
+}
+
 // ---------- Saída ----------
 
 const de5em5 = (s) => Math.round(s / 5) * 5
@@ -114,7 +130,7 @@ export function saidaFor(rules, athlete, bloco, valor, fator = 1) {
     const descanso = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
         : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : 'A3') }, athlete)
-    return de5em5(nado + descanso)
+    return saidaComDescanso(athlete, nado, descanso)
 }
 
 // Saída da velocidade: avançado nos 25 m a cada 30"; nos outros casos o tempo forte
@@ -125,14 +141,19 @@ export function saidaVelocidade(rules, athlete, bloco, fator = 1) {
     // Realização: o avançado força mais nos 25 m (cd 25")
     const fixa = (athlete.velocidade25 && athlete.level === 'avancado' && bloco.distancia === 25 ? athlete.velocidade25 : null) ??
         cfg[athlete.level]?.[String(bloco.distancia)]
+    const melhor50 = athlete.tabela ? bestTimeFor(rules, athlete, 50) : null
+    const nado = melhor50 === null ? null : ((melhor50 * bloco.distancia) / 50) * fator
     // (a saída fixa é a do crawl; nos estilos, o tempo de nado é maior)
-    if (fixa) return fator === 1 ? fixa : de5em5(fixa * fator)
-    if (!athlete.tabela) return null
-    const melhor50 = bestTimeFor(rules, athlete, 50)
-    if (melhor50 === null) return null
-    const nado = ((melhor50 * bloco.distancia) / 50) * fator
+    if (fixa) {
+        const saida = fator === 1 ? fixa : de5em5(fixa * fator)
+        // Realização: o descanso dentro da saída fixa também fica maior
+        if (!athlete.descansoMaior) return saida
+        if (nado === null) return saida + 5
+        return saidaComDescanso(athlete, nado, saida - nado)
+    }
+    if (nado === null) return null
     const [de, ate] = cfg.descanso ?? [20, 30]
-    return de5em5(nado + (de + ate) / 2)
+    return saidaComDescanso(athlete, nado, (de + ate) / 2)
 }
 
 // Sem tempos de referência (sem teste de 400 m) não dá para montar a saída:
@@ -144,7 +165,8 @@ export function descansoFor(rules, athlete, bloco, valor) {
     const segundos = ritmoLivre && regra && bloco.distancia <= regra.ateMetros
         ? (regra.descanso[0] + regra.descanso[1]) / 2
         : blockRest(rules, { ...bloco, intensidade: intensidade ?? (ritmoLivre ? 'A2' : (valor ? 'A3' : bloco.intensidade)) }, athlete)
-    return Math.max(5, de5em5(segundos))
+    // (o solto não muda na Realização)
+    return Math.max(5, de5em5(intensityName(rules, bloco.intensidade) === 'solto' && !valor ? segundos : restOfPhase(athlete, segundos)))
 }
 const descansoText = (segundos) =>
     `c/${segundos >= 60 ? minutosCurto(segundos) : `${segundos}"`} de descanso`
@@ -406,7 +428,8 @@ export function estimateSeconds(rules, parte, serie, variation, athlete, pace) {
         const daTabela = athlete.tabela && !bloco.trechos
             ? repSeconds(rules, athlete.tabela, bloco.distancia, bloco.intensidade) : null
         const nado = (daTabela ?? (bloco.distancia / 100) * pace * ritmo) * fator
-        const descanso = blockRest(rules, bloco, athlete)
+        const base = blockRest(rules, bloco, athlete)
+        const descanso = intensityName(rules, bloco.intensidade) === 'solto' ? base : restOfPhase(athlete, base)
         const vezes = bloco.vezes ?? 1
         total += vezes * bloco.repeticoes * (nado + descanso)
         // "(4x) 3 x 200": intervalo entre as séries do bloco
@@ -905,6 +928,7 @@ function partMontage(parte, serie, variation, faixa, intensidades, athlete) {
         intensidades: intensidades ?? null,
         dia: {
             fase: athlete.fase ?? null, descansoExtra: athlete.descansoExtra ?? 0, velocidade25: athlete.velocidade25 ?? null,
+            descansoMaior: athlete.descansoMaior ?? null,
         },
     }
 }
@@ -921,7 +945,8 @@ export function renderPart(rules, athlete, montagem) {
     const aviso = avisoComEquipamento(rules, doDia, { variation, intensidades }, saidas)
     // Sem tempos de referência: o descanso no lugar da saída (velocidade: 20" a 30")
     if (!doDia.tabela) {
-        const [de, ate] = rules.saidas?.velocidade?.descanso ?? [20, 30]
+        // (na Realização, 20 a 30% a mais e de 5 em 5: 25" a 40")
+        const [de, ate] = (rules.saidas?.velocidade?.descanso ?? [20, 30]).map((x) => restOfPhase(doDia, x))
         saidas = parte === 'velocidade'
             ? (saidas?.[0] ? saidas : [`c/${de}" a ${ate}" de descanso`])
             : descansosDaSerie(rules, doDia, serie, intensidades)
@@ -1364,6 +1389,7 @@ export function generateTrainings({
             fase,
             etapa,
             descansoExtra: efeitos.descansoExtra ?? 0,
+            descansoMaior: efeitos.descansoMaior ?? null,
             intervaloExtra: efeitos.intervaloExtra ?? 0,
             tiposDaEtapa: efeitos.tipos ?? null,
             velocidade25: efeitos.velocidadeAvancado25 ?? null,
