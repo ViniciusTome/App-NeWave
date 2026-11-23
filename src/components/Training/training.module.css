@@ -11,7 +11,7 @@
 }
 
 .section h3 {
-    font-size: 15px;
+    font-size: 14px;
     color: #1d6fb8;
     margin-bottom: 4px;
 }
@@ -19,7 +19,8 @@
 /* Mantém as quebras de linha que o treino tiver */
 .text {
     white-space: pre-line;
-    line-height: 1.5;
+    line-height: 1.45;
+    font-size: 14px;
 }
 
 /* Treino gerado: observação da série e estimativa de metragem/tempo */

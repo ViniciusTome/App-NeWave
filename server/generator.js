@@ -436,6 +436,9 @@ const intervalAbbrev = (faixa) =>
 //     2ª série: c/PÉ · ME / MD / ME
 // - Pirâmides e grupos: uma metragem por linha, com o material do bloco.
 // `intervalo` = { min, max } do intervalo entre as séries (ou null).
+// Ordem do que vai em cada linha (o treinador lê assim): como vai nadar (NAD, c/PÉ...),
+// a intensidade (A1, A2, NEG...), o(s) estilo(s) e por último o tempo (cd). Quando a
+// série tem a descrição de cada série (1ª série, 2ª série...), o estilo e o tempo vão nela.
 export function cardText(serie, variation, intervalo = null, intensidades = null, saidas = null) {
     const c = intervalAbbrev(intervalo)
     const nadoDaSerie = variation.nadoAbrev ?? (variation.nados || variation.porSerie || !variation.nado || variation.nado === 'livre'
@@ -448,9 +451,22 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     // Como nadar: A1/A2/A3 como estão; AC, NEG, POS e final forte entre parênteses
     const I = intensidades
     const fmt = (v) => (/^A\d$/.test(v) || /^ritmo /.test(v) ? v : `(${v})`)
-    // Intensidade com a saída (quando dá para calcular): "A1 · cd 1'30\""
-    const comSaida = (v, i) => [fmt(v), saidas?.[i] ? marcaText(saidas[i]) : null].filter(Boolean).join(' · ')
-    const sequencia = I ? (I.valores.every((v) => v === I.valores[0]) ? comSaida(I.valores[0], 0) : I.valores.map(fmt).join(' / ')) : null
+    const cdDe = (i) => (Array.isArray(saidas) && saidas[i] ? marcaText(saidas[i]) : null)
+    // A série toda num ritmo só: a intensidade e o tempo uma vez
+    const todasIguais = I && I.valores.every((v) => v === I.valores[0])
+    const intensidadeToda = I ? (todasIguais ? fmt(I.valores[0]) : I.valores.map(fmt).join(' / ')) : null
+    const cdTodo = I ? (todasIguais ? cdDe(0) : null) : cdDe(0)
+    // Os estilos de cada série (mistura) ou o da série toda
+    const nadosDa = (i) => {
+        if (variation.porSerie) {
+            // O melhor estilo aparece como ME
+            const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME' : NADO_ABREV[n] ?? n))
+            return daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' / ')
+        }
+        if (variation.nados) return NADO_ABREV[variation.nados[i]] ?? variation.nados[i]
+        return nadoDaSerie
+    }
+    const linha = (...partes) => partes.filter(Boolean).join(' · ')
     // Série simples com um ritmo por repetição e saídas: uma linha por repetição
     const porRepeticao = I?.unidade === 'repeticao' && Array.isArray(saidas) && saidas.some(Boolean)
     // Grupos: a saída de cada distância (igual em todas as séries -> vai na linha do bloco)
@@ -461,74 +477,59 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
     // Pirâmides e grupos
     if (serie.blocos.length > 1) {
         const linhas = []
-        // O estilo vai no cabeçalho: "(3x) · CR · c/2' de intervalo"
-        const cabecalho = [(serie.vezes ?? 1) > 1 ? `(${serie.vezes}x)` : null, nadoDaSerie, c].filter(Boolean).join(' · ')
+        const porSerieNoGrupo = I?.unidade === 'serie'
+        const cabecalho = linha((serie.vezes ?? 1) > 1 ? `(${serie.vezes}x)` : null, !I ? nadoDaSerie : null, c)
         if (cabecalho) linhas.push(cabecalho)
         const alternada = variation.padrao === 'piramide_alternada'
         serie.blocos.forEach((bloco, i) => {
             const vezes = bloco.vezes > 1 ? `(${bloco.vezes}x) ` : ''
-            let linha = `${vezes}${bloco.repeticoes} x ${bloco.distancia} m`
             const material = variation.porBloco?.[i]
-            if (material?.length > 0) linha += ` · ${materialAbbrev(material)}`
-            else if (alternada) linha += ' · NAD'
-            if (I?.unidade === 'bloco') linha += ` · ${comSaida(I.valores[i], i)}`
-            else if (blocoIgual?.[i] && !saidaNaSerie) linha += ` · ${marcaText(blocoIgual[i])}`
-            linhas.push(linha)
+            const comoNada = material?.length > 0 ? materialAbbrev(material) : alternada ? 'NAD' : null
+            const base = `${vezes}${bloco.repeticoes} x ${bloco.distancia} m`
+            // Pirâmide com uma intensidade por distância: tudo na linha da distância
+            if (I?.unidade === 'bloco') linhas.push(linha(base, comoNada, fmt(I.valores[i]), nadoDaSerie, cdDe(i)))
+            else linhas.push(linha(base, comoNada, blocoIgual?.[i] && !saidaNaSerie ? marcaText(blocoIgual[i]) : null))
         })
-        const resto = [materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null].filter(Boolean).join(' · ')
-        if (resto) linhas.push(resto)
+        // A série toda num ritmo: material, intensidade e estilo numa linha
+        if (I?.unidade === 'serie_toda' || (!porSerieNoGrupo && I?.unidade !== 'bloco')) {
+            const resto = linha(materialDaSerie, I ? intensidadeToda : null, I ? nadoDaSerie : null)
+            if (resto) linhas.push(resto)
+        } else if (porSerieNoGrupo && materialDaSerie) {
+            linhas.push(materialDaSerie)
+        }
         // Grupo repetido com intensidade por série
-        if (I?.unidade === 'serie') {
+        if (porSerieNoGrupo) {
             I.valores.forEach((v, i) => {
                 const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
                 // Saídas diferentes em cada série: "100 cd 1'55" / 75 cd 1'25""
                 const cds = saidaNaSerie ? serie.blocos.map((b, j) => (porBloco[j][i] ? `${b.distancia} ${marcaText(porBloco[j][i])}` : null))
                     .filter(Boolean).join(' / ') : null
-                linhas.push(`${ORDINAIS[i]} série: ${[material, fmt(v), cds].filter(Boolean).join(' · ')}`)
+                linhas.push(`${ORDINAIS[i]} série: ${linha(material, fmt(v), nadosDa(i), cds)}`)
             })
         }
         return linhas.join('\n')
     }
 
     const base = abbreviate(withMeters(serie.texto))
-    // Sem intensidade (velocidade): a saída, quando tem
-    const cd = !I && Array.isArray(saidas) && saidas[0] ? marcaText(saidas[0]) : null
     const porSerie = materialPorSerie || variation.nados || variation.porSerie || (I?.unidade === 'serie' ? I.valores : null)
     if (!porSerie) {
-        // Sem intensidade (velocidade): a saída, quando tem
-        if (!I) {
-            // O estilo (velocidade) logo depois da série: "8 x 25 m forte · CR · c/PÉ"
-            const texto = abbreviate(withMeters(variation.texto))
-            const comNado = variation.nadoAbrev ? texto.replace(base, `${base} · ${variation.nadoAbrev}`) : texto
-            return [comNado, cd, c].filter(Boolean).join(' · ')
-        }
         if (porRepeticao) {
             // 5 x 400 m · c/PÉ + PALM
-            // 1º: A1 · cd 6'50"
-            const cabecalho = [base, nadoDaSerie, materialDaSerie, c].filter(Boolean).join(' · ')
-            return [cabecalho, ...I.valores.map((v, i) => `${i + 1}º: ${comSaida(v, i)}`)].join('\n')
+            // 1º: A1 · CR · cd 6'50"
+            return [linha(base, materialDaSerie, c), ...I.valores.map((v, i) => `${i + 1}º: ${linha(fmt(v), nadoDaSerie, cdDe(i))}`)].join('\n')
         }
-        // Série simples com intensidade: na série toda ou repetição por repetição
-        return [base, nadoDaSerie, materialDaSerie, sequencia, c].filter(Boolean).join(' · ')
+        // Uma linha só: série · como nada · intensidade · estilo · tempo · intervalo
+        return linha(base, materialDaSerie, intensidadeToda, nadoDaSerie, cdTodo, c)
     }
 
-    // Uma linha por série
-    const cabecalho = [base, nadoDaSerie, materialDaSerie, I?.unidade === 'serie_toda' ? sequencia : null, cd, c]
-        .filter(Boolean).join(' · ')
+    // Uma linha por série: como nada · intensidade · estilo(s) · tempo
     const linhas = porSerie.map((_, i) => {
         const material = materialPorSerie ? materialAbbrev(materialPorSerie[i]) : null
-        const intensidade = I?.unidade === 'serie' ? comSaida(I.valores[i], i) : null
-        let nados = null
-        if (variation.porSerie) {
-            // O melhor estilo aparece como ME
-            const daSerie = variation.porSerie[i].map((n) => (n === variation.melhorEstilo ? 'ME' : NADO_ABREV[n] ?? n))
-            nados = daSerie.every((n) => n === daSerie[0]) ? daSerie[0] : daSerie.join(' / ')
-        } else if (variation.nados) {
-            nados = NADO_ABREV[variation.nados[i]] ?? variation.nados[i]
-        }
-        return `${ORDINAIS[i]} série: ${[material, intensidade, nados].filter(Boolean).join(' · ')}`
+        const intensidade = I ? fmt(I.unidade === 'serie' ? I.valores[i] : I.valores[0]) : null
+        const cd = I?.unidade === 'serie' ? cdDe(i) : cdTodo
+        return `${ORDINAIS[i]} série: ${linha(material, intensidade, nadosDa(i), cd)}`
     })
-    return [cabecalho, ...linhas].join('\n')
+    return [linha(base, materialDaSerie, c), ...linhas].join('\n')
 }
 
 const ORDINAIS = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª', '7ª', '8ª', '9ª', '10ª']

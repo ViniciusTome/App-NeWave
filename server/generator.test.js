@@ -730,7 +730,7 @@ test('sem tempos de referência: o teste de 400 m só depois de 1 mês de treino
   // O resto da aula: séries com pé de pato em ritmo leve para recuperar
   const recuperar = primeiro.partes.filter((p) => p.parte === 'recuperacao')
   assert.ok(recuperar.length > 0)
-  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · CR · c\/PÉ · ritmo leve/)
+  for (const p of recuperar) assert.match(p.texto, /^10 x (50|100) m · c\/PÉ · ritmo leve .* · CR · c\/\d+" de descanso/)
   assert.ok(primeiro.minutos >= 45 && primeiro.minutos <= 65, `${primeiro.minutos} min`)
   // Quem não nada 400 m sem parar não faz o teste (condicionamento)
   for (const continuousDistance of ['ate_50', '100_200', '200_400']) {
@@ -1195,4 +1195,36 @@ test('cd dos estilos bate com a experiência do treinador (avançado): 100 a cad
   assert.ok(Math.abs(cd(100, 1) - 90) <= 5, `crawl 100: ${cd(100, 1)}`)
   assert.ok(Math.abs(cd(100, medley) - 120) <= 5, `estilo 100: ${cd(100, medley)}`)
   assert.ok(Math.abs(cd(200, medley) - 240) <= 10, `estilo 200: ${cd(200, medley)}`)
+})
+
+// Ordem de cada linha da série principal: como nada · intensidade · estilo · tempo
+const ordemDaLinha = (l) => {
+  const pos = (re) => { const m = re.exec(l); return m ? m.index : -1 }
+  const posicoes = [
+    pos(/(?:^|: | · )(NAD|c\/(?:PÉ|PALM|BOIA|SNK|PARA)[^·]*)(?= ·|$)/),
+    pos(/ · (A[123]|\([^)]*\)|ritmo (leve|moderado|forte)[^·]*)(?= ·|$)/),
+    pos(/ · (CR|CO|PE|BO|MD|ME)\b/),
+    pos(/ · (\d+ )?(cd \d|c\/\d+"( a \d+")? de descanso)/),
+  ].filter((p) => p >= 0)
+  return posicoes.every((p, i) => i === 0 || p > posicoes[i - 1])
+}
+
+test('regra: cada linha da principal segue a ordem como nada · intensidade · estilo · tempo', () => {
+  let linhas = 0
+  for (const athlete of [avancado, { ...avancado, time400: null }, { ...avancado, level: 'intermediario' }]) {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      for (const p of gerar(athlete, seed).flatMap((t) => t.partes).filter((x) => x.parte === 'principal')) {
+        for (const l of p.texto.split('\n')) {
+          linhas++
+          assert.ok(ordemDaLinha(l), `${l}\n(${p.texto})`)
+        }
+        // Com a descrição de cada série, o estilo e o tempo vão nela (não no cabeçalho)
+        const [cabecalho, ...resto] = p.texto.split('\n')
+        if (resto.some((l) => /^\dª série:/.test(l))) {
+          assert.ok(!/ · (CR|CO|PE|BO|MD|ME)\b| · cd \d/.test(cabecalho), p.texto)
+        }
+      }
+    }
+  }
+  assert.ok(linhas > 100)
 })

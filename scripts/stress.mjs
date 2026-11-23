@@ -90,6 +90,17 @@ const maiorRepeticao = (p) => {
     const reps = [...(p.serieTexto ?? '').matchAll(/x (\d+)/g)].map((m) => Number(m[1]))
     return reps.length ? Math.max(...reps) : serieById.get(p.serieId)?.maiorDistancia ?? 0
 }
+// Ordem de cada linha da principal: como nada · intensidade · estilo · tempo
+const ordemDaLinha = (l) => {
+    const pos = (re) => { const m = re.exec(l); return m ? m.index : -1 }
+    const posicoes = [
+        pos(/(?:^|: | · )(NAD|c\/(?:PÉ|PALM|BOIA|SNK|PARA)[^·]*)(?= ·|$)/),
+        pos(/ · (A[123]|\([^)]*\)|ritmo (leve|moderado|forte)[^·]*)(?= ·|$)/),
+        pos(/ · (CR|CO|PE|BO|MD|ME)\b/),
+        pos(/ · (\d+ )?(cd \d|c\/\d+"( a \d+")? de descanso)/),
+    ].filter((p) => p >= 0)
+    return posicoes.every((p, i) => i === 0 || p > posicoes[i - 1])
+}
 const linhasDeSerie = (texto) => texto.split('\n').filter((l) => /^\d+ª série:/.test(l))
 const materialDaLinha = (l) => (l.match(/(NAD|c\/[A-ZÉ+ ]+?)(?= ·|$)/) ?? [''])[0].trim()
 
@@ -192,6 +203,9 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
         }
 
         for (const p of principais) {
+            for (const l of p.texto.split('\n')) {
+                confere('Linha da principal na ordem: como nada · intensidade · estilo · tempo', ordemDaLinha(l), () => `${quem}: ${l}`)
+            }
             confere('Série principal com o estilo escrito (CR, CO, PE, BO, MD, ME)', /\b(CR|CO|PE|BO|MD|ME)\b|estilo/.test(p.texto),
                 () => `${quem} ${t.date}: ${p.texto}`)
             const linhas = linhasDeSerie(p.texto)

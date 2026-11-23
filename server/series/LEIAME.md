@@ -592,9 +592,11 @@ Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m 
 
 O texto do card é **abreviado**, como no caderno do treinador (CR, CO, PE, BO, MD, ME, NAD, c/PÉ, c/PALM, BOIA, SNK, PARA, PR), e o "m" entra depois das distâncias. Cada card tem um botão **Glossário** que mostra só os termos usados naquele treino; no **ME**, mostra o melhor estilo do atleta.
 
-- Quando o material ou o nado muda entre as séries de um `(2x)`, `(4x)`: cabeçalho e **uma linha por série** (`1ª série: NAD · MD / PE / MD`).
-- Pirâmides e grupos: **uma metragem por linha**, com o material do bloco.
-- O intervalo entre as séries da série principal vai no cabeçalho (`c/2'`).
+- **Regra da ordem** (em toda linha da série principal): **como vai nadar** (NAD, c/PÉ, c/PALM...) · **a intensidade** (A1, A2, A3, NEG, POS, AC...) · **o(s) estilo(s)** (CR, CO, PE, BO, MD, ME) · **por último o tempo** (cd ou o descanso). Ex.: `1ª série: c/PÉ · A2 · PE / ME · cd 2'25"`.
+- **Quando a série tem a descrição de cada série** (1ª série, 2ª série...), o estilo e o tempo vão nela, não no cabeçalho. O cabeçalho fica com a série, o material igual em todas e o intervalo: `(3x) 4 x 100 m · c/2' de intervalo`.
+- Quando o material ou o nado muda entre as séries de um `(2x)`, `(4x)`: cabeçalho e **uma linha por série**.
+- Pirâmides e grupos: **uma metragem por linha**, com o material do bloco (e, se cada distância tem a sua intensidade, a intensidade, o estilo e o tempo na mesma linha).
+- O intervalo entre as séries da série principal vai no cabeçalho (`c/2' de intervalo`).
 
 Os termos do glossário ficam em `src/data/glossario.json`. O campo opcional `detectar` diz como achar o termo no treino (uma expressão regular) ou `false` para não mostrar no glossário do treino.
 
