@@ -38,13 +38,21 @@
       "_comentarioAumento": "Regra do treinador: com ritmo de prova (RP), o descanso é 50% maior que o proporcional ao tiro (o máximo sobe junto).",
       "aumentoNoRP": 1.5
     },
-    "intervaloMinimo": 120
+    "intervaloMinimo": 120,
+    "_comentarioIntervalo": "Regra do treinador: cada série em RP vai no máximo até a distância da prova (no 200: até 4 x 50), e o intervalo entre as séries com RP é 50% maior.",
+    "aumentoDoIntervalo": 1.5
   },
   "intensidadeNaTransicao": {
     "_comentario": "Regra do treinador: na Transição, 55% dos treinos em A3 (séries com ritmo de prova, máximo ou A3), 35% em A2 e 10% em A1 (séries só nessa intensidade). Distribuído ao longo da Transição (sem depender de sorte), e um treino A2 ou A1 sempre vem depois de um A3.",
     "A3": 0.55,
     "A2": 0.35,
     "A1": 0.1
+  },
+  "fracionadas": {
+    "_comentario": "Regra do treinador: séries de ritmo de prova fracionadas até a distância da prova, montadas pelo app (provas até 'ateDistancia'). Ex. no 200: 4 x 50, 3 x 50, 8 x 25, 2 x 100, (2 x 50; 4 x 25), em 1, 2 ou 3 séries (o total fica no volume máximo em RP). Repetições de pelo menos 1/8 da prova e de 25 m.",
+    "ateDistancia": 400,
+    "vezes": [1, 2, 3],
+    "intervalo": 120
   },
   "borboletaAte": 100,
   "esforco": { "transicao": "A3", "realizacao": "A3" }
