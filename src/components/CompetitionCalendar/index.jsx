@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ChoiceGroup } from '../ChoiceGroup'
+import { RaceFields } from '../RaceFields'
+import { EMPTY_RACE, racePayload, raceProblem } from '../../utils/race'
 import { Modal } from '../Modal'
 import { api, ATHLETE_CHANGED, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
-    IMPORTANCE_NOTICE, IMPORTANCE_OPTIONS, MODALITY, PRIORITY, competitionLabel, daysUntil, daysUntilText,
+    IMPORTANCE_NOTICE, IMPORTANCE_OPTIONS, PRIORITY, competitionLabel, daysUntil, daysUntilText,
 } from '../../utils/athlete'
 import { todayIso } from '../../utils/format'
 import styles from './competitioncalendar.module.css'
 
-const EMPTY = { name: '', date: '', modality: null, event: '', priority: 'C' }
+const EMPTY = { name: '', date: '', ...EMPTY_RACE, priority: 'C' }
 
 // Calendário de provas do Perfil: as próximas provas, a importância de cada uma
 // (a prova alvo é escolhida em "Gerar treinos") e "+ Adicionar prova".
@@ -83,11 +85,12 @@ export const CompetitionCalendar = () => {
         if (form.name.trim().length < 2) return setFormError('Dê um nome para a prova.')
         if (!form.date) return setFormError('Informe a data da prova.')
         if (form.date < today) return setFormError('A data da prova já passou.')
-        if (!form.modality) return setFormError('Escolha a modalidade da prova.')
+        const problem = raceProblem(form)
+        if (problem) return setFormError(problem)
         setFormError('')
         setSaving(true)
         try {
-            await api('/competitions', { method: 'POST', body: form })
+            await api('/competitions', { method: 'POST', body: { name: form.name, date: form.date, priority: form.priority, ...racePayload(form) } })
             setAdding(false)
             setForm(EMPTY)
             notifyAthleteChanged()
@@ -151,12 +154,7 @@ export const CompetitionCalendar = () => {
                         <span>Data</span>
                         <input type='date' min={today} value={form.date} onChange={(e) => set('date')(e.target.value)} />
                     </label>
-                    <ChoiceGroup label='Modalidade' options={MODALITY} value={form.modality} onChange={set('modality')} />
-                    <label className={styles.field}>
-                        <span>Prova ou distância (opcional)</span>
-                        <input value={form.event} maxLength={100} onChange={(e) => set('event')(e.target.value)}
-                            placeholder='Ex.: 100 m livre, 1,5 km' />
-                    </label>
+                    <RaceFields value={form} onChange={(value) => { setForm(value); setFormError('') }} />
                     <ChoiceGroup label='Importância' hint={IMPORTANCE_NOTICE} options={IMPORTANCE_OPTIONS}
                         value={form.priority} onChange={set('priority')} />
                     {formError && <p className={styles.formError} role='alert'>{formError}</p>}

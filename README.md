@@ -163,10 +163,11 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `GET /api/athlete-profile` | Anamnese do atleta (ou `null`), tempo nos 400 m e nível calculado |
 | `PUT /api/athlete-profile` | Salva ou atualiza a anamnese |
 | `GET /api/competitions?today=AAAA-MM-DD` | Calendário: competições de hoje em diante |
-| `POST /api/competitions` | Cadastra competição (`name`, `date`, `modality`, `event`, `priority` A/B/C) |
-| `GET /api/preparations/current?today=AAAA-MM-DD` | Preparação atual (objetivo e prova alvo) |
+| `POST /api/competitions` | Cadastra competição (`name`, `date`, `modality`, `distance`, `stroke`, `goalHundredths` (meta, opcional), `priority` A/B/C) |
+| `GET /api/preparations/current?today=AAAA-MM-DD` | Preparação atual (objetivo, prova alvo, `model` e se o Específico pode: `especifico`) |
+| `PATCH /api/preparations/current` | Troca o modelo de treino (`model`: `geral` ou `especifico`) e refaz os treinos que ainda não foram feitos |
 | `POST /api/trainings/generate?today=AAAA-MM-DD` | Gera os treinos das próximas duas semanas e substitui os agendados que não foram feitos |
-| `POST /api/preparations` | Nova preparação: `goal` e `competitionId` (prova do calendário) ou `competition` (prova nova) |
+| `POST /api/preparations` | Nova preparação: `goal` e `competitionId` (prova do calendário) ou `competition` (prova nova), e `model` (`geral` ou `especifico`) |
 
 As rotas de testes e treinos exigem login, e cada usuário só vê e altera os próprios dados. O tempo é guardado em centésimos de segundo (5'32"45 = `33245`). O `today` é a data de hoje no aparelho do atleta, para o "hoje" não mudar por causa do fuso; sem ele, vale a data do servidor (UTC).
 

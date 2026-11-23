@@ -1,0 +1,45 @@
+.fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.goal {
+    margin-bottom: 12px;
+}
+
+.label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0b2f57;
+    margin-bottom: 4px;
+}
+
+.hint {
+    font-size: 13px;
+    color: #4a6a8a;
+    margin-bottom: 8px;
+}
+
+.timeRow {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.timeField {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: #0b2f57;
+}
+
+.timeField input {
+    font: inherit;
+    font-size: 15px;
+    width: 72px;
+    padding: 8px 10px;
+    border: 1px solid #b9d6ee;
+    border-radius: 8px;
+}

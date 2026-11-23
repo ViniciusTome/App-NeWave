@@ -668,6 +668,18 @@ Como entra no treino:
 - A técnica conta na metragem e no tempo do treino. Se o treino passaria do tempo (a série principal já no mínimo), sai a técnica do solto e, se precisar, a do aquecimento.
 - Com um tempo novo (teste), o treino é reescrito e a técnica continua igual.
 
+### Modelo de treino: Geral ou Específico da prova
+
+O modelo **Específico da prova** fica separado do Geral, na pasta `server/especifico/`. Os dois só se encontram na escolha do modelo (a preparação guarda `model`).
+
+- **A prova** tem distância, estilo e meta (o tempo que quer fazer, opcional):
+  - piscina: crawl 50 a 1500 m; costas, peito e borboleta 50, 100 e 200 m; medley 100 (só piscina de 25 m), 200 e 400 m;
+  - águas abertas (triatlo e maratona aquática): sempre crawl, de 250 m a 25 km;
+  - a meta precisa combinar com a distância (de 40" a 6' a cada 100 m).
+- **Quem pode usar o Específico:** quem tem prova alvo com distância e meta, e já nada a distância da prova sem parar (nas provas acima de 2 km, basta nadar mais de 2 km sem parar). Quem não pode fica no Geral, e o app diz o motivo.
+- **Onde escolher:** no "Gerar treinos" (no resumo) e no Perfil (Meu treino → Modelo de treino). Trocar no Perfil refaz os treinos que ainda não foram feitos.
+- **O que muda no treino:** vem na próxima entrega (séries de cada prova, ritmo de prova saindo da meta e o limite de 15x a distância nos 50 e 100 m e 10x nas outras, na Transição e na Realização). Até lá, os treinos do Específico saem iguais aos do Geral.
+
 ### Teste de estresse
 
 Para conferir todas as regras de uma vez, com centenas de atletas diferentes (iniciante, intermediário e avançado; com e sem tempo; com e sem prova; piscinas, materiais, estilos, dias e tempos de aula):

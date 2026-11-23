@@ -77,7 +77,8 @@ const sampleCompetition = {
   name: 'Troféu Estadual',
   date: daysFromToday(60),
   modality: 'piscina_50',
-  event: '200 m livre',
+  distance: 200,
+  stroke: 'crawl',
 }
 
 // ---------- Acesso ----------
@@ -249,7 +250,11 @@ test('valida a competição', async () => {
     { date: daysFromToday(800) },
     { date: '2026-02-30' },
     { modality: 'corrida' },
-    { event: 'x'.repeat(101) },
+    { distance: undefined },
+    { distance: 300 },
+    { stroke: undefined },
+    { stroke: 'costas', distance: 400 },
+    { goalHundredths: 1000 },
     { priority: 'D' },
   ]
   for (const change of invalid) {
@@ -291,7 +296,7 @@ test('preparação com prova do calendário: ela vira prioridade A', async () =>
   const { body } = await api('/api/competitions', {
     method: 'POST',
     cookie,
-    body: { ...sampleCompetition, priority: 'B', modality: 'triatlo' },
+    body: { ...sampleCompetition, priority: 'B', modality: 'triatlo', distance: 1500 },
   })
   const res = await api('/api/preparations', {
     method: 'POST',
@@ -311,7 +316,7 @@ test('a cada geração a prova alvo pode mudar: a atual é a mais recente', asyn
   await api('/api/preparations', {
     method: 'POST',
     cookie,
-    body: { goal: 'competir', competition: { ...sampleCompetition, modality: 'triatlo', name: 'Triatlo' } },
+    body: { goal: 'competir', competition: { ...sampleCompetition, modality: 'triatlo', distance: 1500, name: 'Triatlo' } },
   })
   await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'condicionamento' } })
 
@@ -411,7 +416,7 @@ test('periodização: com prova alvo, vai até a prova; o teste na Transição d
   const prova = daysFromToday(60)
   // Só informou o tempo: na 1ª geração não tem teste
   await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
-  const competition = { name: 'Copa', date: prova, modality: 'piscina_25', event: '200 m livre' }
+  const competition = { name: 'Copa', date: prova, modality: 'piscina_25', distance: 200, stroke: 'crawl' }
   await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition } })
   const primeira = await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
   const datas = primeira.body.trainings.map((t) => t.date)
@@ -422,7 +427,7 @@ test('periodização: com prova alvo, vai até a prova; o teste na Transição d
   await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...competition, name: 'Copa 2' } } })
   assert.equal(temTeste(await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })), true)
   // Prova de 400 m em piscina: o teste é a própria prova
-  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...competition, name: 'Copa 3', event: '400 m livre' } } })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...competition, name: 'Copa 3', distance: 400 } } })
   assert.equal(temTeste(await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })), false)
 })
 
@@ -745,4 +750,48 @@ test('página de periodização: cada treino com a fase, a intensidade, a metrag
   }
   // Em ordem de data
   assert.deepEqual(gerados.map((t) => t.date), gerados.map((t) => t.date).sort())
+})
+
+test('prova com distância, estilo e meta; o modelo Específico só para quem pode', async () => {
+  const cookie = await userFor('preparacao')
+  await saveProfile(cookie, { ...sampleProfile, continuousDistance: '200_400' })
+  // A prova guarda distância, estilo e meta, e ganha o nome ("200 m costas")
+  const comMeta = { ...sampleCompetition, name: 'Copa Meta', distance: 200, stroke: 'costas', goalHundredths: 15000 }
+  const criada = await api('/api/competitions', { method: 'POST', cookie, body: comMeta })
+  assert.equal(criada.status, 201)
+  assert.deepEqual([criada.body.competition.event, criada.body.competition.distance, criada.body.competition.stroke, criada.body.competition.goalHundredths],
+    ['200 m costas', 200, 'costas', 15000])
+  // Águas abertas: sempre crawl
+  const mar = await api('/api/competitions', { method: 'POST', cookie, body: { ...sampleCompetition, name: 'Travessia', modality: 'maratona_aquatica', distance: 5000, stroke: 'peito' } })
+  assert.deepEqual([mar.body.competition.event, mar.body.competition.stroke], ['5 km', 'crawl'])
+
+  // Específico: com a prova de 200 m, a meta e quem nada até 400 m sem parar
+  const ok = await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competitionId: criada.body.competition.id, model: 'especifico' } })
+  assert.equal(ok.status, 201)
+  assert.equal(ok.body.preparation.model, 'especifico')
+  assert.equal(ok.body.preparation.especifico.ok, true)
+  // Sem meta: não pode
+  const semMeta = await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competition: { ...sampleCompetition, name: 'Sem meta' }, model: 'especifico' } })
+  assert.equal(semMeta.status, 400)
+  assert.match(semMeta.body.error, /meta/)
+  // Não nada a distância da prova (5 km precisa de mais de 2 km sem parar)
+  const longe = await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competitionId: mar.body.competition.id, model: 'especifico' } })
+  assert.equal(longe.status, 400)
+  // Sem prova: só o Geral
+  assert.equal((await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude', model: 'especifico' } })).status, 400)
+  assert.equal((await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competitionId: criada.body.competition.id, model: 'outro' } })).status, 400)
+
+  // Trocar o modelo no Perfil: refaz os treinos que ainda não foram feitos
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'competir', competitionId: criada.body.competition.id } })
+  const atual = await api('/api/preparations/current', { cookie })
+  assert.equal(atual.body.preparation.model, 'geral')
+  await api('/api/trainings/generate', { method: 'POST', cookie })
+  const troca = await api('/api/preparations/current', { method: 'PATCH', cookie, body: { model: 'especifico' } })
+  assert.equal(troca.status, 200)
+  assert.equal(troca.body.preparation.model, 'especifico')
+  assert.ok(troca.body.refeitos > 0)
+  // Passou a nadar menos (anamnese): o Específico deixa de valer
+  await saveProfile(cookie, { ...sampleProfile, continuousDistance: '50_100' })
+  assert.equal((await api('/api/preparations/current', { cookie })).body.preparation.model, 'geral')
+  assert.equal((await api('/api/preparations/current', { method: 'PATCH', cookie, body: { model: 'especifico' } })).status, 400)
 })

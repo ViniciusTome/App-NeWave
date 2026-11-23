@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
 import { AnamnesisForm } from './AnamnesisForm'
 import { ChoiceGroup } from '../ChoiceGroup'
+import { RaceFields } from '../RaceFields'
+import { EMPTY_RACE, racePayload, raceProblem } from '../../utils/race'
 import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
-    IMPORTANCE_OPTIONS, MODALITY, NO_COMPETITION_GOALS, competitionLabel, daysUntil, daysUntilText,
-    goalLabel, levelText, profileSummary,
+    IMPORTANCE_OPTIONS, MODEL_TEXT, NO_COMPETITION_GOALS, TRAINING_MODELS, competitionLabel, daysUntil, daysUntilText,
+    goalLabel, labelOf, levelText, profileSummary, specificBlocker,
 } from '../../utils/athlete'
 import { formatDate, todayIso } from '../../utils/format'
 import styles from './wizard.module.css'
 
-const EMPTY_COMPETITION = { name: '', date: '', modality: null, event: '' }
+const EMPTY_COMPETITION = { name: '', date: '', ...EMPTY_RACE }
 
 // Fluxo do botão "Gerar treinos":
 // 1. Primeira vez: anamnese (fica guardada).
@@ -29,6 +31,7 @@ export const GenerateTrainings = ({ onClose }) => {
     const [newCompetition, setNewCompetition] = useState(EMPTY_COMPETITION)
     const [noCompetitionGoal, setNoCompetitionGoal] = useState(null)
     const [targetError, setTargetError] = useState('')
+    const [model, setModel] = useState('geral') // geral | especifico
 
     const [saving, setSaving] = useState(false)
     const [saveError, setSaveError] = useState('')
@@ -48,7 +51,10 @@ export const GenerateTrainings = ({ onClose }) => {
                 setPreparation(preparation)
                 setCompetitions(competitions)
                 // Se a preparação atual ainda vale, já vem marcada "continuar"
-                if (preparation?.active) setMode('atual')
+                if (preparation?.active) {
+                    setMode('atual')
+                    setModel(preparation.model ?? 'geral')
+                }
                 setPhase(athleteData.profile ? 'alvo' : 'anamnese')
             })
             .catch((err) => {
@@ -66,15 +72,27 @@ export const GenerateTrainings = ({ onClose }) => {
         (c) => !(currentIsActive && c.id === preparation.competition?.id),
     )
 
+    const newCompetitionPayload = () => ({ name: newCompetition.name, date: newCompetition.date, ...racePayload(newCompetition) })
+
+    // Prova alvo escolhida (para o resumo e para saber se o Específico pode)
+    function targetCompetition() {
+        if (mode === 'atual') return preparation.goal === 'competir' ? preparation.competition : null
+        if (mode === 'calendario') return competitions.find((c) => c.id === chosenId) ?? null
+        if (mode === 'nova') return newCompetitionPayload()
+        return null
+    }
+    const specificProblem = phase === 'resumo' ? specificBlocker(targetCompetition(), athlete?.profile) : ''
+    const chosenModel = specificProblem ? 'geral' : model
+
     // O que vai para o servidor, conforme a escolha
     function targetPayload() {
         if (mode === 'atual') {
             return preparation.goal === 'competir'
-                ? { goal: 'competir', competitionId: preparation.competition.id }
+                ? { goal: 'competir', competitionId: preparation.competition.id, model: chosenModel }
                 : { goal: preparation.goal }
         }
-        if (mode === 'calendario') return { goal: 'competir', competitionId: chosenId }
-        if (mode === 'nova') return { goal: 'competir', competition: newCompetition }
+        if (mode === 'calendario') return { goal: 'competir', competitionId: chosenId, model: chosenModel }
+        if (mode === 'nova') return { goal: 'competir', competition: newCompetitionPayload(), model: chosenModel }
         return { goal: noCompetitionGoal }
     }
 
@@ -100,7 +118,7 @@ export const GenerateTrainings = ({ onClose }) => {
                 : `Sem prova alvo · ${goalLabel(preparation.goal)}`
         }
         if (mode === 'calendario') return competitionLabel(competitions.find((c) => c.id === chosenId))
-        if (mode === 'nova') return competitionLabel(newCompetition)
+        if (mode === 'nova') return competitionLabel(newCompetitionPayload())
         return `Sem prova alvo · ${goalLabel(noCompetitionGoal)}`
     }
 
@@ -111,7 +129,8 @@ export const GenerateTrainings = ({ onClose }) => {
             if (newCompetition.name.trim().length < 2) return 'Dê um nome para a competição.'
             if (!newCompetition.date) return 'Informe a data da competição.'
             if (newCompetition.date < today) return 'A data da competição já passou.'
-            if (!newCompetition.modality) return 'Escolha a modalidade da competição.'
+            const problem = raceProblem(newCompetition)
+            if (problem) return problem
         }
         if (mode === 'sem' && !noCompetitionGoal) return 'Escolha o objetivo.'
         return ''
@@ -233,13 +252,8 @@ export const GenerateTrainings = ({ onClose }) => {
                                     <input type='date' min={today} value={newCompetition.date}
                                         onChange={(e) => setNew('date')(e.target.value)} />
                                 </label>
-                                <ChoiceGroup label='Modalidade' options={MODALITY}
-                                    value={newCompetition.modality} onChange={setNew('modality')} />
-                                <label className={styles.textField}>
-                                    <span>Prova ou distância (opcional)</span>
-                                    <input value={newCompetition.event} maxLength={100}
-                                        onChange={(e) => setNew('event')(e.target.value)} placeholder='Ex.: 200 m livre, 1,5 km' />
-                                </label>
+                                <RaceFields value={newCompetition}
+                                    onChange={(value) => { setNewCompetition(value); setTargetError('') }} />
                             </div>
                         )}
                     </TargetOption>
@@ -293,6 +307,23 @@ export const GenerateTrainings = ({ onClose }) => {
                     Algo mudou? Atualizar meus dados
                 </button>
 
+                {targetCompetition() && (
+                    <div className={styles.intermediate}>
+                        <p className={styles.question}>Modelo de treino</p>
+                        {specificProblem ? (
+                            <p className={styles.hint}>
+                                <strong>Geral.</strong> {MODEL_TEXT.geral}<br />
+                                Específico da prova: {specificProblem}
+                            </p>
+                        ) : (
+                            <>
+                                <ChoiceGroup label='Como montar os treinos?' options={TRAINING_MODELS} value={chosenModel} onChange={setModel} />
+                                <p className={styles.hint}>{MODEL_TEXT[chosenModel]}</p>
+                            </>
+                        )}
+                    </div>
+                )}
+
                 {intermediateCompetitions.length > 0 && (
                     <div className={styles.intermediate}>
                         <p className={styles.question}>Outras provas no seu calendário</p>
@@ -336,6 +367,7 @@ export const GenerateTrainings = ({ onClose }) => {
                 {saved.competition
                     ? <>Prova alvo: <strong>{competitionLabel(saved.competition)}</strong> ({daysUntilText(daysUntil(saved.competition.date, today))}).</>
                     : <>Objetivo: <strong>{goalLabel(saved.goal)}</strong>, sem prova alvo.</>}
+                {saved.competition && <> Modelo de treino: <strong>{labelOf(TRAINING_MODELS, saved.model)}</strong>.</>}
             </p>
             {saved.trainings.length > 0 && (
                 <ul className={styles.generatedList}>

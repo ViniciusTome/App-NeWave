@@ -169,6 +169,14 @@ export function openDatabase(path) {
   if (!userColumns.includes('password_set')) db.exec('ALTER TABLE users ADD COLUMN password_set INTEGER NOT NULL DEFAULT 1')
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google ON users(google_sub) WHERE google_sub IS NOT NULL')
 
+  // Prova com distância, estilo e meta (modelo Específico); a preparação guarda o modelo
+  const competitionColumns = db.prepare('PRAGMA table_info(competitions)').all().map((col) => col.name)
+  if (!competitionColumns.includes('distance')) db.exec('ALTER TABLE competitions ADD COLUMN distance INTEGER')
+  if (!competitionColumns.includes('stroke')) db.exec('ALTER TABLE competitions ADD COLUMN stroke TEXT')
+  if (!competitionColumns.includes('goal_hundredths')) db.exec('ALTER TABLE competitions ADD COLUMN goal_hundredths INTEGER')
+  const preparationColumns = db.prepare('PRAGMA table_info(preparations)').all().map((col) => col.name)
+  if (!preparationColumns.includes('model')) db.exec("ALTER TABLE preparations ADD COLUMN model TEXT NOT NULL DEFAULT 'geral'")
+
   // Mensagens para o suporte (Perfil -> Suporte -> Entre em contato)
   db.exec(`
     CREATE TABLE IF NOT EXISTS support_messages (

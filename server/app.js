@@ -416,6 +416,7 @@ export function createApp({
     ['POST', '/api/trainings/:id/planned-test', athlete.answerPlannedTest],
     ['POST', '/api/trainings/:id/reschedule-test', athlete.rescheduleTest],
     ['GET', '/api/preparations/current', athlete.getCurrentPreparation],
+    ['PATCH', '/api/preparations/current', athlete.changeModel],
     ['POST', '/api/preparations', athlete.createPreparation],
   ].map(([method, path, handler]) => {
     const names = []
