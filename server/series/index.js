@@ -18,7 +18,7 @@ export const NADOS = ['livre', 'crawl', 'costas', 'peito', 'borboleta', 'estilo'
 // "solto": nado leve, de recuperação. "AA" (alático) = velocidade; "forte" é o mesmo que AA.
 export const INTENSIDADES = ['solto', 'A1', 'A2', 'A3', 'AA', 'forte']
 export const USOS = ['treino', 'teste']
-export const MATERIAIS = ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas']
+export const MATERIAIS = ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas']
 export const PISCINAS = [25, 50]
 
 const MEDLEY = ['borboleta', 'costas', 'peito', 'crawl']

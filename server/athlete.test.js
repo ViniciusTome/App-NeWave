@@ -116,7 +116,8 @@ test('salva a anamnese, organiza as listas e calcula o nível', async () => {
   assert.deepEqual(profile.trainingDays, [1, 3, 5])
   assert.equal(profile.injuries, 'Dor no ombro direito')
   assert.equal(profile.bestStroke, 'peito')
-  assert.deepEqual(profile.equipment, ['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'paraquedas'])
+  // (o pé de pato de peito saiu do app: some da lista)
+  assert.deepEqual(profile.equipment, ['pe_de_pato', 'palmar', 'paraquedas'])
   assert.equal(level.level, 'avancado')
   assert.equal(level.returning, false)
 

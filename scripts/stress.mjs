@@ -55,7 +55,7 @@ function perfil(i) {
         trainingDays: um([[1, 4], [1, 3, 5], [1, 2, 4, 5], [1, 2, 3, 4, 5], [0, 1, 2, 3, 4, 5, 6]]),
         sessionMinutes: um([30, 40, 45, 60, 75, 90, 120]),
         poolLength: um([25, 25, 50]),
-        equipment: alguns(['pe_de_pato', 'pe_de_pato_peito', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas']),
+        equipment: alguns(['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas']),
     }
     const { level, recemIntermediario } = computeLevel(anamnese, time400)
     // Preparação: sem prova (8 semanas, A-T-R) ou com prova a 20 dias até 8 meses
@@ -133,6 +133,16 @@ function confereAtleta({ nome, athlete, periodizacao, inicioDosTreinos }) {
     const precisa = !periodizacao.semProva && a.level === 'iniciante' && Boolean(testSeriesDistance(rules, prepareAthlete(rules, a), [], ritmo))
     for (const t of treinos.filter((x) => !x.plano.diaDeTeste)) {
         const i = t.partes.findIndex((p) => p.parte === 'continuo')
+        // Peito com pé de pato (nadando): o card diz para fazer a pernada de borboleta ou de crawl;
+        // e o pé de pato de peito não existe mais
+        for (const p of t.partes) {
+            confere('Sem "pé de pato de peito" nos treinos', !/PÉ de peito|pé de pato de peito/.test(p.texto), () => `${quem}: ${p.texto}`)
+            if (p.parte === 'perna' || p.parte === 'teste') continue
+            const comPePeito = p.texto.split('\n').some((l) => l.includes('c/PÉ') && /\bPE\b/.test(l))
+            if (comPePeito) {
+                confere('Peito com pé de pato: aviso da pernada de borboleta ou de crawl', p.texto.includes('pernada de borboleta ou de crawl'), () => `${quem}: ${p.texto}`)
+            }
+        }
         // Triatlo e maratona aquática: aquecimento, velocidade e principal só de crawl
         if (['triatlo', 'maratona_aquatica'].includes(a.modalidade)) {
             for (const p of t.partes.filter((x) => ['aquecimento', 'velocidade', 'principal'].includes(x.parte))) {

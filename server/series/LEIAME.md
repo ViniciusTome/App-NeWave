@@ -52,7 +52,7 @@ Cada bloco:
 | `intensidade` | `solto`, `A1`, `A2`, `A3` ou `forte`. Opcional: sem ela, a intensidade fica em aberto e é definida na hora de gerar o treino (é o caso da série principal, por enquanto). |
 | `trechos` | No lugar de `intensidade`, quando a repetição muda no meio. Ex.: 15 m forte + 10 m solto: `[{ "metros": 15, "intensidade": "forte" }, { "metros": 10, "intensidade": "solto" }]`. Os trechos precisam somar a `distancia`. |
 | `descanso` | Opcional. Segundos de descanso entre as repetições. |
-| `material` | Opcional. Lista com `pe_de_pato`, `pe_de_pato_peito`, `palmar`, `prancha`, `pull_buoy`, `snorkel`, `paraquedas`. |
+| `material` | Opcional. Lista com `pe_de_pato`, `palmar`, `prancha`, `pull_buoy`, `snorkel`, `paraquedas`. |
 
 O que cada `nado` quer dizer:
 
@@ -299,7 +299,7 @@ O `400 perna com pé de pato` sempre usa pé de pato, e pode sair:
 
 - só perna de crawl;
 - **ida crawl, voltando uma vez borboleta e outra costas** até fechar os 400 (`"idaCrawlVoltaBorboletaECostas"`);
-- **ida crawl, volta no melhor estilo** (`"idaCrawlVoltaMelhorEstilo"`). Se o melhor estilo for peito, a volta é de borboleta ou de costas, a não ser que o atleta tenha **pé de pato de peito**: aí a volta é de peito, com ele no lugar do pé de pato comum.
+- **ida crawl, volta no melhor estilo** (`"idaCrawlVoltaMelhorEstilo"`). Se o melhor estilo for peito, a volta é de borboleta ou de costas (perna com pé de pato nunca é de peito).
 
 As outras séries de perna saem **com pé de pato** na grande maioria das vezes, e **sem material** também, para treinar a pernada. Quem não tem pé de pato faz sem.
 
@@ -619,7 +619,7 @@ Para atualizar os ritmos e as saídas, a periodização tem um **teste de 400 m 
 
 - **Notação do treinador:** a saída é **`a/c`** (a cada), ex.: `4 x 100 m · A1 · CR · a/c 1'50"`. Sem tempos de referência, no lugar da saída vai o descanso: **`D20" de descanso`** (com o "de descanso" escrito, porque nem todo mundo sabe o que são as aspas). O intervalo entre as séries continua `c/2' de intervalo`.
 
-- **Perna (regra `perna.estilos`):** o card sempre diz o estilo da pernada: **um estilo** (ex.: `4 x 100 m PR · c/PÉ · CO`), **dois alternando a cada repetição** (ex.: `8 x 50 m PR · CR | BO`), com uma linha explicando a ordem para não parecer ida de um e volta de outro (`Uma repetição de cada estilo, alternando: 1ª: 50 m CR · 2ª: 50 m BO · 3ª: 50 m CR · 4ª: 50 m BO · e assim por diante`) ou **medley** (`MD`, quando a repetição fecha o medley na piscina: 100 m na de 25 m). Só entram os estilos que o atleta nada. **Perna com pé de pato: nada de peito nem medley** (com o pé de pato não dá para fazer a pernada de peito). Essa regra é só da perna: nadando (principal, velocidade) pode peito com pé de pato (perna de crawl ou de borboleta).
+- **Perna (regra `perna.estilos`):** o card sempre diz o estilo da pernada: **um estilo** (ex.: `4 x 100 m PR · c/PÉ · CO`), **dois alternando a cada repetição** (ex.: `8 x 50 m PR · CR | BO`), com uma linha explicando a ordem para não parecer ida de um e volta de outro (`Uma repetição de cada estilo, alternando: 1ª: 50 m CR · 2ª: 50 m BO · 3ª: 50 m CR · 4ª: 50 m BO · e assim por diante`) ou **medley** (`MD`, quando a repetição fecha o medley na piscina: 100 m na de 25 m). Só entram os estilos que o atleta nada. **Perna com pé de pato: nada de peito nem medley** (com o pé de pato não dá para fazer a pernada de peito). Essa regra é só da perna: nadando (principal, velocidade) pode peito com pé de pato, e o card avisa: "Peito com pé de pato: faça a pernada de borboleta ou de crawl." (O pé de pato de peito saiu do app.)
 
 - **Regra da troca de estilo:** sempre que o estilo troca dentro de uma mesma série, as repetições são separadas por **barra vertical "|"**, para a troca ficar fácil de ver. Ex.: `1ª série: c/PÉ · A1 · BO/CR T/100 | CO | ME | CR · a/c 4'40"`. A barra "/" fica só dentro da repetição (BO/CR T/100 = 100 borboleta + 100 crawl) e nos tempos por distância (100 a/c 1'40" / 75 a/c 1'25").
 
@@ -691,7 +691,7 @@ Só para o treinador: o atleta não sabe que é um teste.
 
 ### Nomes dos termos nos treinos
 
-- Na **1ª preparação** do atleta, os termos vão **por extenso** com a abreviação entre parênteses (ex.: "com pé de pato (c/PÉ)", "negativo (NEG)", "saída a cada 1'50\" (a/c)"). A partir da 2ª, só a abreviação.
+- Na **1ª preparação** do atleta, os termos vão **por extenso** com a abreviação entre parênteses (ex.: "com pé de pato (c/PÉ)", "negativo (NEG)", "saída a cada (a/c) 1'50\""). A partir da 2ª, só a abreviação.
 - A **abreviação é clicável** (azul, com sublinhado pontilhado) e abre a explicação do glossário, com o link para o glossário completo. Os termos ficam em `src/utils/terms.js`; as explicações, no `glossario.json`.
 
 ### Modelo de treino: Geral ou Específico da prova

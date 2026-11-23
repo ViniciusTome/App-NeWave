@@ -166,7 +166,6 @@ test('o card usa as abreviações do treinador', () => {
   assert.equal(abbreviate('8 x 25 m forte · medley · com pé de pato + palmar'), '8 x 25 m forte · MD · c/PÉ + PALM')
   assert.equal(abbreviate('com palmar + pull buoy'), 'c/PALM + BOIA')
   assert.equal(abbreviate('400 m perna com pé de pato · ida crawl, volta costas (melhor estilo)'), '400 m PR c/PÉ · ida CR, volta ME')
-  assert.equal(abbreviate('ida crawl, volta peito (melhor estilo) · com pé de pato de peito'), 'ida CR, volta ME · c/PÉ de peito')
   assert.equal(abbreviate('1ª série nadando'), '1ª série NAD')
   // Frases que não são termos ficam iguais
   assert.equal(abbreviate('Aqueça até sentir que o corpo está bem aquecido'), 'Aqueça até sentir que o corpo está bem aquecido')
@@ -1592,4 +1591,16 @@ test('perna com dois estilos: o card explica que alterna a cada repetição', ()
   }
   // Um estilo só: sem a explicação
   assert.ok(pernas.filter((p) => !/ \| /.test(p.texto)).every((p) => !/alternando/.test(p.texto)))
+})
+
+test('peito com pé de pato (nadando): o card diz para fazer a pernada de borboleta ou de crawl', () => {
+  const athlete = { ...avancado, strokes: ['crawl', 'peito'], bestStroke: 'peito', equipment: ['pe_de_pato', 'palmar', 'pull_buoy'] }
+  const partes = [1, 2, 3, 4, 5, 6].flatMap((seed) => gerar(athlete, seed)).flatMap((t) => t.partes)
+  const comPeito = partes.filter((p) => p.parte !== 'perna' && p.texto.split('\n').some((l) => l.includes('c/PÉ') && /\b(PE|ME)\b/.test(l)))
+  assert.ok(comPeito.length > 0, 'nenhum peito com pé de pato')
+  for (const p of comPeito) assert.match(p.texto, /\nPeito com pé de pato: faça a pernada de borboleta ou de crawl\.$/, p.texto)
+  // Sem pé de pato: sem o aviso
+  assert.ok(partes.filter((p) => !p.texto.includes('c/PÉ')).every((p) => !p.texto.includes('pernada de borboleta')))
+  // Perna com pé de pato: nunca de peito
+  for (const p of partes.filter((x) => x.parte === 'perna' && x.texto.includes('c/PÉ'))) assert.doesNotMatch(p.texto, /\bPE\b|peito|MD/, p.texto)
 })

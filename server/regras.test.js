@@ -541,7 +541,7 @@ test('perna: 400 sempre com pé de pato; quem não tem não recebe', () => {
   assert.deepEqual(lista[0].material, ['pe_de_pato'])
   // Material fixo da série: sem pé de pato não dá
   const semPe = pernaDe({ equipment: [], strokes: ['crawl'] })
-  assert.ok(semPe.every((v) => v.material.includes('pe_de_pato') || v.material.includes('pe_de_pato_peito')))
+  assert.ok(semPe.every((v) => v.material.includes('pe_de_pato')))
 })
 
 test('perna: 400 indo crawl e voltando uma vez borboleta e outra costas', () => {
@@ -555,17 +555,11 @@ test('perna: 400 indo crawl e voltando no melhor estilo', () => {
   const costas = pernaDe({ equipment: ['pe_de_pato'], strokes: QUATRO_ESTILOS, bestStroke: 'costas' })
   assert.ok(costas.some((v) => v.texto === '400 perna com pé de pato · ida crawl, volta costas (melhor estilo)'))
 
-  // Melhor estilo peito sem pé de pato de peito: volta de borboleta ou de costas
+  // Melhor estilo peito: perna com pé de pato não tem pernada de peito -> volta de borboleta ou de costas
   const peito = pernaDe({ equipment: ['pe_de_pato'], strokes: QUATRO_ESTILOS, bestStroke: 'peito' }).map((v) => v.texto)
-  assert.ok(peito.includes('400 perna com pé de pato · ida crawl, volta borboleta (no lugar do peito, sem pé de pato de peito)'))
-  assert.ok(peito.includes('400 perna com pé de pato · ida crawl, volta costas (no lugar do peito, sem pé de pato de peito)'))
-  assert.ok(!peito.some((t) => t.includes('volta peito')))
-
-  // Com pé de pato de peito: volta de peito, usando ele no lugar do pé de pato comum
-  const comPePeito = pernaDe({ equipment: ['pe_de_pato', 'pe_de_pato_peito'], strokes: QUATRO_ESTILOS, bestStroke: 'peito' })
-  const voltaPeito = comPePeito.find((v) => v.texto.includes('volta peito'))
-  assert.equal(voltaPeito.texto, '400 perna · ida crawl, volta peito (melhor estilo) · com pé de pato de peito')
-  assert.deepEqual(voltaPeito.material, ['pe_de_pato_peito'])
+  assert.ok(peito.includes('400 perna com pé de pato · ida crawl, volta borboleta'))
+  assert.ok(peito.includes('400 perna com pé de pato · ida crawl, volta costas'))
+  assert.ok(!peito.some((t) => /peito/.test(t)))
 })
 
 test('perna: com pé de pato na maioria, e sem material também, para treinar a pernada', () => {

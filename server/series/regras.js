@@ -22,7 +22,7 @@ const TIPOS_DE_INTENSIDADE = ['intensidades', 'AC', 'finalForte', 'NEG', 'POS', 
 export const FASES = ['acumulacao', 'transicao', 'realizacao']
 
 const NOMES = {
-    pe_de_pato: 'pé de pato', pe_de_pato_peito: 'pé de pato de peito', palmar: 'palmar',
+    pe_de_pato: 'pé de pato', palmar: 'palmar',
     prancha: 'prancha', pull_buoy: 'pull buoy', snorkel: 'snorkel', paraquedas: 'paraquedas',
 }
 const ORDINAIS = ['1ª', '2ª', '3ª', '4ª', '5ª', '6ª', '7ª', '8ª', '9ª', '10ª']
@@ -613,21 +613,13 @@ function strokeOptions(rules, serie, athlete) {
                 })
             }
         }
-        // Ida crawl, volta no melhor estilo. Se o melhor estilo for peito: com pé de pato
-        // de peito, volta de peito; sem ele, a volta é de borboleta ou de costas.
+        // Ida crawl, volta no melhor estilo. Perna com pé de pato não tem pernada de peito
+        // (regra do treinador): se o melhor estilo for peito, a volta é de borboleta ou de costas.
         if (outro === 'idaCrawlVoltaMelhorEstilo') {
             const melhor = bestStrokeOf(athlete, ESTILOS.filter((s) => has.has(s)))
-            if (melhor === 'peito' && athlete.equipment?.includes('pe_de_pato_peito')) {
-                options.push({
-                    nado: 'ida_crawl_volta_melhor_estilo', texto: 'ida crawl, volta peito (melhor estilo)',
-                    trocaMaterial: { de: 'pe_de_pato', para: 'pe_de_pato_peito' },
-                })
-            } else if (melhor === 'peito') {
+            if (melhor === 'peito') {
                 for (const outroEstilo of ['borboleta', 'costas'].filter((s) => has.has(s))) {
-                    options.push({
-                        nado: 'ida_crawl_volta_melhor_estilo',
-                        texto: `ida crawl, volta ${outroEstilo} (no lugar do peito, sem pé de pato de peito)`,
-                    })
+                    options.push({ nado: 'ida_crawl_volta_melhor_estilo', texto: `ida crawl, volta ${outroEstilo}` })
                 }
             } else if (melhor) {
                 options.push({ nado: 'ida_crawl_volta_melhor_estilo', texto: `ida crawl, volta ${melhor} (melhor estilo)` })
@@ -700,20 +692,6 @@ export function seriesVariations(rules, parte, serie, athlete) {
 
     const variations = []
     for (const stroke of strokeOptions(rules, serie, athlete)) {
-        // Volta de peito na perna: o pé de pato da série vira o pé de pato de peito
-        if (stroke.trocaMaterial) {
-            const { de, para } = stroke.trocaMaterial
-            const { trocaMaterial: _troca, texto: nadoTexto, ...strokeInfo } = stroke
-            const material = serie.exige.material.map((m) => (m === de ? para : m))
-            const base = serie.texto.replace(` com ${materialText(serie.exige.material)}`, '')
-            variations.push({
-                ...strokeInfo, padrao: 'fixo', material,
-                texto: [base, nadoTexto, `com ${materialText(material)}`].join(' · '),
-                // O card monta o texto da série sem o material antigo e com o nado
-                textoDaSerie: `${base} com ${materialText(material)}`, nadoTexto,
-            })
-            continue
-        }
         for (const option of materialOptions(rules, parte, serie, athlete.equipment, athlete.strokes, athlete.level)) {
             const { texto: _nadoTexto, ...strokeInfo } = stroke
             variations.push({ ...strokeInfo, ...option, texto: variationText(serie, stroke, option) })

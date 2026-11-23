@@ -21,10 +21,11 @@ export const TermText = ({ texto, extenso = false }) => {
             {pedacos.map((p, i) => {
                 if (typeof p === 'string') return <span key={i}>{p}</span>
                 if (!extenso) return clicavel(p.texto, p.termo, i)
-                // "com pé de pato (c/PÉ)": o nome normal e a abreviação clicável
-                const m = /^(.*?)\s*\(([^()]*)\)$/.exec(p.extenso)
+                // "com pé de pato (c/PÉ)" ou "saída a cada (a/c) 1'50"": o nome normal e a
+                // abreviação clicável (onde ela estiver)
+                const m = /^(.*?)\s*\(([^()]*)\)(.*)$/.exec(p.extenso)
                 if (!m) return clicavel(p.extenso, p.termo, i)
-                return <span key={i}>{m[1]} <span className={styles.junto}>({clicavel(m[2], p.termo, 'a')})</span></span>
+                return <span key={i}>{m[1]} <span className={styles.junto}>({clicavel(m[2], p.termo, 'a')}){m[3]}</span></span>
             })}
             <Modal open={aberto !== null} onClose={() => setAberto(null)} title={aberto ? `${aberto.sigla}${aberto.nome ? ` · ${aberto.nome}` : ''}` : ''}>
                 {aberto && (
