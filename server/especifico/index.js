@@ -6,6 +6,7 @@
 // distância da prova vêm na próxima entrega.
 
 import { readFileSync } from 'node:fs'
+import { montarTecnica } from '../tecnica/index.js'
 
 export const MODELOS = ['geral', 'especifico']
 export const ESTILOS_DA_PROVA = ['crawl', 'costas', 'peito', 'borboleta', 'medley']
@@ -170,15 +171,20 @@ function diminuir(s) {
 // Estilo da série: o da prova; medley em repetições curtas vai estilo a estilo
 const estiloText = (prova, dist) => (prova.estilo === 'medley' && dist < 100 ? 'BO|CO|PE|CR' : ABREV[prova.estilo] ?? 'CR')
 
-function linhaDoBloco(b, prova) {
+// A1, A2 e A3 com o tempo de saída (a/c) pelo teste de 400 m, como no Geral; RP e máx
+// (e quem ainda não tem tempo) com o descanso. `saida(bloco, estilo)` -> segundos ou null.
+function linhaDoBloco(b, prova, saida) {
     const quebrado = b.quebrado ? ` quebrado (${b.quebrado.join(' + ')}, D${b.pausa}")` : ''
     const nota = b.nota ? ` ${b.nota}` : ''
     const ritmo = b.ritmo === 'RP' ? `RP ${tempoText(ritmoDeProva(prova, b.dist))}` : b.ritmo === 'max' ? 'máx' : b.ritmo
-    return `${b.rep} x ${b.dist} m${quebrado}${nota} · ${ritmo} · ${estiloText(prova, b.dist)} · D${pausaText(b.descanso)} de descanso`
+    const ac = /^A[123]$/.test(b.ritmo) ? saida?.(b, prova.estilo) : null
+    const fim = ac ? `a/c ${pausaText(ac)}` : `D${pausaText(b.descanso)} de descanso`
+    return `${b.rep} x ${b.dist} m${quebrado}${nota} · ${ritmo} · ${estiloText(prova, b.dist)} · ${fim}`
 }
 
-function textoDaSerie(s, prova) {
-    const linhas = s.blocos.map((b) => linhaDoBloco(b, prova))
+// Texto da série da prova (também usado para reescrever com um tempo novo de 400 m)
+export function textoDaSerie(s, prova, saida = null) {
+    const linhas = s.blocos.map((b) => linhaDoBloco(b, prova, saida))
     if ((s.vezes ?? 1) === 1) return linhas.join('\n')
     const intervalo = `c/${pausaText(s.intervalo ?? 120)} de intervalo`
     return linhas.length === 1 ? `(${s.vezes}x) ${linhas[0]} · ${intervalo}` : `(${s.vezes}x) ${intervalo}\n${linhas.join('\n')}`
@@ -189,7 +195,7 @@ const INTENSIDADE = { RP: 'A3', max: 'A3', A3: 'A3', A2: 'A2', A1: 'A1' }
 // Troca a série principal do treino do Geral pela série da prova e respeita o limite
 // da prova (15x ou 10x a distância) no treino inteiro. Devolve as partes novas (ou as
 // mesmas, quando o Específico não vale nesse treino).
-export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null }) {
+export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null, saida = null, tecnica = null }) {
     const { regras, series } = esp
     const prova = athlete.prova
     if (athlete.modelo !== 'especifico' || !prova?.distancia || !prova.metaCentesimos) return partes
@@ -263,7 +269,12 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
         titulo: 'Série principal da prova',
         serieId: escolhida.id,
         serieTexto: escolhida.id,
-        texto: textoDaSerie(escolhida, prova),
+        texto: textoDaSerie(escolhida, prova, saida),
+        // Para reescrever com um tempo novo de 400 m (o a/c do A1, A2 e A3)
+        _montagem: {
+            parte: 'principal', especifico: { serie: escolhida, prova },
+            dia: { fase: athlete.fase ?? null, descansoExtra: athlete.descansoExtra ?? 0, descansoMaior: athlete.descansoMaior ?? null },
+        },
         nado: prova.estilo,
         material: escolhida.material ? [escolhida.material] : [],
         observacao: `RP = ritmo de prova, pela sua meta: ${tempoText(rp)} a cada ${prova.distancia <= 100 ? 25 : 50} m.${escolhida.nota ? ` ${escolhida.nota[0].toUpperCase()}${escolhida.nota.slice(1)}.` : ''}`,
@@ -278,5 +289,51 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
         delete copia._i
         return copia
     }
-    return [...resto.filter((p) => p._i < posicao).map(limpa), principal, ...resto.filter((p) => p._i > posicao).map(limpa)]
+    // Sobrou tempo da aula (provas curtas, com o limite da prova): saídas, técnica e
+    // viradas, que não contam na metragem da prova
+    const usados = resto.reduce((t, p) => t + p.minutos, 0) + principal.minutos
+    const complemento = complementar({ regras, athlete, prova, pace, random, recentes, tecnica, minutos: minutosDaAula / 1.1 - usados })
+    return [...resto.filter((p) => p._i < posicao).map(limpa), principal, ...(complemento ? [complemento] : []), ...resto.filter((p) => p._i > posicao).map(limpa)]
+}
+
+// "Saídas e técnica": completa o tempo que sobrou com saídas, um educativo no estilo da
+// prova e viradas (nessa ordem, o que couber). Não conta no limite de 15x/10x.
+function complementar({ regras, athlete, prova, pace, random, recentes, tecnica, minutos }) {
+    const cfg = regras.complemento
+    if (!cfg || minutos < cfg.aPartirDeMinutosLivres) return null
+    let livres = minutos * 60
+    const linhas = []
+    let metros = 0
+    const segundosDoItem = (i) => i.rep * ((i.dist / 100) * pace * 1.2 + i.descanso)
+    const item = (i) => {
+        const seg = segundosDoItem(i)
+        if (seg > livres) return
+        linhas.push(`${i.rep} x ${i.texto} · ${estiloText(prova, 25)} · D${pausaText(i.descanso)} de descanso`)
+        metros += i.rep * i.dist
+        livres -= seg
+    }
+    item(cfg.saidas)
+    // Educativo no estilo da prova (biblioteca de técnica)
+    if (tecnica) {
+        const estilos = prova.estilo === 'medley' ? ['crawl', 'costas', 'peito', 'borboleta'] : [prova.estilo]
+        const tec = montarTecnica({ tecnica, athlete: { ...athlete, strokes: estilos, estiloDaProva: prova.estilo }, parte: 'aquecimento', pace, random, recentes })
+        if (tec && tec.segundos <= livres) {
+            linhas.push(tec.texto.split('\n').at(-1))
+            metros += tec.metros
+            livres -= tec.segundos
+        }
+    }
+    if (prova.modalidade?.startsWith('piscina')) item(cfg.viradas)
+    if (linhas.length === 0) return null
+    return {
+        parte: 'complemento',
+        titulo: 'Saídas e técnica',
+        serieId: 'esp-complemento',
+        serieTexto: 'Saídas e técnica',
+        texto: linhas.join('\n'),
+        observacao: 'Não conta na metragem da prova: é para usar o tempo que sobra da aula.',
+        metros,
+        minutos: Math.round((minutos * 60 - livres) / 60),
+        foraDoLimite: true,
+    }
 }

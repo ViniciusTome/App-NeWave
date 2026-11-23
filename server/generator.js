@@ -15,7 +15,7 @@ import {
     partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
     drawIntensities, hardestIntensity, recoveryWaived,
 } from './series/regras.js'
-import { aplicarEspecifico, loadEspecifico } from './especifico/index.js'
+import { aplicarEspecifico, loadEspecifico, textoDaSerie } from './especifico/index.js'
 import { estadoDaTecnica, loadTecnica, montarTecnica, parteDaTecnica } from './tecnica/index.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
@@ -43,7 +43,7 @@ const SEM_PARAR = {
 
 export const NOMES_DAS_PARTES = {
     aquecimento: 'Aquecimento', velocidade: 'Velocidade', solto: 'Solto', principal: 'Série principal',
-    perna: 'Perna', soltura: 'Soltura',
+    perna: 'Perna', soltura: 'Soltura', complemento: 'Saídas e técnica',
 }
 
 // ---------- Tempo estimado de uma série ----------
@@ -888,6 +888,13 @@ export function trainingDates(today, trainingDays, dias = DIAS_PADRAO) {
 // Técnica (educativos): módulo separado, carregado uma vez
 let tecnicaPadrao = null
 const tecnicaDoApp = () => (tecnicaPadrao ??= loadTecnica())
+// Saída (a/c) do A1, A2 e A3 nas séries do Específico: a mesma conta do Geral (tabela do
+// teste de 400 m, fator do estilo e o descanso escrito na série). Sem tempos: null.
+const saidaDoEspecifico = (rules, athlete) => (athlete.tabela
+    ? (b, estilo) => saidaFor(rules, athlete, { distancia: b.dist, repeticoes: b.rep, intensidade: b.ritmo, descanso: b.descanso }, b.ritmo,
+        rules.saidas?.fatorDoEstilo?.[estilo] ?? 1)
+    : null)
+
 // Modelo Específico da prova (módulo separado): só nos treinos da Transição e da Realização
 let especificoPadrao = null
 const especificoDoApp = () => (especificoPadrao ??= loadEspecifico())
@@ -1058,6 +1065,8 @@ function partMontage(parte, serie, variation, faixa, intensidades, athlete) {
 export function renderPart(rules, athlete, montagem) {
     const { parte, variation, faixa, intensidades } = montagem
     const doDia = { ...athlete, ...montagem.dia }
+    // Série da prova (modelo Específico): só o a/c do A1, A2 e A3 muda com o tempo novo
+    if (montagem.especifico) return { texto: textoDaSerie(montagem.especifico.serie, montagem.especifico.prova, saidaDoEspecifico(rules, doDia)) }
     const serie = describe(montagem.serie)
     let saidas = parte === 'velocidade'
         ? (serie.blocos.length === 1 ? [saidaVelocidade(rules, doDia, serie.blocos[0], strokeFactor(rules, variation, 0, doDia, serie))] : null)
@@ -1577,7 +1586,9 @@ export function generateTrainings({
             : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal, tecnica, estadoTecnica })
         // Específico da prova: na Transição e na Realização, a série principal é a da prova
         // (estilo e ritmo da prova) e o treino inteiro fica dentro do limite (15x ou 10x a prova)
-        const partes = especifico ? aplicarEspecifico({ esp: especifico, partes: doGeral, athlete: doDia, pace, random, recentes }) : doGeral
+        const partes = especifico ? aplicarEspecifico({
+            esp: especifico, partes: doGeral, athlete: doDia, pace, random, recentes, saida: saidaDoEspecifico(rules, doDia), tecnica,
+        }) : doGeral
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
         const tecnicaDoTreino = partes.map((p) => p._tecnica).filter(Boolean)
@@ -1637,7 +1648,7 @@ export function legacyFields(partes) {
     return {
         warmUp: juntar(['aquecimento']),
         speed: juntar(['velocidade', 'solto']),
-        mainSeries: juntar(['teste', 'recuperacao', 'principal', 'hidratacao', 'perna']),
+        mainSeries: juntar(['teste', 'recuperacao', 'principal', 'complemento', 'hidratacao', 'perna']),
         release: juntar(['soltura']),
     }
 }

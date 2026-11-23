@@ -432,7 +432,8 @@ function confereEspecifico(i) {
         if (!vale || !t.partes.some((p) => p.parte === 'principal')) continue
         confere('Específico: uma série principal, a da prova', esp.length === 1 && t.partes.filter((p) => p.parte === 'principal').length === 1, () => `${quem}: ${t.date}`)
         if (esp.length !== 1) continue
-        confere('Específico: treino inteiro até 15x (50 e 100 m) ou 10x a prova', t.metros <= limite, () => `${quem}: ${t.date} ${t.metros} m (limite ${limite}) ${t.partes.map((p) => `${p.parte}:${p.metros}`).join(" ")}`)
+        const metrosDaProva = t.partes.filter((p) => !p.foraDoLimite).reduce((m, p) => m + p.metros, 0)
+        confere('Específico: treino inteiro até 15x (50 e 100 m) ou 10x a prova (saídas e técnica do tempo que sobra não contam)', metrosDaProva <= limite, () => `${quem}: ${t.date} ${metrosDaProva} m (limite ${limite}) ${t.partes.map((p) => `${p.parte}:${p.metros}`).join(" ")}`)
         const linhas = esp[0].texto.split('\n').filter((l) => / x \d+ m/.test(l))
         confere('Específico: no estilo da prova (medley curto: estilo a estilo)', linhas.every((l) => l.includes(`· ${ABREV_ESP[estilo]} ·`) || (estilo === 'medley' && l.includes('BO|CO|PE|CR'))),
             () => `${quem}: ${esp[0].texto}`)

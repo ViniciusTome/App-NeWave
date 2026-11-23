@@ -684,6 +684,9 @@ O modelo **Específico da prova** fica separado do Geral, na pasta `server/espec
   - **RP (ritmo de prova):** a meta dividida igualmente pela distância (200 m em 2'30" = **RP 37"5** a cada 50 m). Embaixo da série vai a explicação.
   - **Limite da prova:** o treino inteiro até **15x** a distância nos 50 e 100 m e **10x** nas outras. Quando não cabe, nesta ordem: sai a perna; o aquecimento, o solto e a soltura ficam curtos (sem a técnica); a velocidade fica curta (ela continua em todas as provas); a série da prova diminui.
   - A série também cabe no **tempo** da série principal do Geral (que já cai na Realização).
+  - **A1, A2 e A3** saem com o **a/c** pelo teste de 400 m, como no Geral (tempo do crawl x o fator do estilo + o descanso escrito na série; na Realização, o descanso maior). Com um tempo novo, o a/c é refeito; o RP continua pela meta. Sem tempos: o descanso no lugar do a/c.
+  - **Sobrou tempo da aula** (provas curtas, por causa do limite): entra a parte **"Saídas e técnica"** depois da série da prova, com o que couber nesta ordem: 6 x saída + 15 m forte, um educativo no estilo da prova (biblioteca de técnica) e, na piscina, 4 x virada forte. Ela **não conta** no limite de 15x/10x (`regras.json` → `complemento`).
+  - **Triatlo:** usa as séries pela distância (750 e 1500 m: as do fundo; 1,9 e 3,8 km: as de águas abertas).
   - As séries e as regras ficam em `server/especifico/series.json` e `regras.json`; dá para acrescentar séries sem mexer no código.
 
 ### Teste de estresse

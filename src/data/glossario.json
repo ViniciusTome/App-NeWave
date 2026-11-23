@@ -39,6 +39,7 @@
       { "sigla": "Velocidade", "explicacao": "Tiros curtos e fortes (ex.: 25 m)." },
       { "sigla": "Solto", "explicacao": "Nado bem leve, para recuperar." },
       { "sigla": "Série principal", "explicacao": "A parte mais importante do treino, com o objetivo do dia." },
+      { "sigla": "Saídas e técnica", "explicacao": "No modelo Específico da prova: saídas, um educativo no estilo da prova e viradas, para usar o tempo que sobra da aula. Não conta na metragem máxima da prova." },
       { "sigla": "Série principal da prova", "explicacao": "No modelo Específico da prova, na Transição e na Realização: a série principal no estilo e no ritmo da sua prova alvo. O treino inteiro fica até 15 vezes a distância da prova (50 e 100 m) ou 10 vezes (as outras)." },
       { "sigla": "PR", "nome": "Perna (pernada)", "explicacao": "Série só de pernada, no estilo escrito (ex.: PR · CO = perna de costas; PR · MD = perna de medley). Com pé de pato não tem perna de peito." },
       { "sigla": "|", "nome": "Troca de estilo", "detectar": " \\| ", "explicacao": "Separa os estilos de cada repetição, na ordem. Ex.: ME | BO | ME | BO = 1ª repetição no melhor estilo, 2ª borboleta... Na perna, dois estilos (ex.: 8 x 50 m PR · CR | CO) se alternam a cada repetição: 1ª CR, 2ª CO, 3ª CR..." },

@@ -22,6 +22,12 @@
   },
   "velocidadeCurta": { "texto": "6 x 25 m forte · {estilo} · D30\" de descanso", "metros": 150 },
   "soltoCurto": { "texto": "100 m solto", "metros": 100 },
+  "complemento": {
+    "_comentario": "Tempo que sobra da aula (provas curtas): saídas, um educativo no estilo da prova e viradas. Não conta no limite da prova.",
+    "aPartirDeMinutosLivres": 8,
+    "saidas": { "texto": "saída + 15 m forte", "rep": 6, "dist": 15, "descanso": 60 },
+    "viradas": { "texto": "virada forte (10 m antes, 10 m depois)", "rep": 4, "dist": 20, "descanso": 45 }
+  },
   "borboletaAte": 100,
   "esforco": { "transicao": "A3", "realizacao": "A3" }
 }

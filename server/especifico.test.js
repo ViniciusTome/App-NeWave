@@ -96,7 +96,8 @@ test('Específico: Acumulação igual ao Geral; na Transição e na Realização
           assert.equal(esp.length, 1, onde)
           assert.equal(t.partes.filter((p) => p.parte === 'principal').length, 1, onde)
           // Limite da prova no treino inteiro (15x nos 50 e 100 m; 10x nas outras)
-          assert.ok(t.metros <= limiteDaProva(esp[0] && { limiteDaProva: { ate100: 15, outras: 10 } }, prova.distancia), `${onde}: ${t.metros} m`)
+          const metros = t.partes.filter((p) => !p.foraDoLimite).reduce((m, p) => m + p.metros, 0)
+          assert.ok(metros <= limiteDaProva({ limiteDaProva: { ate100: 15, outras: 10 } }, prova.distancia), `${onde}: ${metros} m`)
           // Estilo da prova; RP pela meta; borboleta até 100 m; piscina de 50 sem 25 e 75
           const texto = esp[0].texto
           assert.equal(esp[0].nado, prova.estilo, onde)
@@ -122,4 +123,33 @@ test('Específico sem tempos de referência (sem o teste de 400 m): o RP continu
   const esp = treinos.flatMap((t) => t.partes.filter((p) => p.especifico))
   assert.ok(esp.length > 5)
   assert.ok(esp.some((p) => p.texto.includes('RP 37"5')))
+})
+
+test('Específico: A1/A2/A3 com a/c (pelo teste de 400 m), que muda com um tempo novo; o RP continua pela meta', async () => {
+  const { refreshTimes } = await import('./generator.js')
+  const prova = PROVAS[4] // 400 m peito
+  const treinos = gerar(prova, { seed: 3 })
+  const t = treinos.find((x) => x.partes.some((p) => p.especifico && /A[123] · PE · a\/c/.test(p.texto)))
+  assert.ok(t, 'algum treino com A1/A2/A3 e a/c')
+  const i = t.partes.findIndex((p) => p.especifico)
+  const athlete = { level: 'avancado', continuousDistance: 'mais_2000', sessionMinutes: 60, poolLength: 25, strokes: ['crawl', 'peito'], time400: { hundredths: 30000, source: 'teste' } }
+  const novas = refreshTimes(rules, athlete, t)
+  assert.notEqual(novas[i].texto, t.partes[i].texto)
+  const rps = (texto) => [...texto.matchAll(/RP [^ ]+/g)].map((m) => m[0])
+  assert.deepEqual(rps(novas[i].texto), rps(t.partes[i].texto))
+  // Sem tempos: o descanso no lugar do a/c
+  const semTempo = gerar(prova, { seed: 3, time400: null }).flatMap((x) => x.partes.filter((p) => p.especifico))
+  assert.ok(semTempo.every((p) => !p.texto.includes('a/c')))
+})
+
+test('Específico: sobra de tempo (provas curtas) vira "Saídas e técnica", fora do limite da prova', () => {
+  const treinos = gerar(PROVAS[0]) // 50 m crawl, aula de 60 min
+  const comp = treinos.flatMap((t) => t.partes.filter((p) => p.parte === 'complemento'))
+  assert.ok(comp.length > 5)
+  for (const p of comp) {
+    assert.equal(p.foraDoLimite, true)
+    assert.match(p.texto, /saída \+ 15 m forte/)
+  }
+  // Na Acumulação não tem
+  assert.ok(treinos.filter((t) => t.plano.fase === 'acumulacao').every((t) => t.partes.every((p) => p.parte !== 'complemento')))
 })
