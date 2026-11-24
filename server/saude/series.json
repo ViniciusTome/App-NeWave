@@ -67,5 +67,5 @@
   {"id": "sa-misto-4x300", "niveis": ["avancado"], "tipo": "misto", "blocos": [{"rep": 4, "dist": 300, "ritmo": "A1", "descanso": 20, "nota": "200 nado + 100 perna"}]},
   {"id": "sa-misto-8x150", "niveis": ["avancado"], "tipo": "misto", "blocos": [{"rep": 8, "dist": 150, "ritmo": "A1", "descanso": 20, "nota": "50 perna, 50 braçada com boia, 50 nado"}]},
   {"id": "sa-piramide", "niveis": ["avancado"], "tipo": "extensivo", "blocos": [{"rep": 1, "dist": 100, "ritmo": "A1/A2", "descanso": 20}, {"rep": 1, "dist": 200, "ritmo": "A1/A2", "descanso": 20}, {"rep": 1, "dist": 300, "ritmo": "A1/A2", "descanso": 20}, {"rep": 1, "dist": 200, "ritmo": "A1/A2", "descanso": 20}, {"rep": 1, "dist": 100, "ritmo": "A1/A2", "descanso": 20}]},
-  {"id": "sa-perna-10x100", "niveis": ["avancado"], "tipo": "perna", "blocos": [{"rep": 10, "dist": 100, "ritmo": "A1/A2", "descanso": 15, "nota": "alternando leve e moderado", "material": "pe_de_pato", "nado": "perna"}]}
+  {"id": "sa-misto-10x100pe", "niveis": ["avancado"], "tipo": "misto", "blocos": [{"rep": 10, "dist": 100, "ritmo": "A1/A2", "descanso": 15, "nota": "1 nadando, 1 de perna, alternando", "material": "pe_de_pato"}]}
 ]

@@ -174,8 +174,5 @@ O app confere o arquivo ao iniciar e avisa se alguma série estiver errada.
 
 - `sa-misto-4x300` — 4 x 300 m (200 nado + 100 perna) · A1 · CR · D20" de descanso _(~22 min, 1200 m)_
 - `sa-misto-8x150` — 8 x 150 m (50 perna, 50 braçada com boia, 50 nado) · A1 · CR · D20" de descanso _(~23 min, 1200 m)_
-
-**Perna**
-
-- `sa-perna-10x100` — 10 x 100 m perna (alternando leve e moderado) · c/PÉ · A1/A2 · PR · CR · D15" de descanso _(~24 min, 1000 m)_
+- `sa-misto-10x100pe` — 10 x 100 m (1 nadando, 1 de perna, alternando) · c/PÉ · A1/A2 · CR · D15" de descanso _(~18 min, 1000 m)_
 
