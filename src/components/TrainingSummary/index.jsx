@@ -20,8 +20,8 @@ const Estilos = ({ estilos }) => {
     return (
         <>
             <p className={styles.legenda}>
-                <span className={styles.marcaNadado} /> nadado (últimas 4 semanas)
-                <span className={styles.marcaPlanejado} /> planejado (próximas 4 semanas)
+                <span className={styles.itemDaLegenda}><span className={styles.marcaNadado} /> nadado (últimas 4 semanas)</span>
+                <span className={styles.itemDaLegenda}><span className={styles.marcaPlanejado} /> planejado (próximas 4 semanas)</span>
             </p>
             {nadado.metros === 0 && <p className={styles.legenda}>Ainda sem treinos concluídos nas últimas 4 semanas.</p>}
             <ul className={styles.estilos}>
@@ -76,7 +76,9 @@ export const TrainingSummary = () => {
         <div className={styles.box}>
             <h3>Resumo dos treinos</h3>
 
-            <section className={styles.item}>
+            {/* Grade: nota e o que pesou (meio a meio); semana (2/3) e frequência (1/3); estilos (inteiro) */}
+            <div className={styles.grade}>
+            <section className={`${styles.item} ${styles.metade}`}>
                 <p className={styles.rotulo}>Nota média da série principal</p>
                 {notas.recentes === null
                     ? <p>Conclua treinos dando a nota (1 a 10) para ver a média aqui.</p>
@@ -89,7 +91,7 @@ export const TrainingSummary = () => {
                     )}
             </section>
 
-            <section className={styles.item}>
+            <section className={`${styles.item} ${styles.metade}`}>
                 <p className={styles.rotulo}>O que mais pesou</p>
                 {motivos.treinos === 0
                     ? <p>Ainda sem treinos com nota.</p>
@@ -105,7 +107,7 @@ export const TrainingSummary = () => {
                         )}
             </section>
 
-            <section className={styles.item}>
+            <section className={`${styles.item} ${styles.doisTercos}`}>
                 <p className={styles.rotulo}>Esta semana ({formatDate(semana.inicio).slice(0, 5)} a {formatDate(semana.fim).slice(0, 5)})</p>
                 {semana.treinos === 0
                     ? <p>Nenhum treino nesta semana.</p>
@@ -123,14 +125,7 @@ export const TrainingSummary = () => {
                     )}
             </section>
 
-            {estilos && (
-                <section className={styles.item}>
-                    <p className={styles.rotulo}>Quanto de cada estilo (% dos metros)</p>
-                    <Estilos estilos={estilos} />
-                </section>
-            )}
-
-            <section className={styles.item}>
+            <section className={`${styles.item} ${styles.umTerco}`}>
                 <p className={styles.rotulo}>Frequência (últimos {frequencia.dias} dias)</p>
                 {frequencia.treinos === 0
                     ? <p>Ainda sem treinos nesse período.</p>
@@ -142,6 +137,13 @@ export const TrainingSummary = () => {
                         </p>
                     )}
             </section>
+            {estilos && (
+                <section className={`${styles.item} ${styles.inteiro}`}>
+                    <p className={styles.rotulo}>Quanto de cada estilo (% dos metros)</p>
+                    <Estilos estilos={estilos} />
+                </section>
+            )}
+            </div>
         </div>
     )
 }
