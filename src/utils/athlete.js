@@ -14,9 +14,12 @@ export const SWIMMING_SINCE = options([
 export const RECENT_BREAK = options([
     ['nao', 'Não parei'],
     ['menos_1m', 'Menos de 1 mês'],
-    ['1_6m', 'De 1 a 6 meses'],
+    ['1_3m', 'De 1 a 3 meses'],
+    ['4_6m', 'De 4 a 6 meses'],
     ['mais_6m', 'Mais de 6 meses'],
 ])
+// Resposta antiga (antes de dividir em 1 a 3 e 4 a 6 meses): só para mostrar
+const OLD_RECENT_BREAK = options([['1_6m', 'De 1 a 6 meses']])
 
 export const CONTINUOUS_DISTANCE = options([
     ['ate_50', 'Até 50 m'],
@@ -218,7 +221,7 @@ const bestStrokeText = (profile) => {
 // Respostas da anamnese em pares [pergunta, resposta], para resumos
 export const profileSummary = (profile, time400) => [
     ['Nada há', labelOf(SWIMMING_SINCE, profile.swimmingSince)],
-    ['Parado recentemente', labelOf(RECENT_BREAK, profile.recentBreak)],
+    ['Parado recentemente', labelOf([...RECENT_BREAK, ...OLD_RECENT_BREAK], profile.recentBreak)],
     ['Nada sem parar', labelOf(CONTINUOUS_DISTANCE, profile.continuousDistance)],
     ['Estilos', labelsOf(STROKES, profile.strokes)],
     ['Melhor estilo', bestStrokeText(profile)],

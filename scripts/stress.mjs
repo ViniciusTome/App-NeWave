@@ -49,7 +49,7 @@ function perfil(i) {
     const time400 = random() < 0.65 ? { hundredths: Math.round((4.5 + random() * 6) * 6000), source: um(['teste', 'informado']) } : null
     const anamnese = {
         swimmingSince: um(['menos_6m', '6m_2a', '2a_5a', 'mais_5a']),
-        recentBreak: um(['nao', 'nao', 'menos_1m', '1_6m', 'mais_6m']),
+        recentBreak: um(['nao', 'nao', 'menos_1m', '1_3m', '4_6m', 'mais_6m']),
         continuousDistance,
         strokes,
         bestStroke: strokes.length > 1 ? um(strokes) : null,

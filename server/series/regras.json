@@ -46,12 +46,12 @@
     "voltandoDaParada": {
       "_comentario": "Avançado que ficou parado: o corpo se acostuma primeiro. Nos primeiros dias de treino (por tempo parado), borboleta bem rara na principal e só em repetições curtas. Na velocidade continua livre.",
       "niveis": ["avancado"],
-      "diasDeAdaptacao": { "1_6m": 30, "mais_6m": 60 },
+      "diasDeAdaptacao": { "1_3m": 30, "4_6m": 30, "1_6m": 30, "mais_6m": 60 },
       "pesoNaPrincipal": 0.1,
       "maiorRepeticaoNaPrincipal": 50,
       "seForOMelhorEstilo": {
         "_comentario": "Borboleta é o melhor estilo: aguenta mais, mas no retorno ainda pode ser demais. Só no primeiro mês, um pouco menos de borboleta (metade do normal) e repetições de até 100 m.",
-        "diasDeAdaptacao": { "1_6m": 30, "mais_6m": 30 },
+        "diasDeAdaptacao": { "1_3m": 30, "4_6m": 30, "1_6m": 30, "mais_6m": 30 },
         "pesoNaPrincipal": 0.2,
         "maiorRepeticaoNaPrincipal": 100
       }
