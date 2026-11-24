@@ -894,3 +894,13 @@ test('objetivo misto (condicionamento + saúde): valida a mistura, guarda e gera
   const saude = (await api('/api/trainings/periodization', { cookie })).body.trainings
   assert.ok(saude.every((t) => t.periodizacao.nomeDaEtapa === 'Saúde / emagrecimento' && t.periodizacao.fase === 'acumulacao'))
 })
+
+test('anamnese: tempo parado de 1 a 3 meses e de 4 a 6 meses', async () => {
+  const cookie = await userFor('periodizacao') // (o limite de cadastros por hora: reaproveita um usuário)
+  for (const recentBreak of ['1_3m', '4_6m']) {
+    const res = await saveProfile(cookie, { ...sampleProfile, recentBreak })
+    assert.equal(res.status, 200)
+    assert.equal(res.body.profile.recentBreak, recentBreak)
+  }
+  assert.equal((await saveProfile(cookie, { ...sampleProfile, recentBreak: '7_9m' })).status, 400)
+})

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { planoDaSerie, relogio } from '../../utils/seriesClock'
+import { esperaDepoisDe, planoDaSerie, relogio, textoDaRepeticao } from '../../utils/seriesClock'
 import { useBeep, useClockTheme, useTick, useWakeLock } from './common'
 import { Numeros } from './Numeros'
 import { createPortal } from 'react-dom'
@@ -10,18 +10,22 @@ const PREPARAR = 10 // segundos antes da 1ª saída
 // Relógio de saída de uma série do treino, em tela cheia. Lê a série do card (repetições,
 // a/c ou descanso, séries e intervalo) e avisa cada saída com bipe, vibração e uma
 // contagem grande. Com a/c: sai a cada X. Com descanso: o atleta toca em "Cheguei" e o
-// relógio conta o descanso até a próxima saída.
+// relógio conta o descanso até a próxima saída. Por tempo (ex.: 5 x 4' D1'): conta os 4 minutos
+// de nado, apita e conta o descanso, sozinho. No fim de cada série, o intervalo soma o descanso
+// da última repetição.
 export const IntervalClock = ({ titulo, texto, onClose }) => {
     const plano = useMemo(() => planoDaSerie(texto), [texto])
     const [tema, trocarTema] = useClockTheme()
     const { liberar, bipe } = useBeep()
-    // fase: parado | contagem (até a próxima saída) | nadando (descanso: até tocar Cheguei) | fim
+    // fase: parado | contagem (até a próxima saída) | nadando (descanso: até tocar Cheguei;
+    // por tempo: até acabar o tempo de nado) | fim
     const [fase, setFase] = useState('parado')
     const [indice, setIndice] = useState(0) // a repetição da próxima saída (ou a que está nadando)
     const [alvo, setAlvo] = useState(null) // horário da próxima saída
     const [saiuEm, setSaiuEm] = useState(null) // horário da última saída
     const [pausadoEm, setPausadoEm] = useState(null)
     const rodando = (fase === 'contagem' || fase === 'nadando') && pausadoEm === null
+    const [fimDoNado, setFimDoNado] = useState(null) // por tempo: horário em que acaba o nado
     const agora = useTick(rodando)
     const ultimoBipe = useRef(null)
     useWakeLock(true)
@@ -33,6 +37,30 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
 
     // Tempo até a próxima saída e os bipes: 3, 2, 1 e o longo na saída
     const falta = alvo !== null ? (alvo - (pausadoEm ?? agora)) / 1000 : null
+    // Por tempo: acaba o nado -> apito longo e conta o descanso (no fim da série, o intervalo + o descanso)
+    const faltaNadar = fimDoNado !== null ? (fimDoNado - (pausadoEm ?? agora)) / 1000 : null
+    useEffect(() => {
+        if (fase !== 'nadando' || rep?.modo !== 'tempo' || pausadoEm !== null || faltaNadar === null) return
+        const segundo = Math.ceil(faltaNadar)
+        if (faltaNadar <= 0) {
+            bipe(true)
+            ultimoBipe.current = null
+            const fim = fimDoNado
+            setFimDoNado(null)
+            if (indice + 1 >= reps.length) {
+                setFase('fim')
+                return
+            }
+            setIndice(indice + 1)
+            setFase('contagem')
+            setAlvo(fim + esperaDepoisDe(plano, indice) * 1000)
+        } else if (segundo <= 3 && ultimoBipe.current !== -segundo) {
+            ultimoBipe.current = -segundo
+            bipe(false)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [agora, fase, pausadoEm, fimDoNado])
+
     useEffect(() => {
         if (fase !== 'contagem' || pausadoEm !== null || falta === null) return
         const segundo = Math.ceil(falta)
@@ -41,7 +69,11 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
             ultimoBipe.current = null
             const saida = alvo
             setSaiuEm(saida)
-            if (rep.modo === 'descanso') {
+            if (rep.modo === 'tempo') {
+                setFase('nadando')
+                setAlvo(null)
+                setFimDoNado(saida + rep.nadar * 1000)
+            } else if (rep.modo === 'descanso') {
                 setFase('nadando')
                 setAlvo(null)
             } else {
@@ -68,6 +100,7 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
         setIndice(0)
         setFase('contagem')
         setAlvo(Date.now() + PREPARAR * 1000)
+        setFimDoNado(null)
         setPausadoEm(null)
     }
 
@@ -80,7 +113,8 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
         }
         setIndice(proximo)
         setFase('contagem')
-        setAlvo(Date.now() + (fimDeSerie(indice) ? plano.intervalo : rep.segundos) * 1000)
+        // (no fim da série: o intervalo mais o descanso da última repetição)
+        setAlvo(Date.now() + esperaDepoisDe(plano, indice) * 1000)
     }
 
     const pausar = () => {
@@ -89,6 +123,7 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
             const parado = Date.now() - pausadoEm
             setAlvo((a) => (a === null ? a : a + parado))
             setSaiuEm((s) => (s === null ? s : s + parado))
+            setFimDoNado((f) => (f === null ? f : f + parado))
             setPausadoEm(null)
         }
     }
@@ -99,12 +134,19 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
     const emIntervalo = fase === 'contagem' && anterior && anterior.serie !== rep.serie
 
     let numeros = relogio(PREPARAR)
-    let legenda = `${reps.length} repetições · ${rep.modo === 'saida' ? `saída a cada ${relogio(rep.segundos)}` : `descanso de ${relogio(rep.segundos)}`}`
+    let legenda = `${reps.length} repetições · ${rep.modo === 'saida' ? `saída a cada ${relogio(rep.segundos)}`
+        : rep.modo === 'tempo' ? `${textoDaRepeticao(rep)}${rep.segundos ? `, descanso de ${relogio(rep.segundos)}` : ''}`
+            : `descanso de ${relogio(rep.segundos)}`}`
     if (fase === 'contagem') {
         numeros = relogio(falta)
         legenda = indice === 0 && saiuEm === null ? 'Prepare-se: a 1ª saída é no zero'
             : emIntervalo ? `Intervalo · a ${rep.serie}ª série sai no zero`
-                : `Próxima saída: ${rep.numero}ª de ${rep.total}`
+                : rep.modo === 'tempo' ? `Descanso · a ${rep.numero}ª de ${rep.total} sai no zero`
+                    : `Próxima saída: ${rep.numero}ª de ${rep.total}`
+    } else if (fase === 'nadando' && rep.modo === 'tempo') {
+        // Por tempo: quanto falta de nado
+        numeros = relogio(faltaNadar ?? 0)
+        legenda = indice + 1 >= reps.length ? 'Última: nade até o apito' : 'Nadando: continue até o apito'
     } else if (fase === 'nadando') {
         numeros = relogio(nadandoHa)
         legenda = ultimaSaidaComAC ? 'Última repetição: toque em "Terminei" ao chegar' : 'Nadando: toque em "Cheguei" ao chegar'
@@ -127,7 +169,8 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
             <p className={styles.serieTexto}>{texto.split('\n')[0]}</p>
             {fase !== 'parado' && fase !== 'fim' && (
                 <p className={styles.repeticao}>
-                    {plano.series > 1 && `Série ${rep.serie} de ${plano.series} · `}{rep.total} x {rep.distancia} m
+                    {plano.series > 1 && `Série ${rep.serie} de ${plano.series} · `}
+                    {rep.nadar ? `${rep.numero}ª de ${rep.total} · ${textoDaRepeticao(rep)}` : textoDaRepeticao(rep)}
                 </p>
             )}
             <Numeros>{numeros}</Numeros>
@@ -135,7 +178,7 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
 
             <div className={styles.controles}>
                 {fase === 'parado' && <button type='button' className={styles.botaoGrande} onClick={comecar}>Começar</button>}
-                {fase === 'nadando' && (
+                {fase === 'nadando' && rep.modo !== 'tempo' && (
                     <button type='button' className={styles.botaoGrande} onClick={cheguei}>
                         {ultimaSaidaComAC || indice + 1 >= reps.length ? 'Terminei' : 'Cheguei'}
                     </button>

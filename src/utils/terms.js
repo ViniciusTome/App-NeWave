@@ -27,7 +27,8 @@ const REGRAS = [
     [/\b(CR|CO|PE|BO|MD|ME)\b(?!\d)/u, (m) => ({ extenso: `${NADO[m[1]]} (${m[1]})`, sigla: m[1] })],
     [/\b(PR|BR)\b/u, (m) => ({ extenso: `${m[1] === 'PR' ? 'perna' : 'braçada'} (${m[1]})`, sigla: m[1] })],
     [/\b(A[123])\b/u, (m) => ({ extenso: `${RITMO[m[1]]} (${m[1]})`, sigla: m[1] })],
-    [/máx/u, () => ({ extenso: 'máximo (máx)', sigla: 'máx' })],
+    // (só a abreviação sozinha: "máximo" escrito por extenso não vira "máx (máx)imo")
+    [/(?<![\p{L}])máx(?![\p{L}])/u, () => ({ extenso: 'máximo (máx)', sigla: 'máx' })],
 ]
 
 const porSigla = new Map(glossario.flatMap((c) => c.termos).map((t) => [t.sigla, t]))

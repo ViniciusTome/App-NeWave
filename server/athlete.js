@@ -12,7 +12,8 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 // Opções aceitas em cada pergunta. As mesmas chaves estão em src/utils/athlete.js.
 export const OPTIONS = {
   swimmingSince: ['menos_6m', '6m_2a', '2a_5a', 'mais_5a'],
-  recentBreak: ['nao', 'menos_1m', '1_6m', 'mais_6m'],
+  // ('1_6m' = resposta antiga, de antes de dividir em 1 a 3 e 4 a 6 meses; o formulário não mostra mais)
+  recentBreak: ['nao', 'menos_1m', '1_3m', '4_6m', 'mais_6m', '1_6m'],
   continuousDistance: ['ate_50', '50_100', '100_200', '200_400', '400_1000', '1000_2000', 'mais_2000'],
   strokes: ['crawl', 'costas', 'peito', 'borboleta'],
   sessionMinutes: [30, 40, 45, 60, 75, 90, 120],

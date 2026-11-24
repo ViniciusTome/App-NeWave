@@ -13,7 +13,9 @@ para os dias de saúde.
 - **Sem fases.** O dia de saúde fica na Acumulação e aparece como "Saúde / emagrecimento".
 - **Série principal.** Sai de `series.json`, do nível do atleta, perto do tempo da principal
   (sem passar), sem repetir a série nem o tipo dos últimos treinos. Se sobra tempo (5 minutos ou
-  mais), entra uma 2ª série de outro tipo. Com material só quem tem o material.
+  mais), entra uma 2ª série de outro tipo (sem perna). Com material só quem tem o material.
+- **Perna.** Série principal com perna (ex.: 100 nado + 50 perna): a parte de perna do treino sai e
+  o tempo dela vai para a série principal (não tem perna e depois mais perna).
 - **Velocidade.** Só em 5% dos treinos de saúde (`chanceDeVelocidade`). Também sai em aula curta
   quando nenhuma série cabe com ela.
 - **Volume.** Começa em 85% do tempo da principal e sobe 1% a cada treino de saúde até 100%
@@ -77,11 +79,8 @@ O app confere o arquivo ao iniciar e avisa se alguma série estiver errada.
 **Misto (nado + perna)**
 
 - `si-misto-6x50` — 6 x 50 m (25 nado + 25 perna com prancha) · A1 · CR · D30" de descanso _(~11 min, 300 m)_
-
-**Perna**
-
-- `si-perna-10x25` — 10 x 25 m perna (com prancha) · A1 · PR · CR · D20" de descanso _(~12 min, 250 m)_
-- `si-perna-4x50pe` — 4 x 50 m perna · c/PÉ · A1 · PR · CR · D30" de descanso _(~9 min, 200 m)_
+- `si-misto-10x25` — 10 x 25 m (1 nadando, 1 de perna com prancha, alternando) · A1 · CR · D20" de descanso _(~10 min, 250 m)_
+- `si-misto-4x50pe` — 4 x 50 m (25 nadando, 25 de perna) · c/PÉ · A1 · CR · D30" de descanso _(~7 min, 200 m)_
 
 **Com material**
 
@@ -125,10 +124,7 @@ O app confere o arquivo ao iniciar e avisa se alguma série estiver errada.
 **Misto (nado + perna)**
 
 - `sm-misto-4x150` — 4 x 150 m (100 nado + 50 perna) · A1 · CR · D20" de descanso _(~14 min, 600 m)_
-
-**Perna**
-
-- `sm-perna-8x50` — 8 x 50 m perna (25 forte, 25 leve) · A1/A3 · PR · CR · D20" de descanso _(~14 min, 400 m)_
+- `sm-misto-8x50` — 8 x 50 m (25 de perna forte, 25 nadando leve) · A1/A3 · CR · D20" de descanso _(~10 min, 400 m)_
 
 **Com material**
 
@@ -174,8 +170,5 @@ O app confere o arquivo ao iniciar e avisa se alguma série estiver errada.
 
 - `sa-misto-4x300` — 4 x 300 m (200 nado + 100 perna) · A1 · CR · D20" de descanso _(~22 min, 1200 m)_
 - `sa-misto-8x150` — 8 x 150 m (50 perna, 50 braçada com boia, 50 nado) · A1 · CR · D20" de descanso _(~23 min, 1200 m)_
-
-**Perna**
-
-- `sa-perna-10x100` — 10 x 100 m perna (alternando leve e moderado) · c/PÉ · A1/A2 · PR · CR · D15" de descanso _(~24 min, 1000 m)_
+- `sa-misto-10x100pe` — 10 x 100 m (1 nadando, 1 de perna, alternando) · c/PÉ · A1/A2 · CR · D15" de descanso _(~18 min, 1000 m)_
 

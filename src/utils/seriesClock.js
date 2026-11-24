@@ -15,6 +15,8 @@ const RE_SAIDA = new RegExp(`a/c ${TEMPO}`)
 const RE_DESCANSO = new RegExp(`D${TEMPO}(?: a \\d+["'])? de descanso`)
 const RE_INTERVALO = new RegExp(`c/${TEMPO}(?: a \\d+')? de intervalo`)
 const RE_BLOCO = /^(?:\(\d+x\) )?(\d+) [x×] (\d+) m/
+// Série por tempo: "5 x 4' · A1 · CR · D1' de descanso" (nada 4 minutos, descansa 1)
+const RE_BLOCO_TEMPO = new RegExp(`^(?:\\(\\d+x\\) )?(\\d+) [x×] ${TEMPO}(?! ?m)`)
 
 // Saída (a/c) ou descanso (D) escrito numa linha: { modo, segundos } ou null
 function tempoDaLinha(linha) {
@@ -25,32 +27,54 @@ function tempoDaLinha(linha) {
     return null
 }
 
-// Monta a série: { series, intervalo, reps: [{ serie, numero, total, distancia, modo, segundos }] }
+// Monta a série: { series, intervalo, reps: [{ serie, numero, total, distancia, nadar, modo, segundos }] }
 // ou null quando o texto não tem saída nem descanso (ex.: "400 m solto").
+// Série por tempo: `nadar` = segundos nadando e modo 'tempo' (o relógio conta o tempo de
+// nado e depois o descanso, sozinho); `distancia` fica null.
 export function planoDaSerie(texto) {
     if (!texto) return null
     const linhas = texto.split('\n')
     const series = Number(/^\((\d+)x\)/.exec(linhas[0])?.[1] ?? 1)
     const intervalo = tempoEmSegundos(RE_INTERVALO.exec(texto)?.[1] ?? '') ?? 0
     const blocos = linhas
-        .map((l) => ({ m: RE_BLOCO.exec(l), tempo: tempoDaLinha(l) }))
-        .filter((b) => b.m)
-        .map((b) => ({ repeticoes: Number(b.m[1]), distancia: Number(b.m[2]), tempo: b.tempo }))
+        .map((l) => {
+            const m = RE_BLOCO.exec(l)
+            if (m) return { repeticoes: Number(m[1]), distancia: Number(m[2]), nadar: null, tempo: tempoDaLinha(l) }
+            const t = RE_BLOCO_TEMPO.exec(l)
+            return t ? { repeticoes: Number(t[1]), distancia: null, nadar: tempoEmSegundos(t[2]), tempo: tempoDaLinha(l) } : null
+        })
+        .filter(Boolean)
     if (blocos.length === 0) return null
     // "1ª série: ... a/c 1'05"" (o tempo de cada série, quando muda de uma para a outra)
     const daSerie = linhas.filter((l) => /^\d+ª série:/.test(l)).map(tempoDaLinha)
-    const qualquer = linhas.map(tempoDaLinha).find(Boolean)
+    // (por tempo, a última repetição pode vir sem descanso: ex.: "1 x 30' contínuo")
+    const qualquer = linhas.map(tempoDaLinha).find(Boolean) ?? (blocos.every((b) => b.nadar) ? { modo: 'descanso', segundos: 0 } : null)
     if (!qualquer) return null
     const reps = []
     for (let s = 1; s <= series; s++) {
         const doBloco = blocos.flatMap((b) => Array.from({ length: b.repeticoes }, () => b))
         doBloco.forEach((b, i) => {
-            const tempo = b.tempo ?? daSerie[s - 1] ?? qualquer
-            reps.push({ serie: s, numero: i + 1, total: doBloco.length, distancia: b.distancia, modo: tempo.modo, segundos: tempo.segundos })
+            const tempo = b.tempo ?? daSerie[s - 1] ?? (b.nadar ? { modo: 'descanso', segundos: 0 } : qualquer)
+            reps.push({
+                serie: s, numero: i + 1, total: doBloco.length, distancia: b.distancia, nadar: b.nadar,
+                modo: b.nadar ? 'tempo' : tempo.modo, segundos: tempo.segundos,
+            })
         })
     }
     return { series, intervalo, reps }
 }
+
+// Espera até a próxima saída depois da repetição `i` (com descanso): o descanso dela; no fim
+// da série, o intervalo MAIS o descanso da última repetição (ela também descansa)
+export function esperaDepoisDe(plano, i) {
+    const rep = plano.reps[i]
+    const proxima = plano.reps[i + 1]
+    return proxima && proxima.serie !== rep.serie ? plano.intervalo + rep.segundos : rep.segundos
+}
+
+// Texto da repetição: "4 x 50 m" ou, por tempo, "4' nadando" (cada uma pode ter um tempo: pirâmide)
+const minutos = (seg) => (seg % 60 === 0 ? `${seg / 60}'` : seg < 60 ? `${seg}"` : `${Math.floor(seg / 60)}'${String(seg % 60).padStart(2, '0')}"`)
+export const textoDaRepeticao = (rep) => (rep.nadar ? `${minutos(rep.nadar)} nadando` : `${rep.total} x ${rep.distancia} m`)
 
 // Segundos -> 1:05 / 0:45 (o relógio grande)
 export const relogio = (segundos) => {

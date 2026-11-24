@@ -26,7 +26,8 @@ const MOSTRAR_METRAGEM_E_TEMPO = false
 // Sem `training`: mostra o treino de exemplo (usado nos cartões).
 // Com `training` (vindo do banco): mostra as partes preenchidas desse treino.
 // Partes com relógio de saída (as que têm a/c ou descanso na série)
-const COM_RELOGIO = ['velocidade', 'principal', 'perna', 'complemento', 'recuperacao']
+// (o nado contínuo em partes do iniciante também tem descanso)
+const COM_RELOGIO = ['velocidade', 'principal', 'perna', 'complemento', 'recuperacao', 'continuo']
 
 export const Training = ({ training }) => {
     const [relogio, setRelogio] = useState(null) // { tipo: 'saida' | 'teste', parte }

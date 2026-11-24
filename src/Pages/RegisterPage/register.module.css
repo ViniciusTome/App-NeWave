@@ -1,6 +1,10 @@
 .boxCadaster {
-    /* background-color: #171D1F; */
-    background-color:  #006ff78a;
+    /* Mesmo estilo dos blocos do app (azul de piscina), com o texto claro */
+    background-color: var(--pool-color);
+    background-image: var(--pool-gradient);
+    border: var(--pool-border);
+    box-shadow: var(--pool-shadow);
+    color: #ffffff;
     width: 446px;
     /* height: 598px; */
     margin: 100px auto;
@@ -46,7 +50,7 @@
 
 .login a{
     text-decoration: none;
-    color: black;
+    color: #ffffff;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -106,4 +110,9 @@
         margin: 24px auto;
         border-radius: 24px;
     }
+}
+
+/* Links (ex.: "Esqueci a senha") claros no fundo azul */
+.boxCadaster a {
+    color: var(--pool-accent);
 }

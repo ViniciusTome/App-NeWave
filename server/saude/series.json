@@ -16,8 +16,8 @@
   {"id": "si-tempo-5x1", "niveis": ["iniciante"], "tipo": "tempo", "blocos": [{"rep": 5, "tempo": 60, "ritmo": "A2", "descanso": 45, "nota": "ritmo moderado"}]},
   {"id": "si-tempo-piramide", "niveis": ["iniciante"], "tipo": "tempo", "blocos": [{"rep": 1, "tempo": 60, "ritmo": "A1", "descanso": 45}, {"rep": 1, "tempo": 120, "ritmo": "A1", "descanso": 45}, {"rep": 1, "tempo": 180, "ritmo": "A1", "descanso": 45}, {"rep": 1, "tempo": 120, "ritmo": "A1", "descanso": 45}, {"rep": 1, "tempo": 60, "ritmo": "A1", "descanso": 45}]},
   {"id": "si-misto-6x50", "niveis": ["iniciante"], "tipo": "misto", "blocos": [{"rep": 6, "dist": 50, "ritmo": "A1", "descanso": 30, "nota": "25 nado + 25 perna com prancha"}]},
-  {"id": "si-perna-10x25", "niveis": ["iniciante"], "tipo": "perna", "blocos": [{"rep": 10, "dist": 25, "ritmo": "A1", "descanso": 20, "nota": "com prancha", "nado": "perna"}]},
-  {"id": "si-perna-4x50pe", "niveis": ["iniciante"], "tipo": "perna", "blocos": [{"rep": 4, "dist": 50, "ritmo": "A1", "descanso": 30, "material": "pe_de_pato", "nado": "perna"}]},
+  {"id": "si-misto-10x25", "niveis": ["iniciante"], "tipo": "misto", "blocos": [{"rep": 10, "dist": 25, "ritmo": "A1", "descanso": 20, "nota": "1 nadando, 1 de perna com prancha, alternando"}]},
+  {"id": "si-misto-4x50pe", "niveis": ["iniciante"], "tipo": "misto", "blocos": [{"rep": 4, "dist": 50, "ritmo": "A1", "descanso": 30, "nota": "25 nadando, 25 de perna", "material": "pe_de_pato"}]},
   {"id": "si-mat-4x50pe", "niveis": ["iniciante"], "tipo": "material", "blocos": [{"rep": 4, "dist": 50, "ritmo": "A1", "descanso": 30, "material": "pe_de_pato"}]},
   {"id": "si-mat-8x25boia", "niveis": ["iniciante"], "tipo": "material", "blocos": [{"rep": 8, "dist": 25, "ritmo": "A1", "descanso": 20, "material": "pull_buoy", "nado": "braco"}]},
   {"id": "si-escada", "niveis": ["iniciante"], "tipo": "extensivo", "blocos": [{"rep": 1, "dist": 25, "ritmo": "A1", "descanso": 30}, {"rep": 1, "dist": 50, "ritmo": "A1", "descanso": 30}, {"rep": 1, "dist": 75, "ritmo": "A1", "descanso": 30}, {"rep": 1, "dist": 50, "ritmo": "A1", "descanso": 30}, {"rep": 1, "dist": 25, "ritmo": "A1", "descanso": 30}]},
@@ -42,7 +42,7 @@
   {"id": "sm-tempo-10", "niveis": ["intermediario"], "tipo": "tempo", "blocos": [{"rep": 1, "tempo": 600, "ritmo": "A1", "descanso": 30, "nota": "contínuo, ritmo leve"}]},
   {"id": "sm-misto-4x150", "niveis": ["intermediario"], "tipo": "misto", "blocos": [{"rep": 4, "dist": 150, "ritmo": "A1", "descanso": 20, "nota": "100 nado + 50 perna"}]},
   {"id": "sm-mat-6x75pe", "niveis": ["intermediario"], "tipo": "material", "blocos": [{"rep": 6, "dist": 75, "ritmo": "A2", "descanso": 20, "material": "pe_de_pato"}]},
-  {"id": "sm-perna-8x50", "niveis": ["intermediario"], "tipo": "perna", "blocos": [{"rep": 8, "dist": 50, "ritmo": "A1/A3", "descanso": 20, "nota": "25 forte, 25 leve", "nado": "perna"}]},
+  {"id": "sm-misto-8x50", "niveis": ["intermediario"], "tipo": "misto", "blocos": [{"rep": 8, "dist": 50, "ritmo": "A1/A3", "descanso": 20, "nota": "25 de perna forte, 25 nadando leve"}]},
   {"id": "sm-mat-4x100boia", "niveis": ["intermediario"], "tipo": "material", "blocos": [{"rep": 4, "dist": 100, "ritmo": "A1", "descanso": 20, "nota": "com palmar, se tiver", "material": "pull_buoy", "nado": "braco"}]},
   {"id": "sm-piramide", "niveis": ["intermediario"], "tipo": "extensivo", "blocos": [{"rep": 1, "dist": 50, "ritmo": "A2", "descanso": 20}, {"rep": 1, "dist": 100, "ritmo": "A2", "descanso": 20}, {"rep": 1, "dist": 150, "ritmo": "A2", "descanso": 20}, {"rep": 1, "dist": 100, "ritmo": "A2", "descanso": 20}, {"rep": 1, "dist": 50, "ritmo": "A2", "descanso": 20}]},
   {"id": "sa-ext-10x100", "niveis": ["avancado"], "tipo": "extensivo", "blocos": [{"rep": 10, "dist": 100, "ritmo": "A2", "descanso": 15}]},
@@ -67,5 +67,5 @@
   {"id": "sa-misto-4x300", "niveis": ["avancado"], "tipo": "misto", "blocos": [{"rep": 4, "dist": 300, "ritmo": "A1", "descanso": 20, "nota": "200 nado + 100 perna"}]},
   {"id": "sa-misto-8x150", "niveis": ["avancado"], "tipo": "misto", "blocos": [{"rep": 8, "dist": 150, "ritmo": "A1", "descanso": 20, "nota": "50 perna, 50 braçada com boia, 50 nado"}]},
   {"id": "sa-piramide", "niveis": ["avancado"], "tipo": "extensivo", "blocos": [{"rep": 1, "dist": 100, "ritmo": "A1/A2", "descanso": 20}, {"rep": 1, "dist": 200, "ritmo": "A1/A2", "descanso": 20}, {"rep": 1, "dist": 300, "ritmo": "A1/A2", "descanso": 20}, {"rep": 1, "dist": 200, "ritmo": "A1/A2", "descanso": 20}, {"rep": 1, "dist": 100, "ritmo": "A1/A2", "descanso": 20}]},
-  {"id": "sa-perna-10x100", "niveis": ["avancado"], "tipo": "perna", "blocos": [{"rep": 10, "dist": 100, "ritmo": "A1/A2", "descanso": 15, "nota": "alternando leve e moderado", "material": "pe_de_pato", "nado": "perna"}]}
+  {"id": "sa-misto-10x100pe", "niveis": ["avancado"], "tipo": "misto", "blocos": [{"rep": 10, "dist": 100, "ritmo": "A1/A2", "descanso": 15, "nota": "1 nadando, 1 de perna, alternando", "material": "pe_de_pato"}]}
 ]

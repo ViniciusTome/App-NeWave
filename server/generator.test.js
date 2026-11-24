@@ -1352,8 +1352,8 @@ test('avançado voltando de parada: borboleta da principal bem rara e curta nos 
   }
   const base = { ...avancado, sessionMinutes: 90 }
   const normal = contar({ ...base, recentBreak: 'nao' }, '2026-11-23')
-  const voltando = contar({ ...base, recentBreak: '1_6m' }, '2026-11-23')
-  const depois = contar({ ...base, recentBreak: '1_6m' }, '2026-09-01')
+  const voltando = contar({ ...base, recentBreak: '1_3m' }, '2026-11-23')
+  const depois = contar({ ...base, recentBreak: '4_6m' }, '2026-09-01')
   const inicio2meses = '2026-10-22'
   assert.equal(voltando.longas, 0, 'nada de borboleta acima de 50 m')
   assert.ok(voltando.linhas < normal.linhas / 2, `voltando ${voltando.linhas} x normal ${normal.linhas}`)

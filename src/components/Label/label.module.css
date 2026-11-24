@@ -3,5 +3,6 @@
     font-weight: 400;
     line-height: 27px;
     display: block;
-    color: black;
+    /* (as telas de entrada têm o card azul: o rótulo segue a cor do card, claro) */
+    color: inherit;
 }

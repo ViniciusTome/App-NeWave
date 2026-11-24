@@ -70,6 +70,9 @@ export function textoDaSerie(s) {
     return linhas.length === 1 ? `(${s.vezes}x) ${linhas[0]} · ${intervalo}` : `(${s.vezes}x) ${intervalo}\n${linhas.join('\n')}`
 }
 
+// A série tem perna? (perna inteira ou misturada com o nado, ex.: "100 nado + 50 perna")
+export const temPerna = (s) => s.blocos.some((b) => b.nado === 'perna' || /perna/.test(b.nota ?? ''))
+
 const INTENSIDADE = { A1: 'A1', A2: 'A2', A3: 'A3', 'A1/A2': 'A2', 'A1/A3': 'A3', progressivo: 'A3' }
 const intensidadeDaSerie = (s) => s.blocos.map((b) => INTENSIDADE[b.ritmo]).sort().at(-1)
 
@@ -119,7 +122,8 @@ export function aplicarSaude({ saude, partes, athlete, pace, random = Math.rando
             return (seg > alvo ? 1.5 : 1) * Math.abs(seg - alvo) +
                 600 * (recentes?.vezes(`saude:${s.id}`) ?? 0) + 120 * (recentes?.vezes(`saude-tipo:${s.tipo}`) ?? 0)
         }
-        const livres = candidatas.filter((s) => !fora.some((f) => f.id === s.id || f.tipo === s.tipo))
+        // (a 2ª série nunca tem perna: o treino já tem a parte de perna ou a 1ª série já teve)
+        const livres = candidatas.filter((s) => !fora.some((f) => f.id === s.id || f.tipo === s.tipo) && (fora.length === 0 || !temPerna(s)))
         // (as que passam do tempo além da folga só entram se nenhuma couber)
         const cabem = livres.filter((s) => segundosDaSerie(s, regras, pace) <= alvo + folga)
         if (cabem.length === 0 && fora.length === 0 && livres.length > 0) {
@@ -133,6 +137,13 @@ export function aplicarSaude({ saude, partes, athlete, pace, random = Math.rando
         return melhores[Math.floor(random() * melhores.length)]
     }
     const escolhidas = [escolher(tempo, [], 60)]
+    // Série principal com perna: a parte de perna do treino sai (não faz sentido perna e depois
+    // mais perna) e o tempo dela vai para a série principal
+    const iPerna = partes.findIndex((p) => p.parte === 'perna')
+    if (iPerna >= 0 && temPerna(escolhidas[0])) {
+        tirar.add(iPerna)
+        tempo = tempoDaPrincipal()
+    }
     const sobra = tempo - segundosDaSerie(escolhidas[0], regras, pace) - segundosPorTroca
     if (sobra >= (regras.segundaSerieAPartirDe ?? 300)) {
         const segunda = escolher(sobra, escolhidas, 0)

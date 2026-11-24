@@ -49,7 +49,7 @@ function perfil(i) {
     const time400 = random() < 0.65 ? { hundredths: Math.round((4.5 + random() * 6) * 6000), source: um(['teste', 'informado']) } : null
     const anamnese = {
         swimmingSince: um(['menos_6m', '6m_2a', '2a_5a', 'mais_5a']),
-        recentBreak: um(['nao', 'nao', 'menos_1m', '1_6m', 'mais_6m']),
+        recentBreak: um(['nao', 'nao', 'menos_1m', '1_3m', '4_6m', 'mais_6m']),
         continuousDistance,
         strokes,
         bestStroke: strokes.length > 1 ? um(strokes) : null,
@@ -532,6 +532,8 @@ function confereSaude(i) {
         confere('Saúde: série principal da biblioteca de saúde do nível (1 ou 2 séries de tipos diferentes)',
             principais.length <= 2 && principais.every((p) => saudePorId.get(p.serieId)?.niveis.includes(a.level)) &&
             new Set(principais.map((p) => p.saude)).size === principais.length, () => `${quem}: ${principais.map((p) => p.serieId).join(', ')}`)
+        confere('Saúde: série principal com perna -> sem a parte de perna depois', !principais.some((p) => /perna/.test(p.texto)) || !t.partes.some((p) => p.parte === 'perna'),
+            () => `${quem}: ${t.partes.map((p) => `[${p.parte}] ${p.texto.split('\n')[0]}`).join(' / ')}`)
         confere('Saúde: material da série só se o atleta tem', principais.every((p) => p.material.every((m) => a.equipment.includes(m))), () => `${quem}: ${principais.map((p) => p.serieId)}`)
         confere('Saúde: cabe no tempo da aula (a mesma folga do Geral: até 20% a mais)', t.minutos <= minutosDoTreino * 1.2 + 1, () => `${quem}: ${t.date} ${t.minutos} min ${t.partes.map((p) => `${p.parte}:${p.minutos}`).join(' ')}`)
         const c = t.partes.find((p) => p.parte === 'continuo')
