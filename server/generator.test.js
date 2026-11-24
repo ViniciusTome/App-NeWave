@@ -1632,3 +1632,17 @@ test('cada parte do treino guarda os metros de cada estilo (somam os metros da p
     }
   }
 })
+
+test('Geral com prova importante noutro estilo: a principal fica com os 40%, a importante com os outros 20%', () => {
+  const athlete = { ...avancado, strokes: ['crawl', 'costas', 'peito', 'borboleta'], bestStroke: 'peito', modalidade: 'piscina_25' }
+  const prova = { distancia: 100, estilo: 'peito', metaCentesimos: null }
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-03-20', testeNaTransicao: false, numeroInicial: 1, provas: [] }
+  const treinos = [1, 2].flatMap((seed) => generateTrainings({
+    rules, library, today: '2026-11-23', random: seeded(seed), periodizacao,
+    athlete: { ...athlete, prova, provas: [prova], provasImportantes: [{ distancia: 200, estilo: 'costas', metaCentesimos: null }] },
+  }))
+  const primeira = treinos.map((t) => t.partes.find((p) => p.parte === 'principal')?.texto).filter(Boolean)
+  const parte = (re) => primeira.filter((t) => re.test(t)).length / primeira.length
+  assert.ok(parte(/· PE\b/) >= 0.35, `peito ${parte(/· PE\b/)}`)
+  assert.ok(parte(/· CO\b/) >= 0.15, `costas ${parte(/· CO\b/)}`)
+})
