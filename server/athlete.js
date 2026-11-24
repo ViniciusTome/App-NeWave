@@ -433,7 +433,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
   const countPreparations = db.prepare('SELECT COUNT(*) AS total FROM preparations WHERE user_id = ?')
   // Provas no meio da preparação (a semana delas tem menos volume)
   const competitionsBetween = db.prepare(`
-    SELECT id, date, priority FROM competitions WHERE user_id = ? AND date >= ? AND date <= ?
+    SELECT id, date, priority, events, distance, stroke, goal_hundredths FROM competitions WHERE user_id = ? AND date >= ? AND date <= ?
   `)
   // Treinos da periodização que já passaram (para a numeração continuar)
   const countSince = db.prepare('SELECT COUNT(*) AS total FROM trainings WHERE user_id = ? AND date >= ? AND date < ?')
@@ -515,6 +515,11 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
         // Todas as provas da competição alvo (os estilos da série principal; a mais longa
         // é a distância que o atleta precisa conseguir nadar sem parar)
         provas: (ativa?.competition?.events ?? []).map((e) => ({ distancia: e.distance, estilo: e.stroke, metaCentesimos: e.goalHundredths ?? null })),
+        // Estilos das outras provas importantes (prioridade B) da preparação: também entram
+        // nos treinos, junto com o da prova alvo
+        estilosImportantes: ativa?.goal === 'competir' ? [...new Set(competitionsBetween.all(userId, today, fim)
+          .filter((c) => c.id !== ativa?.competition?.id && c.priority === 'B')
+          .flatMap((c) => parseEvents(c).map((e) => e.stroke)).filter(Boolean))] : [],
       },
     }
   }

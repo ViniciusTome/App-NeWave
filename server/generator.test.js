@@ -1510,12 +1510,29 @@ test('prova no crawl (triatlo, águas abertas, livre): a série principal é só
       }
     }
   }
-  // Prova de peito: o "melhor estilo" da principal é o peito
-  const peito = { ...comEstilos, bestStroke: 'costas', modalidade: 'piscina_25', prova: { distancia: 100, estilo: 'peito', metaCentesimos: null } }
-  const linhas = [1, 2, 3].flatMap((seed) => generateTrainings({ rules, library, athlete: peito, today: '2026-11-23', random: seeded(seed), periodizacao }))
-    .flatMap((t) => t.partes).filter((x) => x.parte === 'principal').map((p) => p.texto).join('\n')
-  assert.match(linhas, /PE|ME/)
-  assert.doesNotMatch(linhas, /\b(CO|BO|MD)\b|medley/)
+})
+
+test('prova num estilo: na preparação toda, ~40% da principal no estilo da prova, ~40% crawl e ~20% outros estilos', () => {
+  const comEstilos = { ...avancado, strokes: ['crawl', 'costas', 'peito', 'borboleta'], bestStroke: 'costas', modalidade: 'piscina_25' }
+  const periodizacao = { inicio: '2026-11-23', fim: '2027-03-20', testeNaTransicao: false, numeroInicial: 1, provas: [] }
+  const prova = { distancia: 100, estilo: 'peito', metaCentesimos: null }
+  const treinos = [1, 2, 3].flatMap((seed) => generateTrainings({ rules, library, athlete: { ...comEstilos, prova, provas: [prova] }, today: '2026-11-23', random: seeded(seed), periodizacao }))
+  const primeira = (t) => t.partes.find((p) => p.parte === 'principal')?.texto ?? ''
+  const com = treinos.filter((t) => primeira(t))
+  const parte = (re) => com.filter((t) => re.test(primeira(t))).length / com.length
+  const naAcumulacao = com.filter((t) => t.plano.fase === 'acumulacao')
+  // Peito (PE) na 1ª principal em ~40% (também na Acumulação); outros estilos em até ~20%
+  assert.ok(parte(/· PE\b/) >= 0.33, `peito ${parte(/· PE\b/)}`)
+  assert.ok(naAcumulacao.filter((t) => /· PE\b/.test(primeira(t))).length / naAcumulacao.length >= 0.33)
+  assert.ok(parte(/\b(CO|BO|MD|ME)\b/) <= 0.3, `outros ${parte(/\b(CO|BO|MD|ME)\b/)}`)
+  // Velocidade e perna: o peito com bem mais chance que os outros estilos
+  const deParte = (nome) => treinos.flatMap((t) => t.partes).filter((p) => p.parte === nome)
+  const peitoNa = (nome) => deParte(nome).filter((p) => /\bPE\b/.test(p.texto)).length / deParte(nome).length
+  assert.ok(peitoNa('velocidade') >= 0.3, `velocidade ${peitoNa('velocidade')}`)
+  assert.ok(peitoNa('perna') >= 0.3, `perna ${peitoNa('perna')}`)
+  // Só crawl na anamnese: a regra não muda nada (crawl)
+  const soCrawl = generateTrainings({ rules, library, athlete: { ...comEstilos, strokes: ['crawl'], bestStroke: null, prova, provas: [prova] }, today: '2026-11-23', random: seeded(1), periodizacao })
+  assert.ok(soCrawl.every((t) => !/\b(PE|CO|BO|MD)\b/.test(primeira(t))))
 })
 
 test('triatlo e maratona aquática: aquecimento e velocidade também de crawl', () => {
