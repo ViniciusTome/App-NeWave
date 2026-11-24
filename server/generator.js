@@ -823,8 +823,13 @@ export function raceStrokes(athlete) {
 // ordem que mantém as proporções (o que está mais atrasado entra primeiro).
 export function styleFocusSchedule(rules, athlete, total) {
     const cfg = rules.estiloDaProva
-    const estilos = raceStrokes(athlete)
-    if (!cfg || estilos.length === 0) return Array(total).fill(null)
+    const todos = raceStrokes(athlete)
+    if (!cfg || todos.length === 0) return Array(total).fill(null)
+    // A prova principal num estilo fica com a parte da 'prova'; os estilos das outras provas
+    // (da competição e importantes) entram na parte dos 'outros' estilos
+    const principal = (athlete.prova ?? athlete.provas?.[0])?.estilo
+    const estilos = principal && todos.includes(principal) ? [principal] : todos
+    const preferidos = todos.filter((e) => !estilos.includes(e))
     const outros = (athlete.strokes ?? []).some((e) => e !== 'crawl' && !estilos.includes(e))
     const alvo = { prova: cfg.principal.prova + (outros ? 0 : cfg.principal.outros), crawl: cfg.principal.crawl, outros: outros ? cfg.principal.outros : 0 }
     const feitos = { prova: 0, crawl: 0, outros: 0 }
@@ -832,7 +837,7 @@ export function styleFocusSchedule(rules, athlete, total) {
         const cat = Object.keys(alvo).filter((k) => alvo[k] > 0)
             .sort((a, b) => (alvo[b] * (i + 1) - feitos[b]) - (alvo[a] * (i + 1) - feitos[a]))[0]
         feitos[cat]++
-        return { categoria: cat, estilos }
+        return { categoria: cat, estilos, ...(cat === 'outros' && preferidos.length > 0 && { preferidos }) }
     })
 }
 
@@ -858,7 +863,16 @@ function variationsForFocus(rules, parte, serie, athlete, foco, variations, rand
         }
         return daProva
     }
-    // Outros estilos: a série num estilo que não é o da prova, ou os estilos misturados
+    // Outros estilos: o das outras provas (da competição e importantes), a série inteira nele
+    if (foco.preferidos?.length) {
+        const dasOutras = comEstilo(foco.preferidos.filter((e) => e !== 'medley'))
+        const medley = foco.preferidos.includes('medley')
+            ? seriesVariations(rules, parte, { ...serie, outrosNados: ['medley'] }, { ...athlete, strokes: athlete.estilosDoAtleta ?? athlete.strokes })
+                .filter((v) => /medley/.test(v.nado) && variationFits(v, athlete))
+            : []
+        if (dasOutras.length + medley.length > 0) return [...dasOutras, ...medley]
+    }
+    // Senão, a série num estilo que não é o da prova, ou os estilos misturados
     const todos = athlete.estilosDoAtleta ?? athlete.strokes ?? []
     const outros = todos.filter((e) => e !== 'crawl' && !foco.estilos.includes(e))
     const mistura = drawMixedStrokes(rules, parte, serie, { ...athlete, strokes: todos }, random)
