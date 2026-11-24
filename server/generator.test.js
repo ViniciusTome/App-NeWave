@@ -289,7 +289,7 @@ const principaisDe = (athlete, seeds = 8) => {
 
 test('a série principal sempre tem um jeito de nadar, e os tipos nunca se misturam', () => {
   const tipos = new Set()
-  for (const p of principaisDe(diario)) {
+  for (const p of principaisDe(diario, 16)) {
     assert.ok(p.intensidades, p.texto)
     tipos.add(p.intensidades.tipo)
     const aLevels = p.intensidades.valores.filter((v) => /^A[123]$/.test(v))
@@ -1123,7 +1123,8 @@ test('(2x), (3x), (4x)...: cada série com um material diferente da anterior', (
     for (const seed of [1, 2, 3, 4, 5, 6]) {
       for (const p of gerar(athlete, seed).flatMap((t) => t.partes)) {
         if (!['principal', 'velocidade'].includes(p.parte)) continue
-        const linhas = p.texto.split('\n').filter((l) => /^\d+ª série:/.test(l))
+        // (as linhas só com os estilos de uma pirâmide misturada não têm material)
+        const linhas = p.texto.split('\n').filter((l) => /^\d+ª série:/.test(l) && !/^\d+ª série: [A-Z/| T0-9]+$/.test(l))
         if (linhas.length < 2) continue
         const serie = serieById(p.serieId)
         if (serie?.exige.material.length > 0 || serie?.materialPorSerie) continue
