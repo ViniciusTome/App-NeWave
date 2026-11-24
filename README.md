@@ -13,7 +13,7 @@ Aplicativo web para acompanhamento de treinos de natação. Reúne o planejament
 - Botão "Gerar treinos": na primeira vez faz a anamnese do atleta (experiência, rotina, piscina, material, lesões e tempo nos 400 m), que fica guardada; toda vez pergunta a prova alvo da preparação (continuar a atual, escolher do calendário, cadastrar uma nova ou treinar sem prova) e mostra um resumo para conferir. Ao confirmar, gera os treinos das próximas duas semanas (primeira versão do gerador, em `server/generator.js`)
 - Nível do atleta calculado a partir das respostas (não é perguntado)
 - Treino de saúde / emagrecimento (objetivo "Saúde / emagrecimento" ou "Condicionamento + Saúde", escolhendo os dias de saúde ou alternando os treinos): intervalado extensivo e intensivo, fartlek e séries por tempo por nível, sem fases, velocidade em 5% dos treinos e o nado contínuo crescendo aos poucos (no iniciante, em partes). Séries e regras em `server/saude/` (veja `server/saude/LEIAME.md`)
-- Aviso antes de gerar novos treinos quando ainda há treinos agendados por fazer (com "Não avisar novamente")
+- Aviso ao clicar em "Gerar treinos" quando ainda há treinos para fazer: eles serão trocados pelos novos (com "Não avisar novamente", guardado no aparelho)
 - Perfil com o bloco "Meu treino" (preparação atual, nível e respostas, com edição), próxima competição, dados pessoais, pagamentos e suporte
 
 ## Tecnologias

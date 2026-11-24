@@ -20,23 +20,6 @@ const EMPTY_COMPETITION = { name: '', date: '', ...EMPTY_RACE }
 // 2. Toda vez: prova alvo (continuar a atual, escolher do calendário, cadastrar nova ou sem prova).
 // 3. Resumo, com "Atualizar meus dados".
 // 4. Confirma e salva a preparação.
-// "Não avisar novamente" (aviso de trocar os treinos agendados): guardado neste aparelho
-const SKIP_WARNING = 'newave:nao-avisar-gerar'
-const skipWarning = () => {
-    try {
-        return localStorage.getItem(SKIP_WARNING) === '1'
-    } catch {
-        return false
-    }
-}
-const rememberSkipWarning = () => {
-    try {
-        localStorage.setItem(SKIP_WARNING, '1')
-    } catch {
-        // sem armazenamento: avisa de novo da próxima vez
-    }
-}
-
 export const GenerateTrainings = ({ onClose }) => {
     const [phase, setPhase] = useState('loading') // loading | anamnese | alvo | resumo | pronto
     const [loadError, setLoadError] = useState('')
@@ -60,10 +43,6 @@ export const GenerateTrainings = ({ onClose }) => {
     const [saving, setSaving] = useState(false)
     const [saveError, setSaveError] = useState('')
     const [saved, setSaved] = useState(null)
-    // Aviso antes de gerar: os treinos agendados que ainda não foram feitos serão substituídos
-    const [pendingCount, setPendingCount] = useState(0)
-    const [warning, setWarning] = useState(false)
-    const [dontWarn, setDontWarn] = useState(false)
 
     useEffect(() => {
         let cancelled = false
@@ -72,11 +51,9 @@ export const GenerateTrainings = ({ onClose }) => {
             api('/athlete-profile'),
             api(`/preparations/current?today=${today}`),
             api(`/competitions?today=${today}`),
-            api(`/trainings/upcoming?today=${today}`).catch(() => ({ trainings: [] })),
         ])
-            .then(([athleteData, { preparation }, { competitions }, { trainings }]) => {
+            .then(([athleteData, { preparation }, { competitions }]) => {
                 if (cancelled) return
-                setPendingCount(trainings.length)
                 setAthlete(athleteData)
                 setPreparation(preparation)
                 setCompetitions(competitions)
@@ -198,11 +175,6 @@ export const GenerateTrainings = ({ onClose }) => {
 
     const confirm = async () => {
         if (askTest && withTest === null) return setSaveError('Responda se quer fazer o teste de 400 m nesta preparação.')
-        // Tem treinos agendados ainda não feitos: avisa que eles serão trocados (a não ser que
-        // o atleta tenha marcado "não avisar novamente")
-        if (pendingCount > 0 && !warning && !skipWarning()) return setWarning(true)
-        if (warning && dontWarn) rememberSkipWarning()
-        setWarning(false)
         setSaving(true)
         setSaveError('')
         try {
@@ -435,33 +407,12 @@ export const GenerateTrainings = ({ onClose }) => {
 
                 {saveError && <p className={styles.error} role='alert'>{saveError}</p>}
 
-                {warning && (
-                    <div className={styles.warning} role='alertdialog' aria-labelledby='aviso-gerar' aria-describedby='aviso-gerar-texto'>
-                        <p id='aviso-gerar' className={styles.warningTitle}>Tem certeza?</p>
-                        <p id='aviso-gerar-texto'>
-                            Você ainda tem {pendingCount === 1 ? '1 treino agendado' : `${pendingCount >= 50 ? 'mais de 50' : pendingCount} treinos agendados`} que
-                            não fez. Ao gerar novos treinos, você vai perder esses treinos e serão gerados novos no lugar.
-                            Os treinos que você já concluiu continuam salvos.
-                        </p>
-                        <label className={styles.checkbox}>
-                            <input type='checkbox' checked={dontWarn} onChange={(e) => setDontWarn(e.target.checked)} />
-                            Não avisar novamente
-                        </label>
-                        <div className={styles.actions}>
-                            <button type='button' className={styles.secondary} onClick={() => setWarning(false)}>Cancelar</button>
-                            <button type='button' className={styles.primary} onClick={confirm} disabled={saving}>Sim, gerar novos</button>
-                        </div>
-                    </div>
-                )}
-
-                {!warning && (
-                    <div className={styles.actions}>
-                        <button type='button' className={styles.secondary} onClick={() => setPhase('alvo')}>Voltar</button>
-                        <button type='button' className={styles.primary} onClick={confirm} disabled={saving}>
-                            {saving ? 'Gerando...' : 'Confirmar e gerar'}
-                        </button>
-                    </div>
-                )}
+                <div className={styles.actions}>
+                    <button type='button' className={styles.secondary} onClick={() => setPhase('alvo')}>Voltar</button>
+                    <button type='button' className={styles.primary} onClick={confirm} disabled={saving}>
+                        {saving ? 'Gerando...' : 'Confirmar e gerar'}
+                    </button>
+                </div>
             </div>
         )
     }
