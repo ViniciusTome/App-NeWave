@@ -46,3 +46,77 @@
     border-radius: 999px;
     background-color: var(--accent-warm, #F28C28);
 }
+
+/* Estilos: uma linha por estilo, com a barra do nadado (laranja) e a do planejado (azul claro) */
+.legenda {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.marcaNadado,
+.marcaPlanejado {
+    display: inline-block;
+    width: 14px;
+    height: 8px;
+    border-radius: 4px;
+    margin-left: 6px;
+}
+
+.marcaNadado {
+    background-color: var(--accent-warm, #F28C28);
+}
+
+.marcaPlanejado {
+    background-color: var(--pool-accent, #9EDDFF);
+}
+
+.estilos {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.estilos li {
+    display: grid;
+    grid-template-columns: 84px 1fr auto;
+    align-items: center;
+    gap: 10px;
+}
+
+.estiloNome {
+    font-weight: 600;
+}
+
+.estiloBarras {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.barraFina {
+    height: 7px;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+}
+
+.preenchidoPlanejado {
+    height: 100%;
+    border-radius: 999px;
+    background-color: var(--pool-accent, #9EDDFF);
+}
+
+.estiloValores {
+    font-size: 14px;
+    white-space: nowrap;
+    min-width: 72px;
+    text-align: right;
+}

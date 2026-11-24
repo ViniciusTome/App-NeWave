@@ -771,6 +771,26 @@ export function athleteForMain(athlete) {
     }
 }
 
+// ---------- Metros de cada estilo (resumo do Desempenho) ----------
+
+const ESTILO_DA_ABREV = { CR: 'crawl', CO: 'costas', PE: 'peito', BO: 'borboleta' }
+// Metros de cada estilo numa parte do treino, pelo que está escrito no card: os metros da parte
+// divididos pelos estilos que aparecem (cada "CR", "PE"... é uma repetição ou uma série; medley
+// conta 1/4 para cada estilo; "ME" é o melhor estilo). Sem estilo escrito: crawl (livre).
+export function strokeMeters(texto, metros, melhorEstilo = null) {
+    const peso = {}
+    const somar = (estilo, w) => { peso[estilo] = (peso[estilo] ?? 0) + w }
+    for (const [, abrev] of (texto ?? '').matchAll(/\b(CR|CO|PE|BO|MD|ME)\b/g)) {
+        if (abrev === 'MD') for (const e of ['borboleta', 'costas', 'peito', 'crawl']) somar(e, 0.25)
+        else if (abrev === 'ME') somar(melhorEstilo ?? 'crawl', 1)
+        else somar(ESTILO_DA_ABREV[abrev], 1)
+    }
+    const total = Object.values(peso).reduce((t, w) => t + w, 0)
+    if (!metros) return {}
+    if (total === 0) return { crawl: metros }
+    return Object.fromEntries(Object.entries(peso).map(([e, w]) => [e, Math.round((metros * w) / total)]))
+}
+
 // ---------- Estilo da prova na preparação toda ----------
 
 // Estilos das provas (alvo e importantes) que o atleta treina além do crawl. Medley só se ele
@@ -1905,6 +1925,11 @@ export function generateTrainings({
         // 1ª preparação do atleta: as telas mostram os nomes por extenso, com a abreviação
         // entre parênteses, para ele ir se acostumando
         if (periodizacao?.primeira) partes.forEach((p) => { p.extenso = true })
+        // Metros de cada estilo em cada parte (o "ME" da principal é o melhor estilo dela)
+        const melhorDaPrincipal = athleteForMain(doDia).bestStroke ?? doDia.bestStroke ?? null
+        partes.forEach((p) => {
+            if (p.metros > 0) p.estilos = strokeMeters(p.texto, p.metros, p.parte === 'principal' ? melhorDaPrincipal : doDia.bestStroke ?? null)
+        })
         bloqueadas = seriesUsadas(partes)
         recentes.fecharTreino()
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))

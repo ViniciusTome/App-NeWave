@@ -6,6 +6,43 @@ import styles from './trainingsummary.module.css'
 const metros = (m) => `${m.toLocaleString('pt-BR')} m`
 const nota = (n) => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 const vezes = (n) => (n === 1 ? '1 vez' : `${n} vezes`)
+const ORDEM = ['crawl', 'costas', 'peito', 'borboleta']
+const NOME = { crawl: 'Crawl', costas: 'Costas', peito: 'Peito', borboleta: 'Borboleta' }
+
+// % de cada estilo: o que nadou (últimas 4 semanas) e o que está planejado (próximas 4)
+const Estilos = ({ estilos }) => {
+    const { nadado, planejado, daAnamnese = [] } = estilos
+    const lista = ORDEM.filter((e) => daAnamnese.includes(e) || nadado.porEstilo[e] || planejado.porEstilo[e])
+    if (nadado.metros === 0 && planejado.metros === 0) return <p>Ainda sem treinos para mostrar os estilos.</p>
+    const barra = (valor, classe) => (
+        <div className={styles.barraFina}><div className={classe} style={{ width: `${valor ?? 0}%` }} /></div>
+    )
+    return (
+        <>
+            <p className={styles.legenda}>
+                <span className={styles.marcaNadado} /> nadado (últimas 4 semanas)
+                <span className={styles.marcaPlanejado} /> planejado (próximas 4 semanas)
+            </p>
+            {nadado.metros === 0 && <p className={styles.legenda}>Ainda sem treinos concluídos nas últimas 4 semanas.</p>}
+            <ul className={styles.estilos}>
+                {lista.map((e) => (
+                    <li key={e}>
+                        <span className={styles.estiloNome}>{NOME[e]}</span>
+                        <div className={styles.estiloBarras}>
+                            {nadado.metros > 0 && barra(nadado.porEstilo[e], styles.preenchido)}
+                            {planejado.metros > 0 && barra(planejado.porEstilo[e], styles.preenchidoPlanejado)}
+                        </div>
+                        <span className={styles.estiloValores}>
+                            {nadado.metros > 0 && <strong>{nadado.porEstilo[e] ?? 0}%</strong>}
+                            {nadado.metros > 0 && planejado.metros > 0 && ' · '}
+                            {planejado.metros > 0 && <span>{planejado.porEstilo[e] ?? 0}%</span>}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </>
+    )
+}
 
 // Resumo de todos os treinos juntos, ao longo do tempo (na página Desempenho): a nota média
 // da série principal, o que mais pesou, a metragem da semana e a frequência.
@@ -25,7 +62,7 @@ export const TrainingSummary = () => {
     if (erro) return <div className={styles.box}><h3>Resumo dos treinos</h3><p role='alert'>{erro}</p></div>
     if (!summary) return <div className={styles.box}><h3>Resumo dos treinos</h3><p>Carregando...</p></div>
 
-    const { notas, motivos, semana, frequencia } = summary
+    const { notas, motivos, semana, frequencia, estilos } = summary
     // Nota maior = treino mais difícil
     let tendencia = null
     if (notas.recentes !== null && notas.anteriores !== null) {
@@ -85,6 +122,13 @@ export const TrainingSummary = () => {
                         </>
                     )}
             </section>
+
+            {estilos && (
+                <section className={styles.item}>
+                    <p className={styles.rotulo}>Quanto de cada estilo (% dos metros)</p>
+                    <Estilos estilos={estilos} />
+                </section>
+            )}
 
             <section className={styles.item}>
                 <p className={styles.rotulo}>Frequência (últimos {frequencia.dias} dias)</p>

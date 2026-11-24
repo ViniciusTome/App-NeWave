@@ -45,3 +45,28 @@ test('resumo: metragem da semana (segunda a domingo) e frequência dos últimos 
   // Os que já passaram (o de hoje ainda não feito não conta) e os feitos
   assert.deepEqual([frequencia.feitos, frequencia.treinos, frequencia.faltas], [3, 4, 1])
 })
+
+test('metros de cada estilo numa parte, pelo card', async () => {
+  const { strokeMeters } = await import('./generator.js')
+  assert.deepEqual(strokeMeters('400 m solto', 400), { crawl: 400 })
+  assert.deepEqual(strokeMeters('(2x) 4 x 100 m · c/2\' de intervalo\n1ª série: NAD · A1 · PE · a/c 1\'50"\n2ª série: c/PALM · A2 · PE', 800), { peito: 800 })
+  // Mistura: cada repetição com o seu estilo; ME = melhor estilo
+  assert.deepEqual(strokeMeters('4 x 50 m · CR | ME | CR | BO', 200, 'costas'), { crawl: 100, costas: 50, borboleta: 50 })
+  // Medley: 1/4 de cada estilo
+  assert.deepEqual(strokeMeters('8 x 25 m forte · MD · a/c 40"', 200), { borboleta: 50, costas: 50, peito: 50, crawl: 50 })
+})
+
+test('resumo: % de cada estilo no nadado (4 semanas) e no planejado (4 semanas)', () => {
+  const parte = (metros, estilos) => ({ parte: 'principal', metros, estilos })
+  const comPartes = (row, partes) => ({ ...row, parts: JSON.stringify(partes) })
+  const hoje = '2026-11-25'
+  const rows = [
+    comPartes(feito('2026-11-20', 6), [parte(600, { crawl: 600 }), parte(400, { peito: 400 })]),
+    comPartes(naoFeito('2026-11-27'), [parte(1000, { peito: 1000 })]),
+    // Sem o cálculo guardado (treino antigo): pelo texto
+    { ...naoFeito('2026-12-01'), parts: JSON.stringify([{ parte: 'principal', metros: 1000, texto: '10 x 100 m · CR' }]) },
+  ]
+  const { estilos } = trainingSummary(rows, hoje)
+  assert.deepEqual(estilos.nadado, { metros: 1000, porEstilo: { crawl: 60, peito: 40 } })
+  assert.deepEqual(estilos.planejado, { metros: 2000, porEstilo: { peito: 50, crawl: 50 } })
+})
