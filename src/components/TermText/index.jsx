@@ -12,7 +12,7 @@ export const TermText = ({ texto, extenso = false }) => {
     const pedacos = splitTerms(texto)
 
     const clicavel = (rotulo, termo, chave) => (termo
-        ? <button key={chave} type='button' className={styles.abbr} onClick={() => setAberto(termo)}
+        ? <button key={chave} type='button' className={styles.abbr} onClick={() => setAberto(termo)} data-tour='abreviacao'
             title={`O que é ${termo.nome ?? termo.sigla}?`}>{rotulo}</button>
         : <span key={chave}>{rotulo}</span>)
 

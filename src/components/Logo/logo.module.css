@@ -39,3 +39,11 @@
         font-size: 20px;
     }
 }
+
+/* Telas baixas (notebook): logo menor, para o menu inteiro caber */
+@media screen and (min-width: 769px) and (max-height: 760px) {
+    .img {
+        width: 80px;
+        margin-top: 10px;
+    }
+}

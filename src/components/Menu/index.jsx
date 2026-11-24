@@ -11,12 +11,12 @@ import { NavLink } from 'react-router-dom'
 // No computador: menu na lateral. No celular: barra fixa embaixo da tela, com os
 // nomes curtos e o "Início" (no computador o início é a logo).
 const ITENS = [
-    { to: '/page/home', icon: <IconHome />, nome: 'Início', short: 'Início', soCelular: true },
-    { to: '/page/profile', icon: <IconAccount />, nome: 'Perfil', short: 'Perfil' },
-    { to: '/page/training', icon: <IconFeed />, nome: 'Treinos/Periodização', short: 'Treinos' },
-    { to: '/page/performance', icon: <IconInfo />, nome: 'Desempenho/Feedback', short: 'Desempenho' },
-    { to: '/page/glossario', icon: <IconBook />, nome: 'Glossário', short: 'Glossário' },
-    { to: '/auth/logout', icon: <IconLogin />, nome: 'Sair', short: 'Sair' },
+    { to: '/page/home', icon: <IconHome />, nome: 'Início', short: 'Início', soCelular: true, tour: 'menu-inicio' },
+    { to: '/page/profile', icon: <IconAccount />, nome: 'Perfil', short: 'Perfil', tour: 'menu-perfil' },
+    { to: '/page/training', icon: <IconFeed />, nome: 'Treinos/Periodização', short: 'Treinos', tour: 'menu-treinos' },
+    { to: '/page/performance', icon: <IconInfo />, nome: 'Desempenho/Feedback', short: 'Desempenho', tour: 'menu-desempenho' },
+    { to: '/page/glossario', icon: <IconBook />, nome: 'Glossário', short: 'Glossário', tour: 'menu-glossario' },
+    { to: '/auth/logout', icon: <IconLogin />, nome: 'Sair', short: 'Sair', tour: 'menu-sair' },
 ]
 
 export const Menu = () => {
@@ -24,7 +24,7 @@ export const Menu = () => {
     return (
         <nav className={styles.container} aria-label='Menu principal'>
             {ITENS.map((item) => (
-                <div key={item.to} className={`${styles.icon} ${item.soCelular ? styles.soCelular : ''}`}>
+                <div key={item.to} className={`${styles.icon} ${item.soCelular ? styles.soCelular : ''}`} data-tour={item.tour}>
                     <NavLink
                         to={item.to}
                         className={({ isActive }) => `${styles.link} ${isActive ? styles.active : ''}`}

@@ -67,7 +67,7 @@ export const Carousel = () => {
 
     return (
         <div>
-            <div className={styles.carousel} ref={carousel}>
+            <div className={styles.carousel} ref={carousel} data-tour='treinos'>
                 <h2 style={{ color: 'white', fontSize: '25px' }}>Treinos</h2>
 
                 {trainings === null && !loadError && <p className={styles.message}>Carregando treinos...</p>}
@@ -112,6 +112,7 @@ export const Carousel = () => {
                                             <button
                                                 type='button'
                                                 className={styles.complete}
+                                                data-tour='concluir'
                                                 onClick={() => {
                                                     setCompleteError('')
                                                     setCompletingTraining(training)

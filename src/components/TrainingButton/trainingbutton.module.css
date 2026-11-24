@@ -49,3 +49,10 @@
         border-color: #9EDDFF;
     }
 }
+
+/* Telas baixas (notebook): menos espaço acima do botão, para o menu inteiro caber */
+@media screen and (min-width: 769px) and (max-height: 760px) {
+    .container {
+        margin-top: 8px;
+    }
+}

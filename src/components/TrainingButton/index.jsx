@@ -8,7 +8,7 @@ export const TrainingButton = () => {
 
     return(
         <div className={styles.container}>
-            <button type='button' className={styles.button} onClick={() => setOpen(true)}>
+            <button type='button' className={styles.button} onClick={() => setOpen(true)} data-tour='gerar'>
                 Gerar treinos
             </button>
             <Modal open={open} onClose={() => setOpen(false)} title='Gerar treinos'>
