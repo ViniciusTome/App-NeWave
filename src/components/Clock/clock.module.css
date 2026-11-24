@@ -242,6 +242,13 @@
     .parciais {
         max-height: 18dvh;
         margin-bottom: 6px;
+        flex-shrink: 0;
+    }
+
+    /* Cronômetro deitado: um pouco menos de altura nos números, para as parciais e o
+       "Salvar como teste" caberem */
+    .cronometro {
+        --altura-dos-numeros: 44dvh;
     }
 
     .parciais li {
@@ -256,4 +263,10 @@
     .mensagem {
         margin-top: 4px;
     }
+}
+
+/* Os centésimos do cronômetro: menores, alinhados embaixo dos segundos */
+.numerosMenores {
+    vertical-align: baseline;
+    letter-spacing: 0;
 }

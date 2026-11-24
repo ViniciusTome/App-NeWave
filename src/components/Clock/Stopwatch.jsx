@@ -63,7 +63,7 @@ export const Stopwatch = ({ onClose, onSaved, distanciaInicial = 400 }) => {
 
     // Direto no <body>: por cima da página inteira (o card do treino tem efeito de zoom)
     return createPortal(
-        <div className={`${styles.tela} ${styles[tema]}`} role='dialog' aria-modal='true' aria-label='Cronômetro'>
+        <div className={`${styles.tela} ${styles.cronometro} ${styles[tema]}`} role='dialog' aria-modal='true' aria-label='Cronômetro'>
             <div className={styles.topo}>
                 <button type='button' className={styles.botaoPequeno} onClick={trocarTema}>
                     {tema === 'escuro' ? 'Tela clara' : 'Tela escura'}
@@ -72,7 +72,8 @@ export const Stopwatch = ({ onClose, onSaved, distanciaInicial = 400 }) => {
                 <button type='button' className={styles.botaoPequeno} onClick={onClose}>Fechar</button>
             </div>
 
-            <Numeros>{cronometro(centesimos)}</Numeros>
+            {/* Minutos e segundos grandes; os centésimos menores ao lado */}
+            <Numeros menor={cronometro(centesimos).slice(-3)}>{cronometro(centesimos).slice(0, -3)}</Numeros>
 
             {parciais.length > 0 && (
                 <ol className={styles.parciais}>
