@@ -169,13 +169,13 @@ test('ritmo de prova: pouco volume e descanso proporcional ao tiro (200 m: até 
   assert.ok(textos.some((t) => /\((2|3)x\) 4 x 50 m · RP/.test(t)), 'sem 2 ou 3 x 4 x 50 RP')
 })
 
-test('Específico na Transição: 55% dos treinos em A3, 35% em A2 e 10% em A1 (nunca dois mais leves seguidos)', () => {
+test('Específico na Transição: 50% dos treinos em A3, 40% em A2 e 10% em A1 (nunca dois mais leves seguidos)', () => {
   for (const prova of PROVAS) {
     const naTransicao = gerar(prova).filter((t) => t.plano.fase === 'transicao' && t.partes.some((p) => p.especifico))
       .map((t) => t.partes.find((p) => p.especifico).intensidades.valores[0])
     const n = naTransicao.length
     const conta = (i) => naTransicao.filter((x) => x === i).length
-    for (const [i, alvo] of [['A3', 0.55], ['A2', 0.35], ['A1', 0.1]]) assert.ok(Math.abs(conta(i) - alvo * n) < 1, `${prova.distancia} ${i}: ${naTransicao.join(' ')}`)
+    for (const [i, alvo] of [['A3', 0.5], ['A2', 0.4], ['A1', 0.1]]) assert.ok(Math.abs(conta(i) - alvo * n) < 1, `${prova.distancia} ${i}: ${naTransicao.join(' ')}`)
     assert.ok(naTransicao.every((x, k) => x === 'A3' || k === 0 || naTransicao[k - 1] === 'A3'), naTransicao.join(' '))
     // A série A1 é toda em A1, no estilo da prova
     for (const t of gerar(prova).filter((x) => x.plano.fase === 'transicao')) {

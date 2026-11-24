@@ -300,7 +300,7 @@ export function textoDaSerie(s, prova, saida = null) {
 }
 
 const INTENSIDADE = { RP: 'A3', max: 'A3', A3: 'A3', A2: 'A2', A1: 'A1' }
-// Intensidade do próximo treino da Transição, pela proporção (ex.: A3 55%, A2 35%, A1 10%):
+// Intensidade do próximo treino da Transição, pela proporção (ex.: A3 50%, A2 40%, A1 10%):
 // a que está mais atrás da sua parte até agora, sem depender de sorte. Um treino A2 ou A1
 // sempre vem depois de um A3 (nunca dois mais leves seguidos). Sem `estado`, sorteado.
 const INTENSIDADES = ['A3', 'A2', 'A1']
@@ -351,7 +351,7 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
         .filter(Boolean)
         .map((s) => ajustarRitmoDeProva(s, prova, regras))
     if (todas.length === 0) return partes
-    // Transição (regra do treinador): 55% dos treinos em A3, 35% em A2 e 10% em A1
+    // Transição (regra do treinador): 50% dos treinos em A3, 40% em A2 e 10% em A1
     const naTransicao = athlete.fase === 'transicao' ? regras.intensidadeNaTransicao : null
     const alvo = naTransicao ? intensidadeDoTreino(naTransicao, estado, random) : null
     const daIntensidade = alvo ? todas.filter((s) => intensidadeDaSerie(s) === alvo) : []
