@@ -5,7 +5,8 @@ import { RaceFields } from '../RaceFields'
 import { EMPTY_RACE, racePayload, raceProblem } from '../../utils/race'
 import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
-    IMPORTANCE_OPTIONS, MODEL_TEXT, POOL_MODALITIES, NO_COMPETITION_GOALS, TRAINING_MODELS, competitionLabel, daysUntil, daysUntilText,
+    IMPORTANCE_OPTIONS, MIX_MODES, MIX_SEQUENCES, MODEL_TEXT, POOL_MODALITIES, NO_COMPETITION_GOALS, TRAINING_MODELS, WEEK_DAYS,
+    competitionLabel, daysUntil, daysUntilText, mixText,
     goalLabel, labelOf, levelText, profileSummary, specificBlocker,
 } from '../../utils/athlete'
 import { formatDate, formatSwimTime, todayIso } from '../../utils/format'
@@ -19,6 +20,23 @@ const EMPTY_COMPETITION = { name: '', date: '', ...EMPTY_RACE }
 // 2. Toda vez: prova alvo (continuar a atual, escolher do calendário, cadastrar nova ou sem prova).
 // 3. Resumo, com "Atualizar meus dados".
 // 4. Confirma e salva a preparação.
+// "Não avisar novamente" (aviso de trocar os treinos agendados): guardado neste aparelho
+const SKIP_WARNING = 'newave:nao-avisar-gerar'
+const skipWarning = () => {
+    try {
+        return localStorage.getItem(SKIP_WARNING) === '1'
+    } catch {
+        return false
+    }
+}
+const rememberSkipWarning = () => {
+    try {
+        localStorage.setItem(SKIP_WARNING, '1')
+    } catch {
+        // sem armazenamento: avisa de novo da próxima vez
+    }
+}
+
 export const GenerateTrainings = ({ onClose }) => {
     const [phase, setPhase] = useState('loading') // loading | anamnese | alvo | resumo | pronto
     const [loadError, setLoadError] = useState('')
@@ -31,6 +49,10 @@ export const GenerateTrainings = ({ onClose }) => {
     const [chosenId, setChosenId] = useState(null)
     const [newCompetition, setNewCompetition] = useState(EMPTY_COMPETITION)
     const [noCompetitionGoal, setNoCompetitionGoal] = useState(null)
+    // Objetivo misto: escolher os dias de saúde ou alternar (ex.: '2-1' = 2 de condicionamento, 1 de saúde)
+    const [mixMode, setMixMode] = useState(null)
+    const [mixDays, setMixDays] = useState([])
+    const [mixSequence, setMixSequence] = useState(null)
     const [targetError, setTargetError] = useState('')
     const [model, setModel] = useState('geral') // geral | especifico
     const [withTest, setWithTest] = useState(null) // quer o teste de 400 m nesta preparação?
@@ -38,6 +60,10 @@ export const GenerateTrainings = ({ onClose }) => {
     const [saving, setSaving] = useState(false)
     const [saveError, setSaveError] = useState('')
     const [saved, setSaved] = useState(null)
+    // Aviso antes de gerar: os treinos agendados que ainda não foram feitos serão substituídos
+    const [pendingCount, setPendingCount] = useState(0)
+    const [warning, setWarning] = useState(false)
+    const [dontWarn, setDontWarn] = useState(false)
 
     useEffect(() => {
         let cancelled = false
@@ -46,9 +72,11 @@ export const GenerateTrainings = ({ onClose }) => {
             api('/athlete-profile'),
             api(`/preparations/current?today=${today}`),
             api(`/competitions?today=${today}`),
+            api(`/trainings/upcoming?today=${today}`).catch(() => ({ trainings: [] })),
         ])
-            .then(([athleteData, { preparation }, { competitions }]) => {
+            .then(([athleteData, { preparation }, { competitions }, { trainings }]) => {
                 if (cancelled) return
+                setPendingCount(trainings.length)
                 setAthlete(athleteData)
                 setPreparation(preparation)
                 setCompetitions(competitions)
@@ -88,8 +116,11 @@ export const GenerateTrainings = ({ onClose }) => {
     // Prova alvo de 400 m em piscina: o teste é a própria prova
     const alvo = phase === 'resumo' ? targetCompetition() : null
     const provaDe400 = Boolean(alvo && POOL_MODALITIES.includes(alvo.modality) && alvo.distance === 400)
-    const askTest = Boolean(athlete?.time400) && !provaDe400
+    // (objetivo saúde: sem fases, sem Transição, então sem o teste da periodização)
+    const soSaude = (mode === 'sem' && noCompetitionGoal === 'saude') || (mode === 'atual' && preparation?.goal === 'saude')
+    const askTest = Boolean(athlete?.time400) && !provaDe400 && !soSaude
     const chosenModel = specificProblem ? 'geral' : model
+    const trainingDays = athlete?.profile?.trainingDays ?? []
 
     const testChoice = () => (askTest ? { withTest } : {})
 
@@ -98,12 +129,19 @@ export const GenerateTrainings = ({ onClose }) => {
         if (mode === 'atual') {
             return preparation.goal === 'competir'
                 ? { goal: 'competir', competitionId: preparation.competition.id, model: chosenModel, ...testChoice() }
-                : { goal: preparation.goal, ...testChoice() }
+                : { goal: preparation.goal, ...(preparation.mix && { mix: preparation.mix }), ...testChoice() }
         }
         if (mode === 'calendario') return { goal: 'competir', competitionId: chosenId, model: chosenModel, ...testChoice() }
         if (mode === 'nova') return { goal: 'competir', competition: newCompetitionPayload(), model: chosenModel, ...testChoice() }
-        return { goal: noCompetitionGoal, ...testChoice() }
+        return { goal: noCompetitionGoal, ...(noCompetitionGoal === 'misto' && { mix: chosenMix() }), ...testChoice() }
     }
+
+    function chosenMix() {
+        if (mixMode === 'dias') return { modo: 'dias', dias: mixDays }
+        const [condicionamento, saude] = (mixSequence ?? '1-1').split('-').map(Number)
+        return { modo: 'alternar', condicionamento, saude }
+    }
+    const goalText = (goal, mix) => (goal === 'misto' && mix ? `${goalLabel(goal)} (${mixText(mix)})` : goalLabel(goal))
 
     // Provas do calendário que não são a alvo escolhida (as intermediárias)
     const targetId = mode === 'atual' ? preparation?.competition?.id : mode === 'calendario' ? chosenId : null
@@ -124,11 +162,11 @@ export const GenerateTrainings = ({ onClose }) => {
         if (mode === 'atual') {
             return preparation.competition
                 ? competitionLabel(preparation.competition)
-                : `Sem prova alvo · ${goalLabel(preparation.goal)}`
+                : `Sem prova alvo · ${goalText(preparation.goal, preparation.mix)}`
         }
         if (mode === 'calendario') return competitionLabel(competitions.find((c) => c.id === chosenId))
         if (mode === 'nova') return competitionLabel(newCompetitionPayload())
-        return `Sem prova alvo · ${goalLabel(noCompetitionGoal)}`
+        return `Sem prova alvo · ${goalText(noCompetitionGoal, noCompetitionGoal === 'misto' ? chosenMix() : null)}`
     }
 
     function checkTarget() {
@@ -142,6 +180,12 @@ export const GenerateTrainings = ({ onClose }) => {
             if (problem) return problem
         }
         if (mode === 'sem' && !noCompetitionGoal) return 'Escolha o objetivo.'
+        if (mode === 'sem' && noCompetitionGoal === 'misto') {
+            if (!mixMode) return 'Escolha como misturar o condicionamento e a saúde.'
+            if (mixMode === 'dias' && mixDays.length === 0) return 'Escolha os dias de saúde.'
+            if (mixMode === 'dias' && mixDays.length >= trainingDays.length) return 'Deixe pelo menos um dia para o condicionamento.'
+            if (mixMode === 'alternar' && !mixSequence) return 'Escolha a sequência dos treinos.'
+        }
         return ''
     }
 
@@ -154,6 +198,11 @@ export const GenerateTrainings = ({ onClose }) => {
 
     const confirm = async () => {
         if (askTest && withTest === null) return setSaveError('Responda se quer fazer o teste de 400 m nesta preparação.')
+        // Tem treinos agendados ainda não feitos: avisa que eles serão trocados (a não ser que
+        // o atleta tenha marcado "não avisar novamente")
+        if (pendingCount > 0 && !warning && !skipWarning()) return setWarning(true)
+        if (warning && dontWarn) rememberSkipWarning()
+        setWarning(false)
         setSaving(true)
         setSaveError('')
         try {
@@ -227,7 +276,7 @@ export const GenerateTrainings = ({ onClose }) => {
                             title='Continuar com a prova atual'
                             detail={preparation.competition
                                 ? `${competitionLabel(preparation.competition)} · ${daysUntilText(daysUntil(preparation.competition.date, today))}`
-                                : `Sem prova alvo · ${goalLabel(preparation.goal)}`} />
+                                : `Sem prova alvo · ${goalText(preparation.goal, preparation.mix)}`} />
                     )}
 
                     {otherCompetitions.length > 0 && (
@@ -276,6 +325,23 @@ export const GenerateTrainings = ({ onClose }) => {
                                 <ChoiceGroup label='Qual o objetivo?' options={NO_COMPETITION_GOALS}
                                     value={noCompetitionGoal}
                                     onChange={(value) => { setNoCompetitionGoal(value); setTargetError('') }} />
+                                {noCompetitionGoal === 'misto' && (
+                                    <>
+                                        <ChoiceGroup label='Como misturar?'
+                                            hint='Nos dias de saúde o treino é de emagrecimento: intervalado, fartlek e séries por tempo.'
+                                            options={MIX_MODES} value={mixMode}
+                                            onChange={(value) => { setMixMode(value); setTargetError('') }} />
+                                        {mixMode === 'dias' && (
+                                            <ChoiceGroup label='Quais dias são de saúde?' hint='Os outros dias de treino são de condicionamento.'
+                                                options={WEEK_DAYS.filter((d) => trainingDays.includes(d.value))} value={mixDays} multiple
+                                                onChange={(value) => { setMixDays(value); setTargetError('') }} />
+                                        )}
+                                        {mixMode === 'alternar' && (
+                                            <ChoiceGroup label='Qual a sequência?' options={MIX_SEQUENCES} value={mixSequence}
+                                                onChange={(value) => { setMixSequence(value); setTargetError('') }} />
+                                        )}
+                                    </>
+                                )}
                             </div>
                         )}
                     </TargetOption>
@@ -369,12 +435,33 @@ export const GenerateTrainings = ({ onClose }) => {
 
                 {saveError && <p className={styles.error} role='alert'>{saveError}</p>}
 
-                <div className={styles.actions}>
-                    <button type='button' className={styles.secondary} onClick={() => setPhase('alvo')}>Voltar</button>
-                    <button type='button' className={styles.primary} onClick={confirm} disabled={saving}>
-                        {saving ? 'Gerando...' : 'Confirmar e gerar'}
-                    </button>
-                </div>
+                {warning && (
+                    <div className={styles.warning} role='alertdialog' aria-labelledby='aviso-gerar' aria-describedby='aviso-gerar-texto'>
+                        <p id='aviso-gerar' className={styles.warningTitle}>Tem certeza?</p>
+                        <p id='aviso-gerar-texto'>
+                            Você ainda tem {pendingCount === 1 ? '1 treino agendado' : `${pendingCount >= 50 ? 'mais de 50' : pendingCount} treinos agendados`} que
+                            não fez. Ao gerar novos treinos, você vai perder esses treinos e serão gerados novos no lugar.
+                            Os treinos que você já concluiu continuam salvos.
+                        </p>
+                        <label className={styles.checkbox}>
+                            <input type='checkbox' checked={dontWarn} onChange={(e) => setDontWarn(e.target.checked)} />
+                            Não avisar novamente
+                        </label>
+                        <div className={styles.actions}>
+                            <button type='button' className={styles.secondary} onClick={() => setWarning(false)}>Cancelar</button>
+                            <button type='button' className={styles.primary} onClick={confirm} disabled={saving}>Sim, gerar novos</button>
+                        </div>
+                    </div>
+                )}
+
+                {!warning && (
+                    <div className={styles.actions}>
+                        <button type='button' className={styles.secondary} onClick={() => setPhase('alvo')}>Voltar</button>
+                        <button type='button' className={styles.primary} onClick={confirm} disabled={saving}>
+                            {saving ? 'Gerando...' : 'Confirmar e gerar'}
+                        </button>
+                    </div>
+                )}
             </div>
         )
     }
@@ -388,7 +475,7 @@ export const GenerateTrainings = ({ onClose }) => {
             <p>
                 {saved.competition
                     ? <>Prova alvo: <strong>{competitionLabel(saved.competition)}</strong> ({daysUntilText(daysUntil(saved.competition.date, today))}).</>
-                    : <>Objetivo: <strong>{goalLabel(saved.goal)}</strong>, sem prova alvo.</>}
+                    : <>Objetivo: <strong>{goalText(saved.goal, saved.mix)}</strong>, sem prova alvo.</>}
                 {saved.competition && <> Modelo de treino: <strong>{labelOf(TRAINING_MODELS, saved.model)}</strong>.</>}
             </p>
             {saved.trainings.length > 0 && (

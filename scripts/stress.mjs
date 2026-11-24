@@ -11,6 +11,7 @@ import { feedbackAdjustment, generateTrainings, planStages, prepareAthlete, refr
 import { loadLibrary } from '../server/series/index.js'
 import { loadRules } from '../server/series/regras.js'
 import { chanceNaFase, loadTecnica } from '../server/tecnica/index.js'
+import { loadSaude } from '../server/saude/index.js'
 import { DISTANCIAS_NA_PISCINA, limiteDaProva, volumeMaximoEmRP, loadEspecifico, podeUsarEspecifico, ritmoDeProva, tempoText } from '../server/especifico/index.js'
 
 const rules = loadRules()
@@ -494,6 +495,55 @@ function confereEspecifico(i) {
     return treinos.length
 }
 
+// Saúde/emagrecimento (objetivo saúde ou misto, sem prova): a série de saúde do nível nos
+// dias de saúde, sem fases, a velocidade em poucos treinos, o nado contínuo (em partes no
+// iniciante) e, no misto, a sequência escolhida; condicionamento igual ao de sempre
+const saude = loadSaude()
+const saudePorId = new Map(saude.series.map((x) => [x.id, x]))
+const contaVelocidade = { com: 0, total: 0 }
+function confereSaude(i) {
+    const base = perfil(i)
+    const a = { ...base.athlete, provas: [], modalidade: null }
+    const objetivo = random() < 0.5 ? 'saude' : 'misto'
+    const dias = a.trainingDays
+    const mistura = random() < 0.5
+        ? { modo: 'dias', dias: alguns(dias, 1).slice(0, Math.max(1, dias.length - 1)) }
+        : { modo: 'alternar', condicionamento: 1 + Math.floor(random() * 3), saude: 1 + Math.floor(random() * 3) }
+    const athlete = { ...a, objetivo, ...(objetivo === 'misto' && { mistura }) }
+    const periodizacao = { inicio: HOJE, fim: addDays(HOJE, rules.periodizacao.semanasSemProva * 7 - 1), provas: [], semProva: true, testeNaTransicao: false }
+    const treinos = generateTrainings({ rules, library, athlete, today: HOJE, random, periodizacao, inicioDosTreinos: base.inicioDosTreinos })
+    const quem = `${base.nome} (${a.level}, ${objetivo}${objetivo === 'misto' ? ` ${JSON.stringify(mistura)}` : ''}, ${a.sessionMinutes} min, nada ${a.continuousDistance})`
+    const minutosDoTreino = Math.min(a.sessionMinutes, rules.niveis[a.level].maxMinutosDeTreino ?? Infinity)
+    treinos.forEach((t, k) => {
+        const esperado = objetivo === 'saude' || (mistura.modo === 'dias'
+            ? mistura.dias.includes(new Date(`${t.date}T12:00:00Z`).getUTCDay())
+            : k % (mistura.condicionamento + mistura.saude) >= mistura.condicionamento)
+        confere('Saúde: o dia de saúde segue o objetivo (saúde: todos; misto: os dias ou a sequência escolhida)', Boolean(t.plano.saude) === esperado, () => `${quem}: ${t.title} ${t.date}`)
+        if (!t.plano.saude) {
+            confere('Misto: o dia de condicionamento continua com as séries do Geral', t.partes.every((p) => !p.saude), () => `${quem}: ${t.date}`)
+            return
+        }
+        if (t.plano.diaDeTeste) return
+        contaVelocidade.total++
+        if (t.partes.some((p) => p.parte === 'velocidade')) contaVelocidade.com++
+        confere('Saúde: sem fases (fica na Acumulação)', t.plano.fase === 'acumulacao', () => `${quem}: ${t.date} ${t.plano.fase}`)
+        const principais = t.partes.filter((p) => p.parte === 'principal')
+        if (principais.length === 0) return
+        confere('Saúde: série principal da biblioteca de saúde do nível (1 ou 2 séries de tipos diferentes)',
+            principais.length <= 2 && principais.every((p) => saudePorId.get(p.serieId)?.niveis.includes(a.level)) &&
+            new Set(principais.map((p) => p.saude)).size === principais.length, () => `${quem}: ${principais.map((p) => p.serieId).join(', ')}`)
+        confere('Saúde: material da série só se o atleta tem', principais.every((p) => p.material.every((m) => a.equipment.includes(m))), () => `${quem}: ${principais.map((p) => p.serieId)}`)
+        confere('Saúde: cabe no tempo da aula (a mesma folga do Geral: até 20% a mais)', t.minutos <= minutosDoTreino * 1.2 + 1, () => `${quem}: ${t.date} ${t.minutos} min ${t.partes.map((p) => `${p.parte}:${p.minutos}`).join(' ')}`)
+        const c = t.partes.find((p) => p.parte === 'continuo')
+        if (c) {
+            confere('Saúde: nado contínuo até o alvo do nível; no iniciante em partes',
+                Boolean(c.fracionado) === (a.level === 'iniciante') && c.metros <= saude.regras.nadoContinuo.alvo[a.level] &&
+                SEM_PARAR[a.continuousDistance] < saude.regras.nadoContinuo.alvo[a.level], () => `${quem}: ${c.texto}`)
+        }
+    })
+    return treinos.length
+}
+
 // ---------- Roda ----------
 const inicio = performance.now()
 const porNivel = { iniciante: 0, intermediario: 0, avancado: 0 }
@@ -509,10 +559,15 @@ confereFeedback()
 let treinosEspecificos = 0
 for (let i = 0; i < Math.ceil(QUANTOS / 3); i++) treinosEspecificos += confereEspecifico(QUANTOS + i)
 treinosGerados += treinosEspecificos
+let treinosDeSaude = 0
+for (let i = 0; i < Math.ceil(QUANTOS / 3); i++) treinosDeSaude += confereSaude(QUANTOS * 2 + i)
+treinosGerados += treinosDeSaude
+confere('Saúde: velocidade em poucos treinos (5%; até 8% no sorteio)', contaVelocidade.com <= contaVelocidade.total * 0.08, () => `${contaVelocidade.com} de ${contaVelocidade.total}`)
 const segundos = (performance.now() - inicio) / 1000
 
 console.log(`\nTeste de estresse: ${QUANTOS} atletas (iniciante ${porNivel.iniciante}, intermediário ${porNivel.intermediario}, avançado ${porNivel.avancado})`)
 console.log(`Modelo Específico: ${treinosEspecificos} treinos de atletas com prova`)
+console.log(`Saúde e misto: ${treinosDeSaude} treinos (${contaVelocidade.total} de saúde, ${contaVelocidade.com} com velocidade)`)
 console.log(`${treinosGerados} treinos gerados em ${segundos.toFixed(1)} s (o atleta mais lento: ${Math.round(maisLento)} ms)\n`)
 let falhou = 0
 for (const [nome, r] of regras) {

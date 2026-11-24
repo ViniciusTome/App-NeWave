@@ -16,6 +16,7 @@ import {
     drawIntensities, hardestIntensity, recoveryWaived,
 } from './series/regras.js'
 import { aplicarEspecifico, loadEspecifico, textoDaSerie } from './especifico/index.js'
+import { aplicarSaude, loadSaude } from './saude/index.js'
 import { estadoDaTecnica, loadTecnica, montarTecnica, parteDaTecnica } from './tecnica/index.js'
 
 // PROVISÓRIO: tempo nos 400 m de quem ainda não tem teste (centésimos)
@@ -925,6 +926,9 @@ const saidaDoEspecifico = (rules, athlete) => (athlete.tabela
 // Modelo Específico da prova (módulo separado): só nos treinos da Transição e da Realização
 let especificoPadrao = null
 const especificoDoApp = () => (especificoPadrao ??= loadEspecifico())
+// Treino de saúde/emagrecimento (módulo separado): só nos dias de saúde
+let saudePadrao = null
+const saudeDoApp = () => (saudePadrao ??= loadSaude())
 
 function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1, tecnica = null, estadoTecnica = null }) {
     const leve = soRitmoLeve(rules, athlete) || Boolean(athlete.soLeve)
@@ -983,9 +987,17 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         const { distancia } = athlete.serieDeTeste
         const estilo = ['costas', 'peito'].includes(athlete.prova?.estilo) && athlete.strokes?.includes(athlete.prova.estilo) ? athlete.prova.estilo : 'crawl'
         const fator = estilo === 'crawl' ? 1 : rules.saidas?.fatorDoEstilo?.[estilo] ?? 1.35
-        const segundos = Math.round((distancia / 100) * pace * (rules.serieDeTeste?.ritmo ?? 1.15) * fator)
         const abrev = { crawl: 'CR', costas: 'CO', peito: 'PE' }[estilo]
-        continuo = {
+        const { fracionado } = athlete.serieDeTeste
+        // Iniciante no dia de saúde: o nado contínuo vai em partes (ex.: 8 x 50 m com 20" de descanso)
+        const reps = fracionado ? Math.max(1, Math.round(distancia / fracionado.repeticao)) : 1
+        const segundos = Math.round((distancia / 100) * pace * (rules.serieDeTeste?.ritmo ?? 1.15) * fator) + (reps - 1) * (fracionado?.descanso ?? 0)
+        continuo = fracionado ? {
+            parte: 'continuo', titulo: 'Nado em partes', serieId: 'nado-fracionado', serieTexto: `${distancia} m em partes`,
+            texto: `${reps} x ${fracionado.repeticao} m · ${abrev} · A1 · D${fracionado.descanso}" de descanso`,
+            observacao: 'Nade todas as repetições em ritmo leve. Conforme for ficando fácil, a metragem aumenta aos poucos.',
+            nado: estilo, material: [], metros: reps * fracionado.repeticao, minutos: Math.round(segundos / 60), fracionado: true,
+        } : {
             parte: 'continuo', titulo: NOMES_DAS_PARTES.continuo, serieId: 'nado-continuo', serieTexto: `${distancia} m contínuo`,
             texto: `${distancia} m · ${abrev} · sem parar, em ritmo leve`,
             observacao: 'Nade a distância toda sem parar, no seu ritmo. Se precisar parar, tudo bem: conte isso ao concluir o treino.',
@@ -1325,6 +1337,22 @@ function recentWindow(n) {
 export const seriesUsadas = (partes) => new Set(partes.flatMap((p) =>
     [p.serieId, p.serieTexto && `texto:${p.serieTexto}`, p.serieFamilia && `familia:${p.serieFamilia}`].filter(Boolean)))
 
+// ---------- Saúde/emagrecimento ----------
+
+// O treino de número `numero` (na data `date`) é de saúde? Objetivo saúde: todos. Objetivo
+// misto (condicionamento + saúde), como o atleta escolheu:
+// - { modo: 'dias', dias: [1, 4] }: nesses dias da semana (0 = domingo);
+// - { modo: 'alternar', condicionamento: 2, saude: 1 }: 2 de condicionamento, 1 de saúde...
+export function isHealthDay(athlete, date, numero) {
+    if (athlete.objetivo === 'saude') return true
+    if (athlete.objetivo !== 'misto') return false
+    const m = athlete.mistura
+    if (m?.modo === 'dias') return m.dias.includes(new Date(`${date}T12:00:00Z`).getUTCDay())
+    const c = m?.condicionamento ?? 1
+    const s = m?.saude ?? 1
+    return (numero - 1) % (c + s) >= c
+}
+
 // ---------- Séries de teste (o atleta vê "Nado contínuo") ----------
 
 // Próximo passo acima / abaixo de uma distância (regras.serieDeTeste.passos)
@@ -1339,10 +1367,11 @@ const descer = (cfg, d) => Math.max(cfg.minimo ?? 50, d - passoDe(cfg, d - 1))
 // Pelos treinos feitos (`historico`, do mais antigo ao mais novo) nessa distância:
 // - não nadou sem parar, ou deu 10 onde era 8 ou 9: desce um passo;
 // - 3 seguidos pesados: desce; 3 seguidos sem parar e sem ficar pesado: sobe.
-export function testSeriesDistance(rules, athlete, historico = [], pace = null) {
+// `alvoFixo`: o alvo sem prova (treino de saúde: a distância que o nado contínuo pode alcançar)
+export function testSeriesDistance(rules, athlete, historico = [], pace = null, alvoFixo = null) {
     const cfg = rules.serieDeTeste
     const provas = athlete.provas?.length ? athlete.provas : athlete.prova ? [athlete.prova] : []
-    let alvo = Math.max(0, ...provas.map((p) => p.distancia ?? 0))
+    let alvo = alvoFixo ?? Math.max(0, ...provas.map((p) => p.distancia ?? 0))
     // O contínuo cabe no treino: até `parteDaAula` do tempo da aula (a progressão para aí)
     const segundosPor100 = (pace ?? DEFAULT_400[athlete.level ?? 'intermediario'] / 400) * (cfg?.ritmo ?? 1.15)
     const cabe = Math.floor(((athlete.sessionMinutes ?? 60) * 60 * (cfg?.parteDaAula ?? 0.6)) / segundosPor100 * 100 / 50) * 50
@@ -1609,6 +1638,7 @@ export function generateTrainings({
     rules, library, athlete, today, random = Math.random, dias = DIAS_PADRAO, seriesAnteriores = [],
     inicioDosTreinos = today, historico = [], fatorDoProximo = null, periodizacao = null, semTeste = false,
     tecnica = tecnicaDoApp(), especifico = athlete.modelo === 'especifico' ? especificoDoApp() : null,
+    saude = ['saude', 'misto'].includes(athlete.objetivo) ? saudeDoApp() : null,
 }) {
     const tempo400 = athlete.time400?.hundredths ?? DEFAULT_400[athlete.level]
     const pace = tempo400 / 4 / 100 // segundos por 100 m
@@ -1632,6 +1662,23 @@ export function generateTrainings({
     const estadoEspecifico = {}
     const serieDeTeste = periodizacao && !periodizacao.semProva && athlete.modelo !== 'especifico' && athlete.level === 'iniciante'
         ? testSeriesDistance(rules, athlete, historico, pace) : null
+    // Saúde/emagrecimento: nos dias de saúde, o nado contínuo vai crescendo até o alvo do
+    // nível (no iniciante, em partes) e o volume sobe um pouco a cada treino de saúde
+    const regrasDaSaude = saude?.regras ?? null
+    const continuoDaSaude = regrasDaSaude ? (() => {
+        const cfg = regrasDaSaude.nadoContinuo
+        const d = testSeriesDistance(rules, athlete, historico, pace, cfg.alvo[athlete.level] ?? cfg.alvo.intermediario)
+        if (!d) return null
+        return cfg.fracionadoPara.includes(athlete.level)
+            ? { ...d, fracionado: { repeticao: cfg.repeticaoDoFracionado, descanso: cfg.descansoDoFracionado } }
+            : d
+    })() : null
+    // Volume da saúde: continua do último treino de saúde (pesado 3 vezes: desce; fácil: sobe)
+    const volSaude = regrasDaSaude?.volume
+    let fatorDeSaude = volSaude
+        ? ([...historico].reverse().find((t) => t.plan?.fatorSaude)?.plan.fatorSaude ?? volSaude.fatorInicial - volSaude.aumentoPorTreino) +
+            ajuste.carga * (rules.feedback?.ajusteDaPrincipal ?? 0.1)
+        : 1
     // Teste de 400 m de quem não tem tempo: o primeiro treino depois de 1 mês de treino
     const testeAPartirDe = addDays(inicioDosTreinos, rules.diaDoTeste?.semTemposAposDias ?? 30)
     let testeMarcado = false
@@ -1676,7 +1723,11 @@ export function generateTrainings({
         // Etapa do dia (Acumulação 1, ..., Realização). Condicionamento: fica na Acumulação.
         const daData = faseDe ? faseDe(date) : { etapa: null, nome: null, fase: null, semanaDaFase: null }
         // (com prova alvo, faz a Transição e a Realização como todo mundo: regra do treinador)
-        const etapa = condicionamento && (!periodizacao || periodizacao.semProva) && ['transicao', 'realizacao'].includes(daData.fase) ? 'acumulacao2' : daData.etapa
+        const numero = (periodizacao?.numeroInicial ?? 1) + i
+        // Dia de saúde (objetivo saúde, ou o dia de saúde do objetivo misto): sem fases (fica na Acumulação)
+        const deSaude = Boolean(saude) && isHealthDay(athlete, date, numero)
+        const etapa = deSaude && daData.etapa ? 'acumulacao2'
+            : condicionamento && (!periodizacao || periodizacao.semProva) && ['transicao', 'realizacao'].includes(daData.fase) ? 'acumulacao2' : daData.etapa
         const efeitos = rules.periodizacao?.etapas?.[etapa] ?? {}
         const fase = efeitos.fase ?? daData.fase
         const doDia = {
@@ -1692,7 +1743,7 @@ export function generateTrainings({
             soLeve: Boolean(efeitos.soRitmoLeve),
             // Transição 2 (força específica): palmar e palmar + pull buoy, se o feedback não pediu outra coisa
             foco: athlete.foco ?? efeitos.foco ?? null,
-            serieDeTeste,
+            serieDeTeste: deSaude ? continuoDaSaude : serieDeTeste,
         }
         const proibidas = []
         // Acumulação: só A1/A2
@@ -1718,9 +1769,15 @@ export function generateTrainings({
         // A etapa também mexe no volume (Transição 85%; Realização de 85% a 60%) e a
         // semana de uma prova importante no meio da preparação também
         const volume = etapa && efeitos.volume !== undefined ? volumeDaEtapa(etapa, i) : 1
-        const fatorPrincipal = Math.round((condicionamento
+        // Saúde: começa um pouco abaixo e sobe a cada treino de saúde (sem fases)
+        if (deSaude && volSaude) fatorDeSaude = Math.max(rules.feedback?.fatorMinimo ?? 0.5, Math.min(volSaude.fatorMaximo, fatorDeSaude + volSaude.aumentoPorTreino))
+        const fatorDaSaude = deSaude ? fatorDeSaude : 1
+        // (no dia de saúde, o Geral monta com o tempo cheio: o volume é o da saúde, `fatorDaSaude`)
+        const fatorPrincipal = Math.round((deSaude ? 1 : condicionamento
             ? Math.min(cond.fatorMaximo, ajuste.fatorPrincipal + i * cond.aumentoPorTreino)
-            : ajuste.fatorPrincipal) * volume * volumeDaProva(date) * 100) / 100
+            : ajuste.fatorPrincipal) * (deSaude ? 1 : volume) * volumeDaProva(date) * 100) / 100
+        // (no dia de saúde, o aumento vai para a série de saúde, não para a do Geral)
+        const fatorSaude = Math.round(fatorDaSaude * 100) / 100
         // Teste de quem não tem tempo (depois de 1 mês) e o teste da periodização (no
         // começo da Transição). Quem não nada 400 m sem parar não faz teste (condicionamento).
         const testeSemTempo = !semTeste && semReferencia && !condicionamento && !testeMarcado && date >= testeAPartirDe
@@ -1736,6 +1793,8 @@ export function generateTrainings({
         const partes = especifico ? aplicarEspecifico({
             esp: especifico, partes: doGeral, athlete: doDia, pace, random, recentes, saida: saidaDoEspecifico(rules, doDia), tecnica, estado: estadoEspecifico,
             segundosPorTroca: tempoMorto(rules),
+        }) : deSaude ? aplicarSaude({
+            saude, partes: doGeral, athlete: doDia, pace, random, recentes, segundosPorTroca: tempoMorto(rules), fator: fatorDaSaude,
         }) : doGeral
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
@@ -1756,7 +1815,6 @@ export function generateTrainings({
         anterior = { date, intensidade: intensidades.includes('A3') ? 'A3' : intensidades.includes('A2') ? 'A2' : 'A1' }
         if (a3SeguidoPermitido && anterior.intensidade === 'A3') semanasComA3Seguido.add(a3SeguidoPermitido)
         const principais = partes.filter((p) => p.parte === 'principal')
-        const numero = (periodizacao?.numeroInicial ?? 1) + i
         return {
             date,
             title: `Treino ${numero}`,
@@ -1770,7 +1828,8 @@ export function generateTrainings({
                 numero,
                 fase,
                 etapa,
-                nomeDaEtapa: rules.periodizacao?.etapas?.[etapa]?.nome ?? null,
+                // (dia de saúde: sem fases, o nome é o do treino)
+                nomeDaEtapa: deSaude ? 'Saúde / emagrecimento' : rules.periodizacao?.etapas?.[etapa]?.nome ?? null,
                 semanaDaFase: daData.semanaDaFase,
                 intensidade: anterior.intensidade,
                 esforcoEsperado: expectedEffort(rules, partes),
@@ -1783,13 +1842,15 @@ export function generateTrainings({
                 recuperacao: Boolean(recuperacao),
                 material: [...new Set(principais.flatMap((p) => p.material ?? []))],
                 fatorPrincipal,
+                ...(deSaude && { fatorSaude }),
                 carga: ajuste.carga,
+                ...(deSaude && { saude: true, tipoSaude: principais.find((p) => p.saude)?.saude ?? null }),
                 foco: ajuste.foco,
                 condicionamento,
                 minutosDeTroca: minutosDeTroca(rules, partes),
                 montagem,
                 tecnica: tecnicaDoTreino,
-                ...(partes.some((p) => p.parte === 'continuo') && { serieDeTeste }),
+                ...(partes.some((p) => p.parte === 'continuo') && { serieDeTeste: doDia.serieDeTeste }),
             },
         }
     })

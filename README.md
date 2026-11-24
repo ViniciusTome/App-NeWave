@@ -12,6 +12,8 @@ Aplicativo web para acompanhamento de treinos de natação. Reúne o planejament
 - Feedback com os mesmos treinos do histórico, com busca pelo título ou pela data
 - Botão "Gerar treinos": na primeira vez faz a anamnese do atleta (experiência, rotina, piscina, material, lesões e tempo nos 400 m), que fica guardada; toda vez pergunta a prova alvo da preparação (continuar a atual, escolher do calendário, cadastrar uma nova ou treinar sem prova) e mostra um resumo para conferir. Ao confirmar, gera os treinos das próximas duas semanas (primeira versão do gerador, em `server/generator.js`)
 - Nível do atleta calculado a partir das respostas (não é perguntado)
+- Treino de saúde / emagrecimento (objetivo "Saúde / emagrecimento" ou "Condicionamento + Saúde", escolhendo os dias de saúde ou alternando os treinos): intervalado extensivo e intensivo, fartlek e séries por tempo por nível, sem fases, velocidade em 5% dos treinos e o nado contínuo crescendo aos poucos (no iniciante, em partes). Séries e regras em `server/saude/` (veja `server/saude/LEIAME.md`)
+- Aviso antes de gerar novos treinos quando ainda há treinos agendados por fazer (com "Não avisar novamente")
 - Perfil com o bloco "Meu treino" (preparação atual, nível e respostas, com edição), próxima competição, dados pessoais, pagamentos e suporte
 
 ## Tecnologias
@@ -174,7 +176,7 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `GET /api/preparations/current?today=AAAA-MM-DD` | Preparação atual (objetivo, prova alvo, `model` e se o Específico pode: `especifico`) |
 | `PATCH /api/preparations/current` | Troca o modelo de treino (`model`: `geral` ou `especifico`) e refaz os treinos que ainda não foram feitos |
 | `POST /api/trainings/generate?today=AAAA-MM-DD` | Gera os treinos das próximas duas semanas e substitui os agendados que não foram feitos |
-| `POST /api/preparations` | Nova preparação: `goal` e `competitionId` (prova do calendário) ou `competition` (prova nova), e `model` (`geral` ou `especifico`), e `withTest` (quer o teste de 400 m na periodização: true/false) |
+| `POST /api/preparations` | Nova preparação: `goal` e `competitionId` (prova do calendário) ou `competition` (prova nova), e `model` (`geral` ou `especifico`), e `withTest` (quer o teste de 400 m na periodização: true/false). Objetivo `misto` (condicionamento + saúde): `mix` = `{ modo: 'dias', dias: [1, 4] }` ou `{ modo: 'alternar', condicionamento: 2, saude: 1 }` |
 
 As rotas de testes e treinos exigem login, e cada usuário só vê e altera os próprios dados. O tempo é guardado em centésimos de segundo (5'32"45 = `33245`). O `today` é a data de hoje no aparelho do atleta, para o "hoje" não mudar por causa do fuso; sem ele, vale a data do servidor (UTC).
 

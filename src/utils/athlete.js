@@ -118,7 +118,30 @@ export function specificBlocker(competition, profile) {
 export const NO_COMPETITION_GOALS = options([
     ['condicionamento', 'Condicionamento'],
     ['saude', 'Saúde / emagrecimento'],
+    ['misto', 'Condicionamento + Saúde'],
 ])
+
+// Objetivo misto: escolher os dias de saúde ou alternar os treinos
+export const MIX_MODES = options([
+    ['dias', 'Escolher os dias de saúde'],
+    ['alternar', 'Alternar os treinos'],
+])
+export const MIX_SEQUENCES = options([
+    ['1-1', '1 de condicionamento, 1 de saúde'],
+    ['2-1', '2 de condicionamento, 1 de saúde'],
+    ['1-2', '1 de condicionamento, 2 de saúde'],
+    ['3-1', '3 de condicionamento, 1 de saúde'],
+])
+
+// "Saúde: Seg e Qui" / "2 de condicionamento, 1 de saúde"
+export function mixText(mix) {
+    if (!mix) return ''
+    if (mix.modo === 'dias') {
+        const nomes = WEEK_DAYS.filter((d) => mix.dias.includes(d.value)).map((d) => d.label)
+        return `saúde ${nomes.length > 1 ? `${nomes.slice(0, -1).join(', ')} e ${nomes.at(-1)}` : nomes[0]}; condicionamento nos outros dias`
+    }
+    return `${mix.condicionamento} de condicionamento, ${mix.saude} de saúde`
+}
 
 // Importância das provas (o app guarda A, B e C; o atleta vê os nomes)
 // - Prova alvo: só uma, a da preparação (escolhida em "Gerar treinos")

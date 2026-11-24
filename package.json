@@ -1,7 +1,7 @@
 {
   "name": "newave",
   "private": true,
-  "version": "0.5.2",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:server": "node --test server/app.test.js server/swimming.test.js server/athlete.test.js server/series.test.js server/regras.test.js server/generator.test.js server/tecnica.test.js server/account.test.js server/google.test.js server/especifico.test.js",
+    "test:server": "node --test server/app.test.js server/swimming.test.js server/athlete.test.js server/series.test.js server/regras.test.js server/generator.test.js server/tecnica.test.js server/account.test.js server/google.test.js server/especifico.test.js server/saude.test.js",
     "seed": "node server/seed.js",
     "stress": "node scripts/stress.mjs",
     "stress:api": "node scripts/stress-api.mjs"

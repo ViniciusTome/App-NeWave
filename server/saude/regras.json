@@ -1,0 +1,23 @@
+{
+  "_comentario": "Treino de saúde/emagrecimento (regras do treinador). Só nos dias de saúde; o condicionamento continua como antes. Sem fases: a série principal sai da biblioteca de saúde do nível do atleta, o volume sobe aos poucos e o nado contínuo vai crescendo (no iniciante, em partes).",
+  "chanceDeVelocidade": 0.05,
+  "segundaSerieAPartirDe": 300,
+  "volume": { "_comentario": "Sem fases: a série de saúde começa com 'fatorInicial' do tempo da série principal e sobe 'aumentoPorTreino' a cada treino de saúde, até 'fatorMaximo'.", "fatorInicial": 0.85, "aumentoPorTreino": 0.01, "fatorMaximo": 1 },
+  "ritmo": { "_comentario": "Ritmo de cada intensidade em relação ao teste de 400 m (para estimar o tempo)", "A1": 1.25, "A2": 1.15, "A3": 1.05, "progressivo": 1.15, "perna": 1.6, "braco": 1.2 },
+  "nadoContinuo": {
+    "_comentario": "Distância que o nado contínuo pode alcançar no treino de saúde (sobe pelos 3 treinos seguidos, como nas séries de teste). No iniciante vai em partes (repetições curtas com descanso curto).",
+    "alvo": { "iniciante": 600, "intermediario": 1500, "avancado": 2000 },
+    "fracionadoPara": ["iniciante"],
+    "repeticaoDoFracionado": 50,
+    "descansoDoFracionado": 20
+  },
+  "explicacao": {
+    "extensivo": "Intervalado extensivo: muitas repetições em ritmo moderado e descanso curto.",
+    "intensivo": "Intervalado intensivo: menos repetições, mais fortes, com descanso maior.",
+    "fartlek": "Fartlek: varie o ritmo dentro da série, como está escrito.",
+    "tempo": "Por tempo: nade durante o tempo indicado, sem se preocupar com a metragem.",
+    "misto": "Mistura de nado, perna e braçada.",
+    "perna": "Perna: trabalha os músculos grandes das pernas e gasta bastante energia.",
+    "material": "Com material: varia o estímulo e ajuda a manter o ritmo."
+  }
+}

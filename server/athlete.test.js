@@ -475,10 +475,10 @@ test('só uma prova é a principal: a prova alvo', async () => {
   assert.equal(depois.filter((c) => c.priority === 'A').length, 0)
 })
 
-test('sem prova (condicionamento ou saúde): periodização padrão A-T-R', async () => {
+test('sem prova (condicionamento): periodização padrão A-T-R', async () => {
   const cookie = await userFor('periodizacao')
   await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
-  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'condicionamento' } })
   const hoje = daysFromToday(0)
   await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
   const { DatabaseSync } = await import('node:sqlite')
@@ -523,7 +523,7 @@ test('registrar o teste de 400 m coloca os tempos (cd) nos treinos já montados,
   const db = new DatabaseSync(join(dir, 'test.db'))
   const { user } = (await api('/api/auth/me', { cookie })).body
   db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
-  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'condicionamento' } })
   const hoje = daysFromToday(0)
   await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
   const antes = (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
@@ -575,7 +575,7 @@ test('tempo novo com teste planejado: pergunta se vai fazer; sem tempos de novo,
   assert.equal(diaDoTeste(semTeste), undefined)
   const trocado = semTeste.find((t) => t.date === teste.date)
   assert.ok(trocado.partes.some((p) => p.parte === 'principal'))
-  assert.match(trocado.partes.find((p) => p.parte === 'principal').texto, /a\/c \d|A1|A2|A3/)
+  assert.match(trocado.partes.find((p) => p.parte === 'principal').texto, /a\/c \d|A1|A2|A3|progressivo/)
 
   // Apaga o tempo: a evolução fica vazia e volta o planejamento sem tempos (com o teste)
   const { tests } = (await api('/api/tests', { cookie })).body
@@ -707,7 +707,7 @@ test('tempo da anamnese: vai para a evolução e para os treinos já montados; n
   db.prepare('DELETE FROM tests WHERE user_id = ?').run(user.id)
   db.prepare('DELETE FROM trainings WHERE user_id = ?').run(user.id)
   await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: null })
-  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'condicionamento' } })
   const hoje = daysFromToday(0)
   await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
   const principal = async () => (await api(`/api/trainings/upcoming?today=${hoje}`, { cookie })).body.trainings
@@ -737,7 +737,7 @@ test('tempo da anamnese: vai para a evolução e para os treinos já montados; n
 test('página de periodização: cada treino com a fase, a intensidade, a metragem e o tempo', async () => {
   const cookie = await userFor('periodizacao')
   await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
-  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'condicionamento' } })
   await api(`/api/trainings/generate?today=${daysFromToday(0)}`, { method: 'POST', cookie })
   const res = await api('/api/trainings/periodization', { cookie })
   assert.equal(res.status, 200)
@@ -864,4 +864,33 @@ test('teste de 400 m: quem já tem tempo escolhe se faz o teste na preparação'
   // Sem responder (ex.: "Tornar prova alvo"): vale a resposta anterior (não)
   const sem = await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
   assert.equal(sem.body.preparation.withTest, false)
+})
+
+test('objetivo misto (condicionamento + saúde): valida a mistura, guarda e gera os dias de saúde', async () => {
+  const cookie = await userFor('periodizacao') // (o limite de cadastros por hora: reaproveita um usuário)
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  const dias = sampleProfile.trainingDays
+  const preparar = (mix) => api('/api/preparations', { method: 'POST', cookie, body: { goal: 'misto', ...(mix && { mix }) } })
+  assert.equal((await preparar(null)).status, 400)
+  assert.equal((await preparar({ modo: 'dias', dias: [] })).status, 400)
+  assert.equal((await preparar({ modo: 'dias', dias })).status, 400, 'precisa sobrar um dia de condicionamento')
+  assert.equal((await preparar({ modo: 'dias', dias: [7] })).status, 400)
+  assert.equal((await preparar({ modo: 'alternar', condicionamento: 0, saude: 1 })).status, 400)
+  const ok = await preparar({ modo: 'alternar', condicionamento: 2, saude: 1 })
+  assert.equal(ok.status, 201)
+  assert.deepEqual(ok.body.preparation.mix, { modo: 'alternar', condicionamento: 2, saude: 1 })
+  const hoje = daysFromToday(0)
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const { trainings } = (await api('/api/trainings/periodization', { cookie })).body
+  trainings.slice(0, 9).forEach((t, i) => {
+    assert.equal(t.periodizacao.nomeDaEtapa === 'Saúde / emagrecimento', i % 3 === 2, `${t.title}: ${t.periodizacao.nomeDaEtapa}`)
+  })
+  // Escolhendo os dias de saúde
+  const porDia = await preparar({ modo: 'dias', dias: [dias[0]] })
+  assert.deepEqual(porDia.body.preparation.mix, { modo: 'dias', dias: [dias[0]] })
+  // Objetivo saúde: todos os treinos de saúde, sem fases
+  await api('/api/preparations', { method: 'POST', cookie, body: { goal: 'saude' } })
+  await api(`/api/trainings/generate?today=${hoje}`, { method: 'POST', cookie })
+  const saude = (await api('/api/trainings/periodization', { cookie })).body.trainings
+  assert.ok(saude.every((t) => t.periodizacao.nomeDaEtapa === 'Saúde / emagrecimento' && t.periodizacao.fase === 'acumulacao'))
 })

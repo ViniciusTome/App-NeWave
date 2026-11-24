@@ -184,6 +184,8 @@ export function openDatabase(path) {
   if (!preparationColumns.includes('model')) db.exec("ALTER TABLE preparations ADD COLUMN model TEXT NOT NULL DEFAULT 'geral'")
   // Teste de 400 m na periodização: 1 = o atleta quer, 0 = não quer, null = não perguntado (regra antiga)
   if (!preparationColumns.includes('with_test')) db.exec('ALTER TABLE preparations ADD COLUMN with_test INTEGER')
+  // Objetivo misto (condicionamento + saúde): como o atleta mistura (JSON)
+  if (!preparationColumns.includes('mix')) db.exec('ALTER TABLE preparations ADD COLUMN mix TEXT')
 
   // Mensagens para o suporte (Perfil -> Suporte -> Entre em contato)
   db.exec(`

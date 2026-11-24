@@ -12,6 +12,8 @@ const MOTIVOS = [
 ]
 
 const SIM_NAO = [{ value: true, label: 'Sim, sem parar' }, { value: false, label: 'Não, precisei parar' }]
+// Nado em partes (iniciante no treino de saúde): conseguiu nadar todas as repetições?
+const SIM_NAO_PARTES = [{ value: true, label: 'Sim, todas' }, { value: false, label: 'Não, parei antes' }]
 
 // Perguntas ao concluir o treino, mostradas na janela flutuante.
 // `onSubmit({ difficulty, reason, nonstop })` conclui o treino com as respostas.
@@ -52,9 +54,11 @@ export const CompleteTraining = ({ training = null, onSubmit, submitting, error 
             )}
             {continuo && (
                 <ChoiceGroup
-                    label={`Você nadou os ${continuo.metros} m do nado contínuo sem parar?`}
+                    label={continuo.fracionado
+                        ? `Você nadou todas as repetições do nado em partes (${continuo.texto.split(' · ')[0]})?`
+                        : `Você nadou os ${continuo.metros} m do nado contínuo sem parar?`}
                     hint='Precisar parar não tem problema: os próximos treinos se ajustam a você.'
-                    options={SIM_NAO}
+                    options={continuo.fracionado ? SIM_NAO_PARTES : SIM_NAO}
                     value={nonstop}
                     onChange={setNonstop}
                 />
