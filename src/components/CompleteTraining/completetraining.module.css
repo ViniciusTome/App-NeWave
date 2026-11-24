@@ -28,3 +28,71 @@
     opacity: 0.6;
     cursor: default;
 }
+
+/* Explicação da nota (aberta na 1ª vez) */
+.explicacao {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background-color: #eaf4ff;
+    border: 2px solid #1d6fb8;
+    color: #0b2f57;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.explicacaoTitulo {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* Cada regra com o "3 treinos seguidos" em destaque */
+.regra {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: #ffffff;
+    border-left: 5px solid var(--accent-warm, #F28C28);
+}
+
+.regraNumero {
+    font-size: 17px;
+    font-weight: 800;
+    color: #c25e00;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.dica {
+    font-size: 13px;
+    color: #4a6a8a;
+}
+
+.entendi {
+    align-self: flex-end;
+    font: inherit;
+    font-weight: 700;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 20px;
+    background-color: #1d6fb8;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.comoFunciona {
+    align-self: flex-start;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d6fb8;
+    background: none;
+    border: none;
+    padding: 0;
+    text-decoration: underline;
+    cursor: pointer;
+}

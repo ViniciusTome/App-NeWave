@@ -94,6 +94,59 @@ function parseId(value) {
   return id
 }
 
+// ---------- Resumo dos treinos (Desempenho) ----------
+
+const addDaysIso = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10)
+const metrosDe = (row) => {
+  try {
+    return (row.parts ? JSON.parse(row.parts) : []).reduce((t, p) => t + (p.metros ?? 0), 0)
+  } catch {
+    return 0
+  }
+}
+const media = (lista) => (lista.length ? Math.round((lista.reduce((t, x) => t + x, 0) / lista.length) * 10) / 10 : null)
+
+// Resumo de todos os treinos juntos, ao longo do tempo. `rows` = os treinos do atleta (com
+// date, completed_at, missed_at, difficulty, difficulty_reason, parts); `today` = AAAA-MM-DD.
+// - notas: a média das notas da série principal nas últimas 4 semanas e nas 4 antes;
+// - motivos: nos últimos 10 treinos com nota, quantas vezes faltou ar / faltou força;
+// - semana: metros planejados e nadados na semana (de segunda a domingo);
+// - frequencia: nos últimos 30 dias, treinos feitos e faltas (dos que já passaram).
+export function trainingSummary(rows, today) {
+  const comNota = rows.filter((r) => r.completed_at && Number.isInteger(r.difficulty)).sort((a, b) => (a.date < b.date ? 1 : -1))
+  const entre = (de, ate) => comNota.filter((r) => r.date > de && r.date <= ate).map((r) => r.difficulty)
+  const recentes = entre(addDaysIso(today, -28), today)
+  const anteriores = entre(addDaysIso(today, -56), addDaysIso(today, -28))
+  const ultimos = comNota.slice(0, 10)
+  const diaDaSemana = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7
+  const segunda = addDaysIso(today, -diaDaSemana)
+  const domingo = addDaysIso(segunda, 6)
+  const daSemana = rows.filter((r) => r.date >= segunda && r.date <= domingo)
+  const passados = rows.filter((r) => r.date > addDaysIso(today, -30) && (r.date < today || r.completed_at))
+  return {
+    notas: { recentes: media(recentes), treinosRecentes: recentes.length, anteriores: media(anteriores), treinosAnteriores: anteriores.length },
+    motivos: {
+      treinos: ultimos.length,
+      respiracao: ultimos.filter((r) => r.difficulty_reason === 'respiracao').length,
+      forca: ultimos.filter((r) => r.difficulty_reason === 'forca').length,
+    },
+    semana: {
+      inicio: segunda,
+      fim: domingo,
+      planejado: daSemana.reduce((t, r) => t + metrosDe(r), 0),
+      nadado: daSemana.filter((r) => r.completed_at).reduce((t, r) => t + metrosDe(r), 0),
+      treinos: daSemana.length,
+      feitos: daSemana.filter((r) => r.completed_at).length,
+    },
+    frequencia: {
+      dias: 30,
+      treinos: passados.length,
+      feitos: passados.filter((r) => r.completed_at).length,
+      faltas: passados.filter((r) => !r.completed_at).length,
+    },
+  }
+}
+
 export function createSwimmingRoutes({
   db, requireUser, onTrainingCompleted = () => 0, onTimesChanged = () => 0, plannedTest = () => null,
   onTrainingMissed = () => 0, askAboutLastDays = 21,
@@ -146,12 +199,25 @@ export function createSwimmingRoutes({
       (user_id, date, title, warm_up, speed, main_series, release, notes, created_at, completed_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
+  // Resumo (Desempenho): os treinos das últimas 8 semanas até o fim desta semana
+  const listForSummary = db.prepare(`
+    SELECT date, completed_at, missed_at, difficulty, difficulty_reason, parts FROM trainings
+    WHERE user_id = ? AND date >= ? AND date <= ?
+  `)
   const completeTraining = db.prepare(`
     UPDATE trainings SET completed_at = ?, difficulty = ?, difficulty_reason = ?, nonstop_ok = ?
     WHERE id = ? AND user_id = ? AND completed_at IS NULL
   `)
 
   return {
+    // GET /api/trainings/summary?today=AAAA-MM-DD -> resumo dos treinos ao longo do tempo
+    getTrainingSummary(req, res) {
+      const user = requireUser(req)
+      const today = readToday(new URL(req.url, 'http://localhost'))
+      const rows = listForSummary.all(user.id, addDaysIso(today, -56), addDaysIso(today, 7))
+      sendJson(res, 200, { summary: trainingSummary(rows, today) })
+    },
+
     // GET /api/tests -> todos os testes do usuário, do mais antigo ao mais novo
     getTests(req, res) {
       const user = requireUser(req)

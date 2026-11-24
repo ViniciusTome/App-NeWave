@@ -151,6 +151,14 @@
     padding: 0;
 }
 
+/* Resumo dos treinos: a altura do que tem dentro (com espaço para a onda do rodapé) */
+.TestAndTimes {
+    height: auto;
+    min-height: 300px;
+    padding: 18px 18px 60px;
+    box-sizing: border-box;
+}
+
 
 @media screen and (min-width: 1024px) and (max-width: 1400px) {
     .feedback {

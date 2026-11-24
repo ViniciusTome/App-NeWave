@@ -606,6 +606,23 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
 
   return {
     // GET /api/athlete-profile -> anamnese (ou null), tempo nos 400 m e nível calculado
+    // GET /api/feedback/rules -> como a nota da série principal muda os próximos treinos, com
+    // os números do nível do atleta (para explicar na 1ª vez que ele conclui um treino)
+    getFeedbackRules(req, res) {
+      const user = requireUser(req)
+      const nivel = profileResponse(user.id).level?.level ?? null
+      const cfg = rules.feedback ?? {}
+      sendJson(res, 200, {
+        nivel,
+        treinosEmSequencia: cfg.treinosEmSequencia ?? 3,
+        // Pesado: nota a partir disso (o avançado, que já está acostumado, só a partir de 9)
+        pesadoAPartirDe: cfg.pesadoAPartirDe?.[nivel] ?? cfg.pesadoAPartirDe?.padrao ?? 8,
+        // Fácil: nota até isso (ou bem abaixo do esperado do treino)
+        facilAteNota: cfg.facilAteNota ?? 3,
+        perguntarMotivoAPartirDe: cfg.perguntarMotivoAPartirDe ?? 8,
+      })
+    },
+
     getProfile(req, res) {
       const user = requireUser(req)
       sendJson(res, 200, profileResponse(user.id))

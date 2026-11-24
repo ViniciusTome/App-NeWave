@@ -1,0 +1,48 @@
+/* Resumo dos treinos (Desempenho): no bloco azul da página */
+.box {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    color: #ffffff;
+}
+
+.box h3 {
+    font-size: 22px;
+    margin: 0;
+}
+
+.item {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(158, 221, 255, 0.25);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.rotulo {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--pool-accent, #9EDDFF);
+    margin-bottom: 4px;
+}
+
+.grande {
+    font-size: 20px;
+}
+
+.barra {
+    margin-top: 8px;
+    height: 10px;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+}
+
+.preenchido {
+    height: 100%;
+    border-radius: 999px;
+    background-color: var(--accent-warm, #F28C28);
+}

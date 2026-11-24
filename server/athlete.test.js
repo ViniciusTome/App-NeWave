@@ -904,3 +904,17 @@ test('anamnese: tempo parado de 1 a 3 meses e de 4 a 6 meses', async () => {
   }
   assert.equal((await saveProfile(cookie, { ...sampleProfile, recentBreak: '7_9m' })).status, 400)
 })
+
+test('regras da nota (explicação ao concluir) e resumo dos treinos pela API', async () => {
+  const cookie = await userFor('periodizacao') // (o limite de cadastros por hora: reaproveita um usuário)
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  const regras = await api('/api/feedback/rules', { cookie })
+  assert.equal(regras.status, 200)
+  assert.equal(regras.body.treinosEmSequencia, 3)
+  assert.equal(regras.body.pesadoAPartirDe, regras.body.nivel === 'avancado' ? 9 : 8)
+  assert.equal(regras.body.facilAteNota, 3)
+  const resumo = await api(`/api/trainings/summary?today=${daysFromToday(0)}`, { cookie })
+  assert.equal(resumo.status, 200)
+  assert.ok(['notas', 'motivos', 'semana', 'frequencia'].every((k) => resumo.body.summary[k]))
+  assert.equal((await api('/api/trainings/summary')).status, 401)
+})
