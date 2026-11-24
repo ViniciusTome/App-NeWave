@@ -647,6 +647,12 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
         } else if (porSerieNoGrupo && materialDaSerie) {
             linhas.push(materialDaSerie)
         }
+        // Estilos misturados (um por repetição, na ordem das linhas acima), quando a
+        // intensidade não é por série (aí os estilos vão na linha de cada série)
+        if (variation.porSerie && !porSerieNoGrupo) {
+            if (variation.porSerie.length === 1) linhas.push(`Estilos: ${nadosDa(0)}`)
+            else variation.porSerie.forEach((_, i) => linhas.push(`${ORDINAIS[i]} série: ${nadosDa(i)}`))
+        }
         // Grupo repetido com intensidade por série
         if (porSerieNoGrupo) {
             I.valores.forEach((v, i) => {

@@ -462,7 +462,14 @@ test('mistura de nados: nas séries com (2x), (3x), (4x)', () => {
   assert.equal(um('pri-10x200'), null) // sem séries
   // (2x) também mistura: na aula de 1 h quase toda série sai em (2x)
   assert.match(um('pri-2x10x100').texto, /^\(2x\) 10 x 100 · 1ª série .+; 2ª série .+$/)
-  assert.equal(um('pri-3x-100-75-50-25'), null) // grupo de vários blocos
+  // Pirâmide / várias metragens: um estilo por repetição, nunca o mesmo seguido
+  const grupo = um('pri-3x-100-75-50-25')
+  assert.equal(grupo.porSerie.length, 3)
+  const reps = principalSerie('pri-3x-100-75-50-25').blocos.reduce((t, b) => t + b.repeticoes, 0)
+  for (const serie of grupo.porSerie) {
+    assert.equal(serie.length, reps)
+    serie.forEach((n, i) => assert.notEqual(n, serie[i - 1]))
+  }
   assert.ok(um('pri-3x3x200'))
   assert.ok(um('pri-4x4x75'))
   // Só vale na série principal

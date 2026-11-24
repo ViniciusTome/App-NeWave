@@ -26,6 +26,8 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
     const [pausadoEm, setPausadoEm] = useState(null)
     const rodando = (fase === 'contagem' || fase === 'nadando') && pausadoEm === null
     const [fimDoNado, setFimDoNado] = useState(null) // por tempo: horário em que acaba o nado
+    // a/c no fim da série: primeiro acaba o a/c da última repetição, depois conta o intervalo (separado)
+    const [antesDoIntervalo, setAntesDoIntervalo] = useState(false)
     const agora = useTick(rodando)
     const ultimoBipe = useRef(null)
     useWakeLock(true)
@@ -64,6 +66,13 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
     useEffect(() => {
         if (fase !== 'contagem' || pausadoEm !== null || falta === null) return
         const segundo = Math.ceil(falta)
+        // a/c da última repetição da série acabou: começa o intervalo (sem apito: não é saída)
+        if (falta <= 0 && antesDoIntervalo) {
+            ultimoBipe.current = null
+            setAntesDoIntervalo(false)
+            setAlvo(alvo + plano.intervalo * 1000)
+            return
+        }
         if (falta <= 0) {
             bipe(true)
             ultimoBipe.current = null
@@ -77,17 +86,19 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
                 setFase('nadando')
                 setAlvo(null)
             } else {
-                // a/c: a próxima saída é X depois desta (com o intervalo, no fim da série)
+                // a/c: a próxima saída é X depois desta. No fim da série, o a/c da última e
+                // depois o intervalo, cada um com a sua contagem
                 const proximo = indice + 1
                 if (proximo >= reps.length) {
                     setFase('nadando')
                     setAlvo(null)
                 } else {
                     setIndice(proximo)
-                    setAlvo(saida + rep.segundos * 1000 + (fimDeSerie(indice) ? plano.intervalo * 1000 : 0))
+                    setAlvo(saida + rep.segundos * 1000)
+                    if (fimDeSerie(indice) && plano.intervalo > 0) setAntesDoIntervalo(true)
                 }
             }
-        } else if (segundo <= 3 && ultimoBipe.current !== segundo) {
+        } else if (segundo <= 3 && ultimoBipe.current !== segundo && !antesDoIntervalo) {
             ultimoBipe.current = segundo
             bipe(false)
         }
@@ -101,6 +112,7 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
         setFase('contagem')
         setAlvo(Date.now() + PREPARAR * 1000)
         setFimDoNado(null)
+        setAntesDoIntervalo(false)
         setPausadoEm(null)
     }
 
@@ -140,7 +152,8 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
     if (fase === 'contagem') {
         numeros = relogio(falta)
         legenda = indice === 0 && saiuEm === null ? 'Prepare-se: a 1ª saída é no zero'
-            : emIntervalo ? `Intervalo · a ${rep.serie}ª série sai no zero`
+            : antesDoIntervalo ? `Última da ${anterior.serie}ª série · o intervalo começa no zero`
+                : emIntervalo ? `Intervalo · a ${rep.serie}ª série sai no zero`
                 : rep.modo === 'tempo' ? `Descanso · a ${rep.numero}ª de ${rep.total} sai no zero`
                     : `Próxima saída: ${rep.numero}ª de ${rep.total}`
     } else if (fase === 'nadando' && rep.modo === 'tempo') {
