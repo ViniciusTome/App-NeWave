@@ -3,6 +3,8 @@ import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../service
 import { cronometro } from '../../utils/seriesClock'
 import { todayIso } from '../../utils/format'
 import { useClockTheme, useTick, useWakeLock } from './common'
+import { Numeros } from './Numeros'
+import { createPortal } from 'react-dom'
 import styles from './clock.module.css'
 
 const DISTANCIAS = [50, 100, 200, 400, 800, 1500]
@@ -59,7 +61,8 @@ export const Stopwatch = ({ onClose, onSaved, distanciaInicial = 400 }) => {
         }
     }
 
-    return (
+    // Direto no <body>: por cima da página inteira (o card do treino tem efeito de zoom)
+    return createPortal(
         <div className={`${styles.tela} ${styles[tema]}`} role='dialog' aria-modal='true' aria-label='Cronômetro'>
             <div className={styles.topo}>
                 <button type='button' className={styles.botaoPequeno} onClick={trocarTema}>
@@ -69,7 +72,7 @@ export const Stopwatch = ({ onClose, onSaved, distanciaInicial = 400 }) => {
                 <button type='button' className={styles.botaoPequeno} onClick={onClose}>Fechar</button>
             </div>
 
-            <div className={`${styles.numeros} ${styles.numerosLongos}`} aria-live='off'>{cronometro(centesimos)}</div>
+            <Numeros>{cronometro(centesimos)}</Numeros>
 
             {parciais.length > 0 && (
                 <ol className={styles.parciais}>
@@ -106,6 +109,8 @@ export const Stopwatch = ({ onClose, onSaved, distanciaInicial = 400 }) => {
                 </div>
             )}
             {mensagem && <p className={styles.mensagem} role='status'>{mensagem}</p>}
-        </div>
+        </div>,
+        document.body,
+
     )
 }

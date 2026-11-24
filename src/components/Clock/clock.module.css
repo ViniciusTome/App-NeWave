@@ -77,13 +77,18 @@
     text-align: center;
 }
 
-/* Os números: o maior que couber na tela */
+/* Os números: o maior que couber na tela (o tamanho vem do Numeros.jsx: pela largura e
+   pela quantidade de caracteres, até --altura-dos-numeros) */
+.tela {
+    --altura-dos-numeros: 46dvh;
+}
+
 .numeros {
     margin: auto 0;
-    padding: 12px 0;
-    font-size: clamp(88px, 24vw, 280px);
+    padding: 8px 0;
     font-weight: 800;
     line-height: 1;
+    white-space: nowrap;
     color: var(--numeros);
     font-variant-numeric: tabular-nums;
     font-family: ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, Consolas, monospace;
@@ -194,7 +199,61 @@
     text-align: center;
 }
 
-/* Cronômetro (com centésimos): um pouco menor, para caber na largura do celular */
-.numerosLongos {
-    font-size: clamp(72px, 19vw, 260px);
+
+/* ---------- Celular deitado ----------
+   Tela baixa e larga: os números ficam pela altura, e o resto bem compacto em volta */
+@media (orientation: landscape) and (max-height: 600px) {
+    .tela {
+        --altura-dos-numeros: 58dvh;
+        padding: calc(6px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+    }
+
+    .botaoPequeno {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+    .serieTexto {
+        margin-top: 2px;
+        font-size: 13px;
+    }
+
+    .repeticao {
+        margin-top: 0;
+        font-size: 15px;
+    }
+
+    .numeros {
+        padding: 0;
+    }
+
+    .legenda {
+        font-size: 16px;
+        margin-bottom: 6px;
+        min-height: 20px;
+    }
+
+    .botaoGrande {
+        font-size: 20px;
+        padding: 10px 12px;
+        border-radius: 14px;
+    }
+
+    .parciais {
+        max-height: 18dvh;
+        margin-bottom: 6px;
+    }
+
+    .parciais li {
+        font-size: 15px;
+        padding: 3px 4px;
+    }
+
+    .salvar {
+        margin-top: 6px;
+    }
+
+    .mensagem {
+        margin-top: 4px;
+    }
 }

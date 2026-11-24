@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { planoDaSerie, relogio } from '../../utils/seriesClock'
 import { useBeep, useClockTheme, useTick, useWakeLock } from './common'
+import { Numeros } from './Numeros'
+import { createPortal } from 'react-dom'
 import styles from './clock.module.css'
 
 const PREPARAR = 10 // segundos antes da 1ª saída
@@ -111,7 +113,8 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
         legenda = 'Série concluída!'
     }
 
-    return (
+    // Direto no <body>: por cima da página inteira (o card do treino tem efeito de zoom)
+    return createPortal(
         <div className={`${styles.tela} ${styles[tema]}`} role='dialog' aria-modal='true' aria-label={`Relógio de saída: ${titulo}`}>
             <div className={styles.topo}>
                 <button type='button' className={styles.botaoPequeno} onClick={trocarTema}>
@@ -127,7 +130,7 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
                     {plano.series > 1 && `Série ${rep.serie} de ${plano.series} · `}{rep.total} x {rep.distancia} m
                 </p>
             )}
-            <div className={styles.numeros} aria-live='off'>{numeros}</div>
+            <Numeros>{numeros}</Numeros>
             <p className={styles.legenda} role='status'>{pausadoEm !== null ? 'Pausado' : legenda}</p>
 
             <div className={styles.controles}>
@@ -142,6 +145,8 @@ export const IntervalClock = ({ titulo, texto, onClose }) => {
                 )}
                 {fase === 'fim' && <button type='button' className={styles.botaoGrande} onClick={onClose}>Fechar</button>}
             </div>
-        </div>
+        </div>,
+        document.body,
+
     )
 }
