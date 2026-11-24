@@ -1,0 +1,200 @@
+/* Relógios em tela cheia (cronômetro do teste e relógio de saída).
+   Tema escuro: fundo preto e números vermelhos. Tema claro: fundo branco e números
+   pretos (piscina aberta, com muito sol). Números enormes, para ver de longe. */
+
+.tela {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: calc(12px + env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    font-family: inherit;
+}
+
+.escuro {
+    --fundo: #000000;
+    --numeros: #ff2a2a;
+    --texto: #f2f2f2;
+    --apagado: #9a9a9a;
+    --botao: #1c1c1c;
+    --borda: #444444;
+    background-color: var(--fundo);
+    color: var(--texto);
+}
+
+.claro {
+    --fundo: #ffffff;
+    --numeros: #000000;
+    --texto: #111111;
+    --apagado: #555555;
+    --botao: #f1f1f1;
+    --borda: #bbbbbb;
+    background-color: var(--fundo);
+    color: var(--texto);
+}
+
+.topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 900px;
+    gap: 8px;
+}
+
+.nome {
+    font-weight: 700;
+    font-size: 16px;
+    text-align: center;
+}
+
+.botaoPequeno {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--borda);
+    background-color: var(--botao);
+    color: var(--texto);
+    cursor: pointer;
+}
+
+.serieTexto {
+    margin-top: 16px;
+    font-size: 16px;
+    color: var(--apagado);
+    text-align: center;
+}
+
+.repeticao {
+    margin-top: 6px;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* Os números: o maior que couber na tela */
+.numeros {
+    margin: auto 0;
+    padding: 12px 0;
+    font-size: clamp(88px, 24vw, 280px);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--numeros);
+    font-variant-numeric: tabular-nums;
+    font-family: ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+    letter-spacing: -0.02em;
+    text-align: center;
+}
+
+.legenda {
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 16px;
+    min-height: 28px;
+}
+
+.controles {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 640px;
+}
+
+/* Botões grandes, para a mão molhada */
+.botaoGrande {
+    flex: 1;
+    font: inherit;
+    font-size: 24px;
+    font-weight: 800;
+    padding: 22px 12px;
+    border-radius: 18px;
+    border: 2px solid var(--borda);
+    background-color: var(--botao);
+    color: var(--texto);
+    cursor: pointer;
+}
+
+.botaoGrande:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.botaoGrande:focus-visible,
+.botaoPequeno:focus-visible,
+.botaoSalvar:focus-visible {
+    outline: 3px solid var(--numeros);
+    outline-offset: 2px;
+}
+
+.parciais {
+    list-style: none;
+    width: 100%;
+    max-width: 480px;
+    max-height: 30vh;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.parciais li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--borda);
+    font-size: 18px;
+}
+
+.volta {
+    color: var(--apagado);
+}
+
+.salvar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 16px;
+}
+
+.salvar select {
+    font: inherit;
+    font-size: 16px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--borda);
+    background-color: var(--botao);
+    color: var(--texto);
+}
+
+.botaoSalvar {
+    font: inherit;
+    font-size: 18px;
+    font-weight: 800;
+    padding: 12px 22px;
+    border-radius: 999px;
+    border: none;
+    background-color: var(--numeros);
+    color: var(--fundo);
+    cursor: pointer;
+}
+
+.mensagem {
+    margin-top: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* Cronômetro (com centésimos): um pouco menor, para caber na largura do celular */
+.numerosLongos {
+    font-size: clamp(72px, 19vw, 260px);
+}

@@ -1,4 +1,8 @@
+import { useState } from "react"
 import { TermText } from "../TermText"
+import { IntervalClock } from "../Clock/IntervalClock"
+import { Stopwatch } from "../Clock/Stopwatch"
+import { planoDaSerie } from "../../utils/seriesClock"
 import { MainSeries } from "./MainSeries"
 import { Release } from "./Release"
 import { Speed } from "./Speed"
@@ -21,7 +25,16 @@ const MOSTRAR_METRAGEM_E_TEMPO = false
 
 // Sem `training`: mostra o treino de exemplo (usado nos cartões).
 // Com `training` (vindo do banco): mostra as partes preenchidas desse treino.
+// Partes com relógio de saída (as que têm a/c ou descanso na série)
+const COM_RELOGIO = ['velocidade', 'principal', 'perna', 'complemento', 'recuperacao']
+
 export const Training = ({ training }) => {
+    const [relogio, setRelogio] = useState(null) // { tipo: 'saida' | 'teste', parte }
+    // (o clique no botão não abre o treino inteiro, nos cards que abrem ao clicar)
+    const abrir = (e, valor) => {
+        e.stopPropagation()
+        setRelogio(valor)
+    }
 
     // Treino gerado: as partes na ordem, com observação e o tempo estimado
     if (training?.partes) {
@@ -31,6 +44,16 @@ export const Training = ({ training }) => {
                     <div key={i} className={styles.section}>
                         <h3>{parte.titulo}</h3>
                         <p className={styles.text}><TermText texto={parte.texto} extenso={Boolean(parte.extenso)} /></p>
+                        {parte.parte === 'teste' && (
+                            <button type='button' className={styles.clock} onClick={(e) => abrir(e, { tipo: 'teste', parte })}>
+                                ⏱ Cronômetro do teste
+                            </button>
+                        )}
+                        {COM_RELOGIO.includes(parte.parte) && planoDaSerie(parte.texto) && (
+                            <button type='button' className={styles.clock} onClick={(e) => abrir(e, { tipo: 'saida', parte })}>
+                                ⏱ Relógio de saída
+                            </button>
+                        )}
                         {parte.observacao && <p className={styles.note}>{parte.observacao}</p>}
                         {parte.aviso && <p className={styles.note}>⚠️ {parte.aviso}</p>}
                         {MOSTRAR_METRAGEM_E_TEMPO && parte.metros > 0 && (
@@ -38,6 +61,10 @@ export const Training = ({ training }) => {
                         )}
                     </div>
                 ))}
+                {relogio?.tipo === 'saida' && (
+                    <IntervalClock titulo={relogio.parte.titulo} texto={relogio.parte.texto} onClose={() => setRelogio(null)} />
+                )}
+                {relogio?.tipo === 'teste' && <Stopwatch onClose={() => setRelogio(null)} />}
             </div>
         )
     }

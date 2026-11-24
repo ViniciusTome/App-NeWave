@@ -3,6 +3,7 @@ import { Modal } from '../../Modal'
 import { api, ATHLETE_CHANGED, notifyAthleteChanged, notifyTrainingsChanged } from '../../../services/api'
 import { formatDate, formatSecondsDiff, formatSwimTime } from '../../../utils/format'
 import { AddTestForm } from './AddTestForm'
+import { Stopwatch } from '../../Clock/Stopwatch'
 import { TimesChart } from './TimesChart'
 import styles from './evolutionofthetimes.module.css'
 
@@ -92,9 +93,14 @@ export const EvolutionOfTheTimes = () => {
             <header className={styles.header}>
                 <h4>Evolução dos Tempos</h4>
                 {tests && (
-                    <button type='button' className={styles.addButton} onClick={() => setOpenModal('add')}>
-                        + Teste
-                    </button>
+                    <div className={styles.headerButtons}>
+                        <button type='button' className={styles.addButton} onClick={() => setOpenModal('cronometro')}>
+                            ⏱ Cronômetro
+                        </button>
+                        <button type='button' className={styles.addButton} onClick={() => setOpenModal('add')}>
+                            + Teste
+                        </button>
+                    </div>
                 )}
             </header>
 
@@ -212,6 +218,17 @@ export const EvolutionOfTheTimes = () => {
                     </table>
                 )}
             </Modal>
+            {openModal === 'cronometro' && (
+                <Stopwatch
+                    // Fechou o cronômetro: se tinha um teste planejado, pergunta se vai fazer
+                    onClose={() => setOpenModal(plannedTest ? 'testePlanejado' : null)}
+                    onSaved={(test, testePlanejado) => {
+                        setTests((current) => [...(current ?? []), test].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id))
+                        setChosenDistance(test.distance)
+                        setPlannedTest(testePlanejado ?? null)
+                    }}
+                />
+            )}
         </div>
     )
 }
