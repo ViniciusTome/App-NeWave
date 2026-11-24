@@ -10,6 +10,8 @@ const RITMO = { A1: 'leve', A2: 'moderado', A3: 'forte' }
 
 // [regex, (match) => ({ extenso, sigla do glossário })]
 const REGRAS = [
+    // A quantidade da série em negrito, para achar fácil no card: "(4x) 4 x 50 m", "5 x 4'", "(2x)"
+    [/(?:\(\d+x\) ?)?\d+ ?[x×] ?\d+(?: ?m(?![\p{L}])|'(?:\d+")?|")?|\(\d+x\)/u, () => ({ negrito: true })],
     // (os ritmos entre parênteses no card, ex.: "(NEG)", ficam sem os parênteses duplos)
     [/\(?(\d+) NAD x 25 fo\)?/u, (m) => ({ extenso: `${m[1]} m nadando e 25 m forte (${m[1]} NAD x 25 fo)`, sigla: '75 NAD x 25 fo' })],
     [/(c\/)?(PÉ|PALM|BOIA|SNK|PARA)(?![\p{L}])/u, (m) => ({
@@ -50,8 +52,8 @@ export function splitTerms(texto) {
         }
         const { m, fazer } = melhor
         if (m.index > 0) pedacos.push(resto.slice(0, m.index))
-        const { extenso, sigla } = fazer(m)
-        pedacos.push({ texto: m[0], extenso, termo: glossaryTerm(sigla) })
+        const { extenso, sigla, negrito } = fazer(m)
+        pedacos.push(negrito ? { texto: m[0], negrito: true } : { texto: m[0], extenso, termo: glossaryTerm(sigla) })
         resto = resto.slice(m.index + m[0].length)
     }
     return pedacos

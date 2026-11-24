@@ -30,9 +30,11 @@
     }
   },
   "misturaDeNados": {
-    "_comentario": "Séries com estilos misturados: nunca o mesmo estilo duas repetições seguidas (ex.: ME, BO, ME, BO). O crawl entra em cerca de 'parteDeCrawl' das repetições, por nível (o resto em estilo). Em 'variacao.chance' das séries a parte de crawl é a de 'variacao.parteDeCrawl' (avançado: 0 = 100% em estilo; intermediário: 30%). 'borboletaDividida': repetição longa demais para borboleta inteira vira metade borboleta, metade costas ou crawl (BO/CO, BO/CR), bom para o medley.",
+    "_comentario": "Séries com estilos misturados (a partir de (2x): na aula de 1 h quase toda série sai em (2x)): nunca o mesmo estilo duas repetições seguidas (ex.: ME, BO, ME, BO). O crawl entra em cerca de 'parteDeCrawl' das repetições, por nível (o resto em estilo). Em 'variacao.chance' das séries a parte de crawl é a de 'variacao.parteDeCrawl' (avançado: 0 = 100% em estilo; intermediário: 30%). 'borboletaDividida': repetição longa demais para borboleta inteira vira metade borboleta, metade costas ou crawl (BO/CO, BO/CR), bom para o medley.",
     "partes": ["principal"],
-    "minimoDeSeries": 3,
+    "_comentarioChance": "Nas séries em que a mistura cabe (com (3x), (4x)... e o atleta nada outros estilos), ela sai em 'chance' das vezes; no resto, a série sai de crawl (com ou sem material).",
+    "chance": 0.5,
+    "minimoDeSeries": 2,
     "pesoMelhorEstilo": 2,
     "parteDeCrawl": { "iniciante": 0.5, "intermediario": 0.5, "avancado": 0.3 },
     "variacao": { "chance": 0.25, "parteDeCrawl": { "iniciante": 0.3, "intermediario": 0.3, "avancado": 0 } },

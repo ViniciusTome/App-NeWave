@@ -778,7 +778,9 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
     const regra = rules.misturaDeNados
     if (!regra || !regra.partes.includes(parte)) return null
     const sets = setsOf(serie)
-    if (serie.blocos.length !== 1 || sets < regra.minimoDeSeries) return null
+    // Pirâmides e séries com várias metragens: cada repetição com o seu estilo
+    if (serie.blocos.length > 1) return drawMixedStrokesInGroup(rules, regra, serie, athlete, random)
+    if (sets < regra.minimoDeSeries) return null
 
     const bloco = serie.blocos[0]
     const has = new Set(athlete.strokes)
@@ -862,6 +864,69 @@ export function drawMixedStrokes(rules, parte, serie, athlete, random = Math.ran
         ...(usaMedley && { piscinas: medleyPools }),
         texto,
     }
+}
+
+// Mistura nas pirâmides e nas séries com várias metragens ("1 x 100, 1 x 75, 1 x 50, 1 x 25",
+// "(2x) 1 x 200, 4 x 50"): cada repetição ganha um estilo que cabe na metragem dela (borboleta
+// até 100 m; medley só em 100 m na piscina de 25, 200 e 400 m), nunca o mesmo estilo duas
+// seguidas, e o crawl em cerca de 'parteDeCrawl' das repetições. O mesmo para cada série do (2x).
+function drawMixedStrokesInGroup(rules, regra, serie, athlete, random) {
+    if (!canSwimInStroke(serie.blocos)) return null
+    const sets = Math.max(1, setsOf(serie))
+    const has = new Set(athlete.strokes)
+    const nivel = athlete.level ?? 'intermediario'
+    const borboleta = rules.borboleta
+    const piscina = athlete.poolLength ?? 25
+    const distancias = serie.blocos.flatMap((b) => Array.from({ length: b.repeticoes * (b.vezes ?? 1) }, () => b.distancia))
+    // Borboleta: só se a série inteira tem repetições curtas (até 100 m), como nas outras séries
+    const borboletaCabe = !borboleta || Math.max(...distancias) <= borboleta.maiorRepeticaoNaPrincipal
+    const estilosDe = (d) => [
+        ...ESTILOS.filter((e) => has.has(e) && d <= limitFor(rules, e, nivel) && (e !== 'borboleta' || borboletaCabe)),
+        ...(ORDEM_MEDLEY.every((e) => has.has(e)) && individualMedleyPools([{ distancia: d, repeticoes: 1 }]).includes(piscina) ? ['medley'] : []),
+    ]
+    // Precisa caber estilo em pelo menos metade das repetições (senão fica tudo crawl)
+    if (distancias.filter((d) => estilosDe(d).length > 0).length < distancias.length / 2) return null
+    const crawlCabe = (d) => has.has('crawl') && d <= limitFor(rules, 'crawl', nivel)
+    const todosOsEstilos = [...new Set(distancias.flatMap(estilosDe))]
+    const melhor = bestStrokeOf(athlete, todosOsEstilos.filter((e) => e !== 'medley'))
+    const peso = (n) => (n === melhor ? regra.pesoMelhorEstilo : 1) * (n === 'borboleta' ? borboleta?.pesoNaPrincipal ?? 1 : 1)
+    const pick = (opcoes) => {
+        let r = random() * opcoes.reduce((t, n) => t + peso(n), 0)
+        for (const n of opcoes) {
+            r -= peso(n)
+            if (r < 0) return n
+        }
+        return opcoes.at(-1)
+    }
+    // Uma série: nunca o mesmo estilo duas seguidas (tenta de novo; sem jeito, null)
+    const sortearSerie = () => {
+        const variacao = regra.variacao && random() < regra.variacao.chance
+        const parte = (variacao ? regra.variacao.parteDeCrawl : regra.parteDeCrawl)[nivel] ?? 0.3
+        const chance = parte >= 0.5 ? 1 : parte / (1 - parte)
+        const lista = []
+        for (const d of distancias) {
+            const anterior = lista.at(-1)
+            const opcoes = estilosDe(d).filter((n) => n !== anterior)
+            const crawlPode = crawlCabe(d) && anterior !== 'crawl'
+            if (crawlPode && (opcoes.length === 0 || (parte > 0 && random() < chance))) lista.push('crawl')
+            else if (opcoes.length > 0) lista.push(pick(opcoes))
+            else return null
+        }
+        return lista
+    }
+    const porSerie = []
+    for (let i = 0; i < sets; i++) {
+        let lista = null
+        for (let tentativa = 0; tentativa < 20 && !lista; tentativa++) lista = sortearSerie()
+        if (!lista) return null
+        porSerie.push(lista)
+    }
+    // Sem estilo nenhum (sorteio só de crawl): não é mistura
+    if (porSerie.flat().every((n) => n === 'crawl')) return null
+    const texto = `${serie.texto} · ` + porSerie
+        .map((nados, i) => `${sets > 1 ? `${ORDINAIS[i]} série ` : ''}${nados.join(', ')}`)
+        .join('; ')
+    return { nado: 'misto', porSerie, melhorEstilo: melhor, padrao: 'sem_material', material: [], texto }
 }
 
 // ---------- Descanso entre as repetições ----------

@@ -647,6 +647,12 @@ export function cardText(serie, variation, intervalo = null, intensidades = null
         } else if (porSerieNoGrupo && materialDaSerie) {
             linhas.push(materialDaSerie)
         }
+        // Estilos misturados (um por repetição, na ordem das linhas acima), quando a
+        // intensidade não é por série (aí os estilos vão na linha de cada série)
+        if (variation.porSerie && !porSerieNoGrupo) {
+            if (variation.porSerie.length === 1) linhas.push(`Estilos: ${nadosDa(0)}`)
+            else variation.porSerie.forEach((_, i) => linhas.push(`${ORDINAIS[i]} série: ${nadosDa(i)}`))
+        }
         // Grupo repetido com intensidade por série
         if (porSerieNoGrupo) {
             I.valores.forEach((v, i) => {
@@ -889,8 +895,13 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     const limite = distancia(ordenadas[0]) + Math.max(60, budget * 0.15)
     const melhores = ordenadas.filter((c) => distancia(c) <= limite).slice(0, 3)
     const escolhida = weightedPick(melhores.map((c) => ({ item: c, peso: c.serie.peso })), random)
-    const variation = weightedPick(escolhida.variations.map((v) =>
-        ({ item: v, peso: (v.peso ?? 1) * (foco === 'forca' && comPalmar(v) ? 4 : 1) })), random)
+    // Estilos misturados (quem nada outros estilos): saem em 'misturaDeNados.chance' das séries
+    // em que cabem (antes era uma variação entre muitas de crawl e quase nunca saía)
+    const misturada = escolhida.variations.find((v) => v.nado === 'misto')
+    const chanceDaMistura = rules.misturaDeNados?.chance
+    const outras = escolhida.variations.filter((v) => v !== misturada || chanceDaMistura === undefined)
+    const variation = misturada && (outras.length === 0 || (chanceDaMistura !== undefined && random() < chanceDaMistura)) ? misturada
+        : weightedPick(outras.map((v) => ({ item: v, peso: (v.peso ?? 1) * (foco === 'forca' && comPalmar(v) ? 4 : 1) })), random)
     const segundos = estimateSeconds(rules, parte, escolhida.serie, variation, athlete, pace)
     return { serie: escolhida.serie, variation, segundos }
 }
