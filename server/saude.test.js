@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { generateTrainings, isHealthDay, testSeriesDistance } from './generator.js'
 import { loadLibrary } from './series/index.js'
 import { loadRules } from './series/regras.js'
-import { aplicarSaude, loadSaude, metrosDaSerie, segundosDaSerie, textoDaSerie, validarSaude } from './saude/index.js'
+import { aplicarSaude, loadSaude, metrosDaSerie, segundosDaSerie, temPerna, textoDaSerie, validarSaude } from './saude/index.js'
 
 const rules = loadRules()
 const library = loadLibrary()
@@ -140,4 +140,23 @@ test('objetivo misto: alterna ou segue os dias escolhidos; os de condicionamento
 test('aplicarSaude: sem principal ou no dia de teste, não mexe', () => {
   const partes = [{ parte: 'teste', minutos: 10 }, { parte: 'soltura', minutos: 5 }]
   assert.equal(aplicarSaude({ saude, partes, athlete: ATLETAS.intermediario, pace: 105 }), partes)
+})
+
+test('saúde: série principal com perna -> sem a parte de perna depois (e as séries de perna viraram nado + perna)', () => {
+  assert.ok(!saude.series.some((s) => s.blocos.some((b) => b.nado === 'perna')), 'sem série só de perna na biblioteca de saúde')
+  let comPerna = 0
+  for (const [nivel, atleta] of Object.entries(ATLETAS)) {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      for (const t of gerar({ ...atleta, objetivo: 'saude' }, seed)) {
+        const principais = t.partes.filter((p) => p.parte === 'principal')
+        const ids = principais.map((p) => p.serieId)
+        const series = ids.map((id) => saude.series.find((s) => s.id === id))
+        if (!series.some((s) => s && temPerna(s))) continue
+        comPerna++
+        assert.ok(!t.partes.some((p) => p.parte === 'perna'), `${nivel} ${t.date}: ${ids.join(', ')}`)
+        assert.ok(series.filter((s) => temPerna(s)).length === 1, 'só uma série com perna')
+      }
+    }
+  }
+  assert.ok(comPerna > 10)
 })
