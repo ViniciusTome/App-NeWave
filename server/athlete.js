@@ -520,6 +520,11 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
         estilosImportantes: ativa?.goal === 'competir' ? [...new Set(competitionsBetween.all(userId, today, fim)
           .filter((c) => c.id !== ativa?.competition?.id && c.priority === 'B')
           .flatMap((c) => parseEvents(c).map((e) => e.stroke)).filter(Boolean))] : [],
+        // As provas importantes inteiras (distância, estilo e meta), para o Específico da Transição
+        provasImportantes: ativa?.goal === 'competir' ? competitionsBetween.all(userId, today, fim)
+          .filter((c) => c.id !== ativa?.competition?.id && c.priority === 'B')
+          .flatMap((c) => parseEvents(c).map((e) => ({ distancia: e.distance, estilo: e.stroke, metaCentesimos: e.goalHundredths ?? null })))
+          .filter((p) => p.distancia && p.estilo) : [],
       },
     }
   }

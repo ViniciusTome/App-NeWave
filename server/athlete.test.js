@@ -796,7 +796,9 @@ test('prova com distância, estilo e meta; o modelo Específico só para quem po
   const daProva = periodo.filter((t) => ['transicao', 'realizacao'].includes(t.periodizacao?.fase))
     .flatMap((t) => (t.partes ?? []).filter((p) => p.parte === 'principal'))
   assert.ok(daProva.length > 0)
-  assert.ok(daProva.every((p) => p.titulo === 'Série principal da prova'), daProva.map((p) => p.titulo).join())
+  // (a prova principal na maioria; as outras provas da competição revezam na Transição)
+  assert.ok(daProva.every((p) => /^Série principal( da prova)?( · \d+ m \w+)?$/.test(p.titulo)), daProva.map((p) => p.titulo).join())
+  assert.ok(daProva.filter((p) => p.titulo === 'Série principal da prova').length > daProva.length / 2)
   assert.ok(daProva.every((p) => !/10 x 100 m · RP/.test(p.texto)))
   // Passou a nadar menos (anamnese): o Específico deixa de valer
   await saveProfile(cookie, { ...sampleProfile, continuousDistance: '50_100' })

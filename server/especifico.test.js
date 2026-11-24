@@ -184,3 +184,38 @@ test('Específico na Transição: 50% dos treinos em A3, 40% em A2 e 10% em A1 (
     }
   }
 })
+
+test('Específico na Transição: as outras provas (da competição e importantes) também têm séries', async () => {
+  const { generateTrainings } = await import('./generator.js')
+  const { loadLibrary } = await import('./series/index.js')
+  const { loadRules } = await import('./series/regras.js')
+  const rules = loadRules()
+  const library = loadLibrary()
+  const base = {
+    swimmingSince: 'mais_5a', recentBreak: 'nao', continuousDistance: 'mais_2000', strokes: ['crawl', 'costas', 'peito', 'borboleta'],
+    trainingDays: [1, 2, 3, 4, 5], sessionMinutes: 60, poolLength: 25, equipment: ['palmar', 'pe_de_pato'], injuries: '', bestStroke: 'peito',
+    level: 'avancado', time400: { hundredths: 33000 }, modalidade: 'piscina_25', modelo: 'especifico',
+  }
+  const peito = { distancia: 100, estilo: 'peito', metaCentesimos: 7500, modalidade: 'piscina_25' }
+  const periodizacao = { inicio: '2026-11-24', fim: '2027-02-15', semProva: false, provas: [], numeroInicial: 1, testeNaTransicao: false }
+  let s = 7
+  const random = () => ((s = (s * 9301 + 49297) % 233280) / 233280)
+  for (const [extra, especifico] of [
+    [{ provas: [peito, { distancia: 200, estilo: 'crawl', metaCentesimos: 13500 }] }, true], // mesma competição, com meta
+    [{ provas: [peito], provasImportantes: [{ distancia: 200, estilo: 'crawl', metaCentesimos: null }] }, false], // importante, sem meta
+  ]) {
+    const treinos = generateTrainings({ rules, library, athlete: { ...base, prova: peito, ...extra }, today: '2026-11-24', random, periodizacao })
+    const transicao = treinos.filter((t) => t.plano.fase === 'transicao')
+    const outras = transicao.filter((t) => t.plano.provaDoEspecifico?.estilo === 'crawl')
+    // ~40% da Transição para a outra prova; o resto, a principal
+    assert.ok(Math.abs(outras.length - 0.4 * transicao.length) < 1.5, `${outras.length} de ${transicao.length}`)
+    for (const t of outras) {
+      const p = t.partes.find((x) => x.parte === 'principal')
+      assert.match(p.titulo, /200 m crawl/)
+      assert.equal(Boolean(p.especifico), especifico)
+      assert.doesNotMatch(p.texto, /\b(PE|CO|BO|MD)\b/, p.texto)
+    }
+    // Realização: só a prova alvo
+    assert.ok(treinos.filter((t) => t.plano.fase === 'realizacao').every((t) => !t.plano.provaDoEspecifico))
+  }
+})
