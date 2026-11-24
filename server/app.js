@@ -414,6 +414,8 @@ export function createApp({
     ['GET', '/api/trainings/upcoming', swimming.getUpcomingTrainings],
     ['GET', '/api/trainings/periodization', swimming.getPeriodization],
     ['GET', '/api/trainings/pending', swimming.getPendingTrainings],
+    ['GET', '/api/trainings/summary', swimming.getTrainingSummary],
+    ['GET', '/api/feedback/rules', athlete.getFeedbackRules],
     ['POST', '/api/trainings/:id/missed', swimming.missTraining],
     ['POST', '/api/trainings/generate', athlete.generate],
     ['POST', '/api/trainings', swimming.createTraining],

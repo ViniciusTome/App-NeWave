@@ -796,7 +796,9 @@ test('prova com distância, estilo e meta; o modelo Específico só para quem po
   const daProva = periodo.filter((t) => ['transicao', 'realizacao'].includes(t.periodizacao?.fase))
     .flatMap((t) => (t.partes ?? []).filter((p) => p.parte === 'principal'))
   assert.ok(daProva.length > 0)
-  assert.ok(daProva.every((p) => p.titulo === 'Série principal da prova'), daProva.map((p) => p.titulo).join())
+  // (a prova principal na maioria; as outras provas da competição revezam na Transição)
+  assert.ok(daProva.every((p) => /^Série principal( da prova)?( · \d+ m \w+)?$/.test(p.titulo)), daProva.map((p) => p.titulo).join())
+  assert.ok(daProva.filter((p) => p.titulo === 'Série principal da prova').length > daProva.length / 2)
   assert.ok(daProva.every((p) => !/10 x 100 m · RP/.test(p.texto)))
   // Passou a nadar menos (anamnese): o Específico deixa de valer
   await saveProfile(cookie, { ...sampleProfile, continuousDistance: '50_100' })
@@ -903,4 +905,18 @@ test('anamnese: tempo parado de 1 a 3 meses e de 4 a 6 meses', async () => {
     assert.equal(res.body.profile.recentBreak, recentBreak)
   }
   assert.equal((await saveProfile(cookie, { ...sampleProfile, recentBreak: '7_9m' })).status, 400)
+})
+
+test('regras da nota (explicação ao concluir) e resumo dos treinos pela API', async () => {
+  const cookie = await userFor('periodizacao') // (o limite de cadastros por hora: reaproveita um usuário)
+  await saveProfile(cookie, { ...sampleProfile, reported400Hundredths: 36000 })
+  const regras = await api('/api/feedback/rules', { cookie })
+  assert.equal(regras.status, 200)
+  assert.equal(regras.body.treinosEmSequencia, 3)
+  assert.equal(regras.body.pesadoAPartirDe, regras.body.nivel === 'avancado' ? 9 : 8)
+  assert.equal(regras.body.facilAteNota, 3)
+  const resumo = await api(`/api/trainings/summary?today=${daysFromToday(0)}`, { cookie })
+  assert.equal(resumo.status, 200)
+  assert.ok(['notas', 'motivos', 'semana', 'frequencia'].every((k) => resumo.body.summary[k]))
+  assert.equal((await api('/api/trainings/summary')).status, 401)
 })

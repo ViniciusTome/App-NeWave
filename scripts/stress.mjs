@@ -460,13 +460,13 @@ function confereEspecifico(i) {
     const treinos = generateTrainings({ rules, library, athlete, today: HOJE, random, periodizacao: { inicio: HOJE, fim, provas: [], semProva: false, testeNaTransicao: Boolean(athlete.time400) } })
     const quem = `${base.nome} (${level}, ${distancia} m ${estilo}, ${modalidade}, ${athlete.sessionMinutes} min)`
     const limite = limiteDaProva(especifico.regras, distancia)
-    // Transição: 55% dos treinos em A3, 35% em A2 e 10% em A1; nunca dois mais leves seguidos
+    // Transição: 50% dos treinos em A3, 40% em A2 e 10% em A1; nunca dois mais leves seguidos
     const naTransicao = treinos.filter((t) => t.plano.fase === 'transicao' && t.partes.some((p) => p.especifico)).map((t) => t.partes.find((p) => p.especifico).intensidades.valores[0])
     if (naTransicao.length >= 5) {
         const parte = (i) => naTransicao.filter((x) => x === i).length / naTransicao.length
         const perto = (i, alvo) => Math.abs(parte(i) * naTransicao.length - alvo * naTransicao.length) < 1
-        confere('Específico na Transição: 55% A3, 35% A2 e 10% A1 (diferença de menos de 1 treino), nunca dois mais leves seguidos',
-            perto('A3', 0.55) && perto('A2', 0.35) && perto('A1', 0.1) &&
+        confere('Específico na Transição: 50% A3, 40% A2 e 10% A1 (diferença de menos de 1 treino), nunca dois mais leves seguidos',
+            perto('A3', 0.5) && perto('A2', 0.4) && perto('A1', 0.1) &&
             naTransicao.every((x, i) => x === 'A3' || i === 0 || naTransicao[i - 1] === 'A3'), () => `${base.nome}: ${naTransicao.join(' ')}`)
     }
     for (const t of treinos) {

@@ -1,0 +1,167 @@
+/* Resumo dos treinos (Desempenho): no bloco azul da página */
+.box {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    color: #ffffff;
+}
+
+.box h3 {
+    font-size: 22px;
+    margin: 0;
+}
+
+/* 6 colunas: metade = 3, 2/3 = 4, 1/3 = 2, inteiro = 6 */
+.grade {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.metade {
+    grid-column: span 3;
+}
+
+.doisTercos {
+    grid-column: span 4;
+}
+
+.umTerco {
+    grid-column: span 2;
+}
+
+.inteiro {
+    grid-column: span 6;
+}
+
+/* Celular: um embaixo do outro */
+@media screen and (max-width: 768px) {
+    .grade {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .metade,
+    .doisTercos,
+    .umTerco,
+    .inteiro {
+        grid-column: auto;
+    }
+}
+
+.item {
+    padding: 12px 14px;
+    border-radius: 10px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(158, 221, 255, 0.25);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.rotulo {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--pool-accent, #9EDDFF);
+    margin-bottom: 4px;
+}
+
+.grande {
+    font-size: 20px;
+}
+
+.barra {
+    margin-top: 8px;
+    height: 10px;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+}
+
+.preenchido {
+    height: 100%;
+    border-radius: 999px;
+    background-color: var(--accent-warm, #F28C28);
+}
+
+/* Estilos: uma linha por estilo, com a barra do nadado (laranja) e a do planejado (azul claro) */
+.legenda {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.marcaNadado,
+.marcaPlanejado {
+    display: inline-block;
+    width: 14px;
+    height: 8px;
+    border-radius: 4px;
+}
+
+.marcaNadado {
+    background-color: var(--accent-warm, #F28C28);
+}
+
+.marcaPlanejado {
+    background-color: var(--pool-accent, #9EDDFF);
+}
+
+.estilos {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.estilos li {
+    display: grid;
+    grid-template-columns: 84px 1fr auto;
+    align-items: center;
+    gap: 10px;
+}
+
+.estiloNome {
+    font-weight: 600;
+}
+
+.estiloBarras {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.barraFina {
+    height: 7px;
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+}
+
+.preenchidoPlanejado {
+    height: 100%;
+    border-radius: 999px;
+    background-color: var(--pool-accent, #9EDDFF);
+}
+
+.estiloValores {
+    font-size: 14px;
+    white-space: nowrap;
+    min-width: 72px;
+    text-align: right;
+}
+
+/* Cada item da legenda junto da sua marca (não quebra no meio) */
+.itemDaLegenda {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    margin-right: 10px;
+}

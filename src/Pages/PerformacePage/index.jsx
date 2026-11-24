@@ -4,7 +4,7 @@ import { Card } from '../../components/Card'
 import { EvolutionOfTheTimes } from '../../components/Dashboard/EvolutionOfTheTimes';
 import { Input } from '../../components/Input'
 import { Modal } from '../../components/Modal'
-import { TestAndTimes } from '../../components/TestAndTimes';
+import { TrainingSummary } from '../../components/TrainingSummary'
 import { Training } from '../../components/Training'
 import { TrainingGlossary } from '../../components/TrainingGlossary'
 import { api } from '../../services/api'
@@ -130,7 +130,8 @@ export const PerformancePage = () => {
                 </div>
                 <h2 className={styles.SectionName}>Desempenho</h2>
                 <div className={styles.TestAndTimes}>
-                    <TestAndTimes/>
+                    {/* Resumo de todos os treinos juntos (nota média, o que pesou, semana, frequência) */}
+                    <TrainingSummary />
                 </div>
                 <div className={styles.EvolutionTimes}>
                     <EvolutionOfTheTimes/>

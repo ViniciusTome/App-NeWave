@@ -771,7 +771,42 @@ export function athleteForMain(athlete) {
     }
 }
 
+// ---------- Metros de cada estilo (resumo do Desempenho) ----------
+
+const ESTILO_DA_ABREV = { CR: 'crawl', CO: 'costas', PE: 'peito', BO: 'borboleta' }
+// Metros de cada estilo numa parte do treino, pelo que está escrito no card: os metros da parte
+// divididos pelos estilos que aparecem (cada "CR", "PE"... é uma repetição ou uma série; medley
+// conta 1/4 para cada estilo; "ME" é o melhor estilo). Sem estilo escrito: crawl (livre).
+export function strokeMeters(texto, metros, melhorEstilo = null) {
+    const peso = {}
+    const somar = (estilo, w) => { peso[estilo] = (peso[estilo] ?? 0) + w }
+    for (const [, abrev] of (texto ?? '').matchAll(/\b(CR|CO|PE|BO|MD|ME)\b/g)) {
+        if (abrev === 'MD') for (const e of ['borboleta', 'costas', 'peito', 'crawl']) somar(e, 0.25)
+        else if (abrev === 'ME') somar(melhorEstilo ?? 'crawl', 1)
+        else somar(ESTILO_DA_ABREV[abrev], 1)
+    }
+    const total = Object.values(peso).reduce((t, w) => t + w, 0)
+    if (!metros) return {}
+    if (total === 0) return { crawl: metros }
+    return Object.fromEntries(Object.entries(peso).map(([e, w]) => [e, Math.round((metros * w) / total)]))
+}
+
 // ---------- Estilo da prova na preparação toda ----------
+
+// As outras provas do atleta além da principal: as da competição alvo e as importantes
+// (prioridade B), sem repetir e só nos estilos que ele nada (medley: os quatro)
+export function otherRaces(athlete) {
+    const principal = athlete.prova ?? athlete.provas?.[0] ?? null
+    const nada = new Set(athlete.strokes ?? [])
+    const quatro = ['crawl', 'costas', 'peito', 'borboleta'].every((e) => nada.has(e))
+    const chave = (p) => `${p.distancia}-${p.estilo}`
+    const vistas = new Set(principal ? [chave(principal)] : [])
+    return [...(athlete.provas ?? []), ...(athlete.provasImportantes ?? [])].filter((p) => {
+        if (!p?.distancia || !p.estilo || vistas.has(chave(p))) return false
+        vistas.add(chave(p))
+        return p.estilo === 'medley' ? quatro : nada.has(p.estilo)
+    }).map((p) => ({ ...p, modalidade: p.modalidade ?? principal?.modalidade ?? athlete.modalidade ?? null }))
+}
 
 // Estilos das provas (alvo e importantes) que o atleta treina além do crawl. Medley só se ele
 // nada os quatro. Prova de crawl (livre, triatlo, águas abertas): nenhum.
@@ -779,7 +814,7 @@ export function raceStrokes(athlete) {
     const provas = athlete.provas?.length ? athlete.provas : athlete.prova ? [athlete.prova] : []
     const nada = new Set(athlete.strokes ?? [])
     const quatro = ['crawl', 'costas', 'peito', 'borboleta'].every((e) => nada.has(e))
-    return [...new Set([...provas.map((p) => p.estilo), ...(athlete.estilosImportantes ?? [])])]
+    return [...new Set([...provas.map((p) => p.estilo), ...(athlete.estilosImportantes ?? []), ...(athlete.provasImportantes ?? []).map((p) => p.estilo)])]
         .filter((e) => e && e !== 'crawl' && (e === 'medley' ? quatro : nada.has(e)))
 }
 
@@ -1796,6 +1831,24 @@ export function generateTrainings({
     const datas = trainingDates(today, athlete.trainingDays, totalDeDias)
     // Foco de estilo de cada treino (pelo número do treino: continua igual ao gerar de novo)
     const focoDe = styleFocusSchedule(rules, athlete, (periodizacao?.numeroInicial ?? 1) - 1 + datas.length)
+    // Específico: as outras provas (da competição alvo e as importantes) também têm séries nas
+    // fases de 'outrasProvas' (regra do treinador). Devolve a outra prova do treino, ou null (a principal)
+    const outras = especifico ? otherRaces(athlete) : []
+    const cfgOutras = especifico?.regras.outrasProvas
+    const contaDasProvas = { principal: 0, outras: outras.map(() => 0) }
+    const escolherProva = (faseDoDia) => {
+        if (!outras.length || !cfgOutras || !(cfgOutras.fases ?? []).includes(faseDoDia)) return null
+        const feitos = contaDasProvas.principal + contaDasProvas.outras.reduce((t, n) => t + n, 0) + 1
+        const faltaPrincipal = (1 - cfgOutras.parte) * feitos - contaDasProvas.principal
+        const faltas = outras.map((_, k) => (cfgOutras.parte / outras.length) * feitos - contaDasProvas.outras[k])
+        const k = faltas.indexOf(Math.max(...faltas))
+        if (faltaPrincipal >= faltas[k]) {
+            contaDasProvas.principal++
+            return null
+        }
+        contaDasProvas.outras[k]++
+        return outras[k]
+    }
     const totalDeSemanas = new Set(datas.map(semanaDe)).size
     // Volume da etapa: fixo (ex.: 85%) ou caindo treino a treino ([85%, 60%] na Realização)
     const etapaDeCada = faseDe ? datas.map((d) => faseDe(d).etapa) : []
@@ -1881,20 +1934,34 @@ export function generateTrainings({
             !testeDaPeriodizacao && fase === 'transicao'
         if (testeSemTempo) testeMarcado = true
         if (testeNaTransicao) testeDaPeriodizacao = true
+        // Específico: as outras provas (da competição alvo e as importantes) revezam com a principal
+        const provaDoDia = especifico && !testeSemTempo && !testeNaTransicao ? escolherProva(fase) : null
+        // (prova sem meta: sem o ritmo de prova, a principal é a do Geral no estilo dela)
+        const semMeta = provaDoDia && !provaDoDia.metaCentesimos
+        const focoDoDia = semMeta
+            ? { categoria: provaDoDia.estilo === 'crawl' ? 'crawl' : 'prova', estilos: provaDoDia.estilo === 'crawl' ? [] : [provaDoDia.estilo] }
+            : focoDe[numero - 1]
         const doGeral = testeSemTempo || testeNaTransicao
             ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
             : buildTraining({
                 rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas,
-                fatorPrincipal, tecnica, estadoTecnica, focoDoEstilo: deSaude ? null : focoDe[numero - 1],
+                fatorPrincipal, tecnica, estadoTecnica, focoDoEstilo: deSaude ? null : focoDoDia,
             })
         // Específico da prova: na Transição e na Realização, a série principal é a da prova
         // (estilo e ritmo da prova) e o treino inteiro fica dentro do limite (15x ou 10x a prova)
-        const partes = especifico ? aplicarEspecifico({
-            esp: especifico, partes: doGeral, athlete: doDia, pace, random, recentes, saida: saidaDoEspecifico(rules, doDia), tecnica, estado: estadoEspecifico,
-            segundosPorTroca: tempoMorto(rules),
-        }) : deSaude ? aplicarSaude({
+        const partes = especifico && !semMeta ? aplicarEspecifico({
+            esp: especifico, partes: doGeral, athlete: provaDoDia ? { ...doDia, prova: provaDoDia } : doDia, pace, random, recentes,
+            saida: saidaDoEspecifico(rules, doDia), tecnica, estado: estadoEspecifico, segundosPorTroca: tempoMorto(rules),
+        }) : especifico ? doGeral : deSaude ? aplicarSaude({
             saude, partes: doGeral, athlete: doDia, pace, random, recentes, segundosPorTroca: tempoMorto(rules), fator: fatorDaSaude,
         }) : doGeral
+        // Outra prova (não a principal): o título diz qual
+        if (provaDoDia) {
+            const qual = `${provaDoDia.distancia} m ${provaDoDia.estilo}`
+            partes.filter((p) => p.parte === 'principal').forEach((p) => {
+                p.titulo = p.especifico ? `Série principal da prova · ${qual}` : `Série principal · ${qual}`
+            })
+        }
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
         const tecnicaDoTreino = partes.map((p) => p._tecnica).filter(Boolean)
@@ -1905,6 +1972,11 @@ export function generateTrainings({
         // 1ª preparação do atleta: as telas mostram os nomes por extenso, com a abreviação
         // entre parênteses, para ele ir se acostumando
         if (periodizacao?.primeira) partes.forEach((p) => { p.extenso = true })
+        // Metros de cada estilo em cada parte (o "ME" da principal é o melhor estilo dela)
+        const melhorDaPrincipal = athleteForMain(doDia).bestStroke ?? doDia.bestStroke ?? null
+        partes.forEach((p) => {
+            if (p.metros > 0) p.estilos = strokeMeters(p.texto, p.metros, p.parte === 'principal' ? melhorDaPrincipal : doDia.bestStroke ?? null)
+        })
         bloqueadas = seriesUsadas(partes)
         recentes.fecharTreino()
         const intensidades = partes.filter((p) => p.intensidades).map((p) => hardestIntensity(p.intensidades))
@@ -1946,6 +2018,7 @@ export function generateTrainings({
                 ...(deSaude && { saude: true, tipoSaude: principais.find((p) => p.saude)?.saude ?? null }),
                 foco: ajuste.foco,
                 condicionamento,
+                ...(provaDoDia && { provaDoEspecifico: { distancia: provaDoDia.distancia, estilo: provaDoDia.estilo } }),
                 minutosDeTroca: minutosDeTroca(rules, partes),
                 montagem,
                 tecnica: tecnicaDoTreino,

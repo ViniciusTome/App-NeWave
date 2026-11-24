@@ -1,6 +1,7 @@
 // Rotas de dados de natação: testes de tempo e treinos (agendados e realizados).
 // Todas exigem login e só enxergam os dados do próprio usuário.
 import { HttpError, readJson, sendJson } from './http.js'
+import { strokeMeters } from './generator.js'
 
 export const TEST_DISTANCES = [25, 50, 100, 200, 400, 800, 1500]
 const MAX_TIME_HUNDREDTHS = 2 * 60 * 60 * 100 // 2 horas
@@ -94,6 +95,85 @@ function parseId(value) {
   return id
 }
 
+// ---------- Resumo dos treinos (Desempenho) ----------
+
+const addDaysIso = (iso, n) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10)
+const metrosDe = (row) => {
+  try {
+    return (row.parts ? JSON.parse(row.parts) : []).reduce((t, p) => t + (p.metros ?? 0), 0)
+  } catch {
+    return 0
+  }
+}
+const media = (lista) => (lista.length ? Math.round((lista.reduce((t, x) => t + x, 0) / lista.length) * 10) / 10 : null)
+
+// Resumo de todos os treinos juntos, ao longo do tempo. `rows` = os treinos do atleta (com
+// date, completed_at, missed_at, difficulty, difficulty_reason, parts); `today` = AAAA-MM-DD.
+// - notas: a média das notas da série principal nas últimas 4 semanas e nas 4 antes;
+// - motivos: nos últimos 10 treinos com nota, quantas vezes faltou ar / faltou força;
+// - semana: metros planejados e nadados na semana (de segunda a domingo);
+// - frequencia: nos últimos 30 dias, treinos feitos e faltas (dos que já passaram);
+// - estilos: % dos metros de cada estilo, no que foi nadado nas últimas 4 semanas e no que está
+//   planejado para as próximas 4 (`melhorEstilo` = o "ME" dos treinos antigos, sem o cálculo).
+export function trainingSummary(rows, today, melhorEstilo = null) {
+  const comNota = rows.filter((r) => r.completed_at && Number.isInteger(r.difficulty)).sort((a, b) => (a.date < b.date ? 1 : -1))
+  const entre = (de, ate) => comNota.filter((r) => r.date > de && r.date <= ate).map((r) => r.difficulty)
+  const recentes = entre(addDaysIso(today, -28), today)
+  const anteriores = entre(addDaysIso(today, -56), addDaysIso(today, -28))
+  const ultimos = comNota.slice(0, 10)
+  const diaDaSemana = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7
+  const segunda = addDaysIso(today, -diaDaSemana)
+  const domingo = addDaysIso(segunda, 6)
+  const daSemana = rows.filter((r) => r.date >= segunda && r.date <= domingo)
+  const passados = rows.filter((r) => r.date > addDaysIso(today, -30) && (r.date < today || r.completed_at))
+  return {
+    notas: { recentes: media(recentes), treinosRecentes: recentes.length, anteriores: media(anteriores), treinosAnteriores: anteriores.length },
+    motivos: {
+      treinos: ultimos.length,
+      respiracao: ultimos.filter((r) => r.difficulty_reason === 'respiracao').length,
+      forca: ultimos.filter((r) => r.difficulty_reason === 'forca').length,
+    },
+    semana: {
+      inicio: segunda,
+      fim: domingo,
+      planejado: daSemana.reduce((t, r) => t + metrosDe(r), 0),
+      nadado: daSemana.filter((r) => r.completed_at).reduce((t, r) => t + metrosDe(r), 0),
+      treinos: daSemana.length,
+      feitos: daSemana.filter((r) => r.completed_at).length,
+    },
+    frequencia: {
+      dias: 30,
+      treinos: passados.length,
+      feitos: passados.filter((r) => r.completed_at).length,
+      faltas: passados.filter((r) => !r.completed_at).length,
+    },
+    estilos: {
+      nadado: porcentagemDosEstilos(rows.filter((r) => r.completed_at && r.date > addDaysIso(today, -28) && r.date <= today), melhorEstilo),
+      planejado: porcentagemDosEstilos(rows.filter((r) => !r.completed_at && !r.missed_at && r.date >= today && r.date < addDaysIso(today, 28)), melhorEstilo),
+    },
+  }
+}
+
+// { metros, porEstilo: { crawl: 52, peito: 30, ... } } (% inteiros) dos treinos
+function porcentagemDosEstilos(rows, melhorEstilo) {
+  const metros = {}
+  for (const row of rows) {
+    let partes = []
+    try {
+      partes = row.parts ? JSON.parse(row.parts) : []
+    } catch {
+      partes = []
+    }
+    for (const p of partes) {
+      const daParte = p.estilos ?? strokeMeters(p.texto, p.metros ?? 0, melhorEstilo)
+      for (const [e, m] of Object.entries(daParte)) metros[e] = (metros[e] ?? 0) + m
+    }
+  }
+  const total = Object.values(metros).reduce((t, m) => t + m, 0)
+  if (total === 0) return { metros: 0, porEstilo: {} }
+  return { metros: total, porEstilo: Object.fromEntries(Object.entries(metros).map(([e, m]) => [e, Math.round((m * 100) / total)])) }
+}
+
 export function createSwimmingRoutes({
   db, requireUser, onTrainingCompleted = () => 0, onTimesChanged = () => 0, plannedTest = () => null,
   onTrainingMissed = () => 0, askAboutLastDays = 21,
@@ -146,12 +226,30 @@ export function createSwimmingRoutes({
       (user_id, date, title, warm_up, speed, main_series, release, notes, created_at, completed_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
+  // Resumo (Desempenho): os treinos das últimas 8 semanas até o fim desta semana
+  const bestStrokeOf = db.prepare('SELECT best_stroke, strokes FROM athlete_profiles WHERE user_id = ?')
+  const listForSummary = db.prepare(`
+    SELECT date, completed_at, missed_at, difficulty, difficulty_reason, parts FROM trainings
+    WHERE user_id = ? AND date >= ? AND date <= ?
+  `)
   const completeTraining = db.prepare(`
     UPDATE trainings SET completed_at = ?, difficulty = ?, difficulty_reason = ?, nonstop_ok = ?
     WHERE id = ? AND user_id = ? AND completed_at IS NULL
   `)
 
   return {
+    // GET /api/trainings/summary?today=AAAA-MM-DD -> resumo dos treinos ao longo do tempo
+    getTrainingSummary(req, res) {
+      const user = requireUser(req)
+      const today = readToday(new URL(req.url, 'http://localhost'))
+      const rows = listForSummary.all(user.id, addDaysIso(today, -56), addDaysIso(today, 28))
+      const perfil = bestStrokeOf.get(user.id)
+      const summary = trainingSummary(rows, today, perfil?.best_stroke ?? null)
+      // Os estilos que o atleta marcou na anamnese (para mostrar todos, mesmo com 0%)
+      summary.estilos.daAnamnese = perfil ? JSON.parse(perfil.strokes) : []
+      sendJson(res, 200, { summary })
+    },
+
     // GET /api/tests -> todos os testes do usuário, do mais antigo ao mais novo
     getTests(req, res) {
       const user = requireUser(req)

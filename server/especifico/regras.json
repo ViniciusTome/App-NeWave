@@ -1,6 +1,11 @@
 {
   "_comentario": "Regras do modelo Específico da prova (só na Transição e na Realização).",
   "fases": ["transicao", "realizacao"],
+  "outrasProvas": {
+    "_comentario": "Regra do treinador: as outras provas da competição alvo e as provas importantes (prioridade B) também têm séries no Específico. Nas 'fases', a série principal reveza: a prova principal em (1 - 'parte') dos treinos e as outras dividem 'parte'. Prova com meta: a série da prova dela (RP, A3, A2, A1, no estilo e na distância dela). Sem meta (não dá o ritmo de prova): a série principal do Geral no estilo dela. Na Realização, só a prova alvo.",
+    "parte": 0.4,
+    "fases": ["transicao"]
+  },
   "limiteDaProva": { "_comentario": "Metragem máxima do treino inteiro: X vezes a distância da prova", "ate100": 15, "outras": 10 },
   "grupos": [
     { "grupo": "50", "ate": 50 },
@@ -43,9 +48,9 @@
     "aumentoDoIntervalo": 1.5
   },
   "intensidadeNaTransicao": {
-    "_comentario": "Regra do treinador: na Transição, 55% dos treinos em A3 (séries com ritmo de prova, máximo ou A3), 35% em A2 e 10% em A1 (séries só nessa intensidade). Distribuído ao longo da Transição (sem depender de sorte), e um treino A2 ou A1 sempre vem depois de um A3.",
-    "A3": 0.55,
-    "A2": 0.35,
+    "_comentario": "Regra do treinador: na Transição, 50% dos treinos em A3 (séries com ritmo de prova, máximo ou A3), 40% em A2 e 10% em A1 (séries só nessa intensidade). Distribuído ao longo da Transição (sem depender de sorte), e um treino A2 ou A1 sempre vem depois de um A3.",
+    "A3": 0.5,
+    "A2": 0.4,
     "A1": 0.1
   },
   "fracionadas": {

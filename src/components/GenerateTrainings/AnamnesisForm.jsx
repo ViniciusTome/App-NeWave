@@ -3,9 +3,9 @@ import { ChoiceGroup } from '../ChoiceGroup'
 import { api, notifyAthleteChanged, notifyTrainingsChanged } from '../../services/api'
 import {
     CONTINUOUS_DISTANCE, EQUIPMENT, POOL_LENGTH, RECENT_BREAK, SESSION_MINUTES,
-    MEDLEY, STROKES, STROKES_WITH_MEDLEY, SWIMMING_SINCE, WEEK_DAYS,
+    MEDLEY, STROKES, STROKES_WITH_MEDLEY, SWIMMING_SINCE, WEEK_DAYS, labelOf, labelsOf,
 } from '../../utils/athlete'
-import { formatDate, formatSwimTime } from '../../utils/format'
+import { formatDate, formatSwimTime, todayIso } from '../../utils/format'
 import styles from './wizard.module.css'
 
 const YES_NO = [{ value: false, label: 'Não' }, { value: true, label: 'Sim' }]
@@ -25,11 +25,27 @@ function splitTime(hundredths) {
     return { minutes: String(Math.floor(hundredths / 6000)), seconds }
 }
 
+// Respostas que mudam os treinos (o tempo nos 400 m já atualiza os tempos dos treinos sozinho)
+const mesmaLista = (a, b) => [...(a ?? [])].sort().join(',') === [...(b ?? [])].sort().join(',')
+const MUDAM_O_TREINO = [
+    { campo: 'sessionMinutes', nome: 'Tempo por treino', texto: (v) => labelOf(SESSION_MINUTES, v) },
+    { campo: 'trainingDays', nome: 'Dias de treino', lista: true, texto: (v) => labelsOf(WEEK_DAYS, v) },
+    { campo: 'strokes', nome: 'Estilos', lista: true, texto: (v) => labelsOf(STROKES, v) },
+    { campo: 'bestStroke', nome: 'Melhor estilo', texto: (v) => (v ? labelOf(STROKES, v) : 'Nenhum') },
+    { campo: 'continuousDistance', nome: 'Quanto nada sem parar', texto: (v) => labelOf(CONTINUOUS_DISTANCE, v) },
+    { campo: 'equipment', nome: 'Material', lista: true, texto: (v) => labelsOf(EQUIPMENT, v) },
+    { campo: 'poolLength', nome: 'Piscina', texto: (v) => labelOf(POOL_LENGTH, v) },
+    { campo: 'recentBreak', nome: 'Tempo parado', texto: (v) => labelOf(RECENT_BREAK, v) },
+    { campo: 'swimmingSince', nome: 'Há quanto tempo nada', texto: (v) => labelOf(SWIMMING_SINCE, v) },
+]
+
 // Anamnese em etapas. Usada no "Gerar treinos" (primeira vez ou "Atualizar meus dados")
 // e no Perfil. `profile` preenche as respostas quando o atleta está editando.
 // `time400` é o tempo que o app já conhece: se veio de um teste registrado,
 // a pergunta do tempo nos 400 m não aparece.
-export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel = 'Cancelar' }) => {
+// `avisarSeMudarOTreino` (no Perfil): antes de salvar uma mudança que muda os treinos, avisa
+// que os treinos ainda não feitos serão refeitos; confirmando, salva e refaz.
+export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel = 'Cancelar', avisarSeMudarOTreino = false }) => {
     const [answers, setAnswers] = useState(() => ({
         swimmingSince: profile?.swimmingSince ?? null,
         recentBreak: profile?.recentBreak ?? null,
@@ -48,6 +64,8 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
     const [step, setStep] = useState(0)
     const [error, setError] = useState('')
     const [saving, setSaving] = useState(false)
+    // Aviso antes de salvar: { mudancas: [{ nome, de, para }], pendentes } (null = sem aviso)
+    const [aviso, setAviso] = useState(null)
 
     const set = (key) => (value) => {
         setAnswers((current) => ({ ...current, [key]: value }))
@@ -201,6 +219,23 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
         if (problem) return setError(problem)
         if (!isLast) return setStep(step + 1)
 
+        // No Perfil: mudou algo que muda o treino e tem treinos agendados -> avisa antes
+        if (avisarSeMudarOTreino && profile && !aviso) {
+            const novas = { ...answers, bestStroke: bestStrokeOptions.length > 0 ? answers.bestStroke : null }
+            const mudancas = MUDAM_O_TREINO
+                .filter((m) => (m.lista ? !mesmaLista(profile[m.campo], novas[m.campo]) : (profile[m.campo] ?? null) !== (novas[m.campo] ?? null)))
+                .map((m) => ({ nome: m.nome, de: m.texto(profile[m.campo]), para: m.texto(novas[m.campo]) }))
+            if (mudancas.length > 0) {
+                setSaving(true)
+                const pendentes = await api(`/trainings/upcoming?today=${todayIso()}`).then((r) => r.trainings.length).catch(() => 0)
+                setSaving(false)
+                if (pendentes > 0) return setAviso({ mudancas, pendentes })
+            }
+        }
+        await salvar()
+    }
+
+    const salvar = async () => {
         setSaving(true)
         try {
             const result = await api('/athlete-profile', {
@@ -222,6 +257,8 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
                         : answers.neverTested ? null : parseTime(answers.minutes, answers.seconds),
                 },
             })
+            // Confirmou o aviso: os treinos ainda não feitos são refeitos com as respostas novas
+            if (aviso) await api(`/trainings/generate?today=${todayIso()}`, { method: 'POST' })
             onSaved(result)
             // O tempo nos 400 m vai para a evolução dos tempos e para os treinos
             notifyAthleteChanged()
@@ -251,14 +288,35 @@ export const AnamnesisForm = ({ profile, time400, onSaved, onCancel, cancelLabel
 
             {error && <p className={styles.error} role='alert'>{error}</p>}
 
-            <div className={styles.actions}>
+            {aviso && (
+                <div className={styles.warning} role='alertdialog' aria-labelledby='aviso-anamnese' aria-describedby='aviso-anamnese-texto'>
+                    <p id='aviso-anamnese' className={styles.warningTitle}>Isso vai mudar os seus treinos</p>
+                    <ul className={styles.warningList}>
+                        {aviso.mudancas.map((m) => <li key={m.nome}><strong>{m.nome}:</strong> {m.de} → {m.para}</li>)}
+                    </ul>
+                    <p id='aviso-anamnese-texto'>
+                        Você ainda tem {aviso.pendentes === 1 ? '1 treino' : `${aviso.pendentes >= 50 ? 'mais de 50' : aviso.pendentes} treinos`} para fazer.
+                        Se salvar, <strong>vai perder {aviso.pendentes === 1 ? 'esse treino' : 'esses treinos'}</strong> e serão gerados novos com as
+                        respostas novas. Os treinos que você já concluiu continuam salvos.
+                    </p>
+                    <p>Tem certeza que deseja fazer isso?</p>
+                    <div className={styles.actions}>
+                        <button type='button' className={styles.secondary} onClick={() => setAviso(null)} disabled={saving}>Cancelar</button>
+                        <button type='button' className={styles.primary} onClick={salvar} disabled={saving}>
+                            {saving ? 'Refazendo...' : 'Sim, salvar e refazer'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {!aviso && <div className={styles.actions}>
                 {step === 0
                     ? <button type='button' className={styles.secondary} onClick={onCancel}>{cancelLabel}</button>
                     : <button type='button' className={styles.secondary} onClick={() => { setError(''); setStep(step - 1) }}>Voltar</button>}
                 <button type='button' className={styles.primary} onClick={next} disabled={saving}>
                     {saving ? 'Salvando...' : isLast ? 'Salvar respostas' : 'Próximo'}
                 </button>
-            </div>
+            </div>}
         </div>
     )
 }

@@ -1622,3 +1622,13 @@ test('peito com pé de pato (nadando): o card diz para fazer a pernada de borbol
   // Perna com pé de pato: nunca de peito
   for (const p of partes.filter((x) => x.parte === 'perna' && x.texto.includes('c/PÉ'))) assert.doesNotMatch(p.texto, /\bPE\b|peito|MD/, p.texto)
 })
+
+test('cada parte do treino guarda os metros de cada estilo (somam os metros da parte)', () => {
+  const athlete = { ...avancado, strokes: ['crawl', 'costas', 'peito', 'borboleta'], bestStroke: 'costas' }
+  for (const t of generateTrainings({ rules, library, athlete, today: '2026-11-23', random: seeded(3), dias: 21 })) {
+    for (const p of t.partes.filter((x) => x.metros > 0)) {
+      const soma = Object.values(p.estilos).reduce((a, m) => a + m, 0)
+      assert.ok(Math.abs(soma - p.metros) <= 4, `${p.parte}: ${soma} x ${p.metros}`)
+    }
+  }
+})
