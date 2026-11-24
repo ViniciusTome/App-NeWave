@@ -12,14 +12,17 @@
   --pool-border: 1px solid rgba(158, 221, 255, 0.35);
   --pool-shadow: 0 8px 20px rgba(11, 47, 87, 0.25);
   --pool-accent: #9EDDFF;
+  /* Fundo do app: azul-marinho (combina com os blocos e deixa os títulos brancos legíveis) */
+  --app-bg: #16324F;
+  /* Destaque quente (laranja), ex.: o sublinhado das abreviações clicáveis */
+  --accent-warm: #F28C28;
 }
 
 body{
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  background-color: #9EDDFF;
-  /* background-color: #00090E; */
+  background-color: var(--app-bg);
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
