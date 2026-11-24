@@ -15,6 +15,7 @@ Aplicativo web para acompanhamento de treinos de natação. Reúne o planejament
 - Desempenho: "Resumo dos treinos" (nota média da série principal nas últimas 4 semanas e nas 4 antes, o que mais pesou nos últimos 10 treinos, metragem da semana e frequência dos últimos 30 dias)
 - "Como foi o treino?": na 1ª vez, explica a nota e quando ela muda os treinos (3 treinos seguidos pesados ou fáceis, com os números do nível); depois, pelo link "Como funciona a nota?"
 - Treino de saúde / emagrecimento (objetivo "Saúde / emagrecimento" ou "Condicionamento + Saúde", escolhendo os dias de saúde ou alternando os treinos): intervalado extensivo e intensivo, fartlek e séries por tempo por nível, sem fases, velocidade em 5% dos treinos e o nado contínuo crescendo aos poucos (no iniciante, em partes). Séries e regras em `server/saude/` (veja `server/saude/LEIAME.md`)
+- Perfil: ao editar a anamnese mudando algo que muda o treino (tempo por treino, dias, estilos, material, piscina...), o app mostra o que mudou e avisa antes de salvar que os treinos ainda não feitos serão refeitos; confirmando, salva e refaz
 - Aviso ao clicar em "Gerar treinos" quando ainda há treinos para fazer: eles serão trocados pelos novos (com "Não avisar novamente", guardado no aparelho)
 - Perfil com o bloco "Meu treino" (preparação atual, nível e respostas, com edição), próxima competição, dados pessoais, pagamentos e suporte
 

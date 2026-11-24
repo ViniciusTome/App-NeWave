@@ -128,6 +128,7 @@ export const AthleteSummary = () => {
                 title={hasProfile ? 'Editar meus dados' : 'Sobre o seu treino'}
             >
                 <AnamnesisForm
+                    avisarSeMudarOTreino
                     profile={athlete.profile}
                     time400={athlete.time400}
                     onCancel={() => setEditing(false)}
