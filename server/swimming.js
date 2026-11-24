@@ -229,7 +229,8 @@ export function createSwimmingRoutes({
             diaDeTeste: Boolean(plano.diaDeTeste),
           },
           metros: partes.reduce((s, p) => s + (p.metros ?? 0), 0),
-          minutos: partes.reduce((s, p) => s + (p.minutos ?? 0), 0),
+          // (com o tempo morto das trocas entre as partes, guardado no plano)
+          minutos: partes.reduce((s, p) => s + (p.minutos ?? 0), 0) + (plano?.minutosDeTroca ?? 0),
         }
       })
       sendJson(res, 200, { trainings })

@@ -736,6 +736,12 @@ export function adaptToDistance(rules, serie, athlete) {
 export const soRitmoLeve = (rules, athlete) => Boolean(rules.quemNadaPouco?.soRitmoLeve) &&
     (SEM_PARAR[athlete.continuousDistance] ?? Infinity) <= rules.quemNadaPouco.paraQuemNadaAte
 
+// Segundos de tempo morto a cada troca de parte do treino (regra do treinador)
+export const tempoMorto = (rules) => rules.tempoMorto?.segundosPorTroca ?? 0
+// Minutos de tempo morto de um treino montado: uma troca entre cada parte nadada
+export const minutosDeTroca = (rules, partes) =>
+    Math.round((Math.max(0, partes.filter((p) => p.parte !== 'hidratacao').length - 1) * tempoMorto(rules)) / 60)
+
 // O atleta, do jeito que a série principal enxerga: pela prova alvo (estilo da prova)
 const NO_CRAWL = ['triatlo', 'maratona_aquatica']
 export function athleteForMain(athlete) {
@@ -929,7 +935,9 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
         estrutura = estrutura.filter((p, i) => p !== 'principal' || i === primeira)
     }
     const pausas = estrutura.map((p) => pauseOf(rules, p)).filter(Boolean)
-    const segundosLivres = (athlete.sessionMinutes - pausas.reduce((s, p) => s + p.minutos, 0)) * 60
+    // Tempo morto: a troca de uma parte para a outra (1' cada; a hidratação já é parada)
+    const trocas = Math.max(0, estrutura.filter((p) => !pauseOf(rules, p)).length - 1 + (athlete.serieDeTeste ? 1 : 0))
+    const segundosLivres = (athlete.sessionMinutes - pausas.reduce((s, p) => s + p.minutos, 0)) * 60 - trocas * tempoMorto(rules)
     const somaPesos = estrutura.filter((p) => !pauseOf(rules, p)).reduce((s, p) => s + (TEMPO_DAS_PARTES[p] ?? 0), 0)
     const principais = estrutura.filter((p) => p === 'principal').length
 
@@ -1016,7 +1024,7 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
     if (tecnica) {
         const limite = Math.min(athlete.sessionMinutes, rules.niveis?.[athlete.level]?.maxMinutosDeTreino ?? Infinity) * 60 * 1.15
         let total = pausas.reduce((s, p) => s + p.minutos * 60, 0) +
-            [...escolhas.values()].reduce((s, e) => s + e.segundos + (e.tecnica?.segundos ?? 0), 0) + (continuo ? continuo.minutos * 60 : 0)
+            [...escolhas.values()].reduce((s, e) => s + e.segundos + (e.tecnica?.segundos ?? 0), 0) + (continuo ? continuo.minutos * 60 : 0) + trocas * tempoMorto(rules)
         for (const parte of ['solto', 'aquecimento']) {
             if (total <= limite) break
             const escolha = [...escolhas.entries()].find(([i, e]) => estrutura[i] === parte && e.tecnica)?.[1]
@@ -1089,16 +1097,16 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
             ...(escolha.tecnica && { _tecnica: escolha.tecnica.registro }),
         })
     })
-    // Com o nado contínuo, se o treino passar do tempo da aula, saem (nessa ordem) a perna,
-    // o solto do meio do treino e a velocidade
-    if (partes.some((p) => p.parte === 'continuo')) {
-        let lista = partes
-        for (const tirar of ['perna', 'solto', 'velocidade']) {
-            if (lista.reduce((t, p) => t + (p.minutos ?? 0), 0) <= athlete.sessionMinutes * 1.1) break
-            lista = lista.filter((p) => p.parte !== tirar)
-        }
-        return lista
+    // Se o treino passar do tempo da aula (contando o tempo morto das trocas), saem a perna e
+    // o solto do meio do treino; com o nado contínuo, também a velocidade (nessa ordem)
+    const ordem = partes.some((p) => p.parte === 'continuo') ? ['perna', 'solto', 'velocidade'] : ['perna', 'solto']
+    let lista = partes
+    for (const tirar of ordem) {
+        const total = lista.reduce((t, p) => t + (p.minutos ?? 0), 0) + minutosDeTroca(rules, lista)
+        if (total <= athlete.sessionMinutes * 1.1) break
+        lista = lista.filter((p) => p.parte !== tirar)
     }
+    if (lista !== partes) return lista
     return partes
 }
 
@@ -1727,6 +1735,7 @@ export function generateTrainings({
         // (estilo e ritmo da prova) e o treino inteiro fica dentro do limite (15x ou 10x a prova)
         const partes = especifico ? aplicarEspecifico({
             esp: especifico, partes: doGeral, athlete: doDia, pace, random, recentes, saida: saidaDoEspecifico(rules, doDia), tecnica, estado: estadoEspecifico,
+            segundosPorTroca: tempoMorto(rules),
         }) : doGeral
         // A montagem de cada parte vai para o plano interno (o atleta não recebe)
         const montagem = partes.map((p) => p._montagem ?? null)
@@ -1753,7 +1762,8 @@ export function generateTrainings({
             title: `Treino ${numero}`,
             partes,
             metros: partes.reduce((s, p) => s + p.metros, 0),
-            minutos: partes.reduce((s, p) => s + p.minutos, 0),
+            // (com o tempo morto das trocas entre as partes)
+            minutos: partes.reduce((s, p) => s + p.minutos, 0) + minutosDeTroca(rules, partes),
             // Plano interno (o atleta não vê): como é o treino na periodização, para
             // comparar com o feedback e montar ou refazer os próximos
             plano: {
@@ -1776,6 +1786,7 @@ export function generateTrainings({
                 carga: ajuste.carga,
                 foco: ajuste.foco,
                 condicionamento,
+                minutosDeTroca: minutosDeTroca(rules, partes),
                 montagem,
                 tecnica: tecnicaDoTreino,
                 ...(partes.some((p) => p.parte === 'continuo') && { serieDeTeste }),

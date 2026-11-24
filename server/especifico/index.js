@@ -329,7 +329,7 @@ const intensidadeDaSerie = (serie) => serie.blocos.map((b) => INTENSIDADE[b.ritm
 // Troca a série principal do treino do Geral pela série da prova e respeita o limite
 // da prova (15x ou 10x a distância) no treino inteiro. Devolve as partes novas (ou as
 // mesmas, quando o Específico não vale nesse treino).
-export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null, saida = null, tecnica = null, estado = null }) {
+export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null, saida = null, tecnica = null, estado = null, segundosPorTroca = 0 }) {
     const { regras, series } = esp
     const prova = athlete.prova
     if (athlete.modelo !== 'especifico' || !prova?.distancia || !prova.metaCentesimos) return partes
@@ -398,8 +398,15 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
     }
     recentes?.add(`esp:${escolhida.id}`)
     // Passou do tempo da aula (ex.: a técnica no aquecimento de uma aula curta): as outras partes ficam curtas
-    const minutosDaAula = (athlete.sessionMinutes ?? 60) * 1.1
+    // (menos o tempo morto das trocas entre as partes)
+    const trocas = Math.max(0, partes.filter((p) => p.parte !== 'hidratacao' && p.parte !== 'principal').length) * segundosPorTroca / 60
+    const minutosDaAula = ((athlete.sessionMinutes ?? 60) - trocas) * 1.1
     encurtar(() => resto.reduce((t, p) => t + p.minutos, 0) + segundosDe(escolhida, prova, pace, regras) / 60 > minutosDaAula)
+    // Ainda não cabe (aula curta): a série da prova diminui até caber
+    for (let menorAinda = diminuir(escolhida); menorAinda &&
+        resto.reduce((t, p) => t + p.minutos, 0) + segundosDe(escolhida, prova, pace, regras) / 60 > minutosDaAula; menorAinda = diminuir(escolhida)) {
+        escolhida = menorAinda
+    }
 
     const segundos = segundosDe(escolhida, prova, pace, regras)
     const intensidade = intensidadeDaSerie(escolhida)

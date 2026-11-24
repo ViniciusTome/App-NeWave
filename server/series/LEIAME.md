@@ -670,6 +670,14 @@ Como entra no treino:
 - A técnica conta na metragem e no tempo do treino. Se o treino passaria do tempo (a série principal já no mínimo), sai a técnica do solto e, se precisar, a do aquecimento.
 - Com um tempo novo (teste), o treino é reescrito e a técnica continua igual.
 
+### Tempo morto entre as partes
+
+Regra do treinador (`regras.json` → `tempoMorto`): entre uma parte e outra do treino (terminar a velocidade e começar o solto, terminar o solto e começar a série principal...) o atleta leva de 30 segundos a 1'30". O app conta **1 minuto por troca**:
+- sai do tempo das séries (a série principal fica com o que sobra depois das trocas);
+- entra no tempo total do treino ("~X min" no card e na periodização).
+
+A pausa de hidratação já é parada e não conta troca. Se mesmo assim o treino passar do tempo da aula, saem nesta ordem: a técnica (solto, depois aquecimento), a perna e o solto do meio do treino. No Específico, a série da prova diminui até caber.
+
 ### Séries de teste (o atleta vê "Nado contínuo")
 
 Só para o treinador: o atleta não sabe que é um teste.

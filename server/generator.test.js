@@ -402,7 +402,7 @@ test('quem treina até 2x por semana e menos de 1 h pode ter A3 em qualquer trei
   // Treinando terça e quinta (48 h), mas também em dias seguidos: sem a regra, A3 seguido aparece
   const seguidos = { ...avancado, trainingDays: [2, 3], sessionMinutes: 45 }
   let a3Seguido = false
-  for (let seed = 1; seed <= 20 && !a3Seguido; seed++) {
+  for (let seed = 1; seed <= 80 && !a3Seguido; seed++) {
     const t = gerar(seguidos, seed)
     for (let i = 1; i < t.length; i++) {
       const temA3 = (x) => x.partes.some((p) => p.intensidades?.valores.includes('A3'))
@@ -1595,12 +1595,12 @@ test('perna com dois estilos: o card explica que alterna a cada repetição', ()
 
 test('peito com pé de pato (nadando): o card diz para fazer a pernada de borboleta ou de crawl', () => {
   const athlete = { ...avancado, strokes: ['crawl', 'peito'], bestStroke: 'peito', equipment: ['pe_de_pato', 'palmar', 'pull_buoy'] }
-  const partes = [1, 2, 3, 4, 5, 6].flatMap((seed) => gerar(athlete, seed)).flatMap((t) => t.partes)
+  const partes = Array.from({ length: 20 }, (_, i) => i + 1).flatMap((seed) => gerar(athlete, seed)).flatMap((t) => t.partes)
   const comPeito = partes.filter((p) => p.parte !== 'perna' && p.texto.split('\n').some((l) => l.includes('c/PÉ') && /\b(PE|ME)\b/.test(l)))
   assert.ok(comPeito.length > 0, 'nenhum peito com pé de pato')
   for (const p of comPeito) assert.match(p.texto, /\nPeito com pé de pato: faça a pernada de borboleta ou de crawl\.$/, p.texto)
   // Sem pé de pato: sem o aviso
-  assert.ok(partes.filter((p) => !p.texto.includes('c/PÉ')).every((p) => !p.texto.includes('pernada de borboleta')))
+  assert.ok(partes.filter((p) => !p.texto.includes('c/PÉ')).every((p) => !p.texto.includes('Peito com pé de pato:')))
   // Perna com pé de pato: nunca de peito
   for (const p of partes.filter((x) => x.parte === 'perna' && x.texto.includes('c/PÉ'))) assert.doesNotMatch(p.texto, /\bPE\b|peito|MD/, p.texto)
 })

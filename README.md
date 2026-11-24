@@ -152,6 +152,11 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `POST /api/auth/logout` | Encerra a sessão |
 | `GET /api/auth/me` | Devolve o usuário logado (com `tutorialSeen`: já viu o tutorial), ou 401 |
 | `POST /api/account/tutorial` | Marca o tutorial como visto (ele abre sozinho só na 1ª vez; depois, pelo Perfil → Suporte → "Ver o tutorial"). O tutorial é no estilo dos jogos: a tela escurece, cada coisa fica em destaque e um balão com uma setinha explica o que ela faz (os elementos apontados têm `data-tour`, e os passos ficam em `src/components/Tutorial`) |
+
+**Relógios** (sem rota nova; usam `POST /api/tests` para salvar):
+- **Cronômetro do teste** (Desempenho → "⏱ Cronômetro" e o dia do teste no treino): Iniciar/Parar, Parcial, Zerar e "Salvar como teste".
+- **Relógio de saída** ("⏱ Relógio de saída" nas séries com a/c ou descanso): lê a série do card e avisa cada saída com bipe, vibração e contagem grande; com descanso, o atleta toca em "Cheguei". Mantém a tela acesa.
+- Os dois têm tela escura (fundo preto, números vermelhos) e clara (fundo branco, números pretos, para piscina aberta); o app lembra a escolha no aparelho.
 | `POST /api/auth/forgot-password` | Pede o link para criar nova senha (`email`) |
 | `POST /api/auth/reset-password` | Troca a senha usando o link (`token`, `password`) |
 | `GET /api/tests` | Testes de tempo do usuário logado |
