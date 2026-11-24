@@ -20,6 +20,8 @@ export const TermText = ({ texto, extenso = false }) => {
         <>
             {pedacos.map((p, i) => {
                 if (typeof p === 'string') return <span key={i}>{p}</span>
+                // A quantidade da série ("(4x) 4 x 50 m") em negrito
+                if (p.negrito) return <strong key={i} className={styles.quantidade}>{p.texto}</strong>
                 if (!extenso) return clicavel(p.texto, p.termo, i)
                 // "com pé de pato (c/PÉ)" ou "saída a cada (a/c) 1'50"": o nome normal e a
                 // abreviação clicável (onde ela estiver)

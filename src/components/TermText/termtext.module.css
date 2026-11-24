@@ -43,3 +43,9 @@
     font-weight: 700;
     color: #1d6fb8;
 }
+
+/* A quantidade da série ("(4x) 4 x 50 m"): em negrito, para achar fácil no card */
+.quantidade {
+    font-weight: 700;
+    white-space: nowrap;
+}
