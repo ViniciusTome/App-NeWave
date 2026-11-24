@@ -12,6 +12,8 @@ Aplicativo web para acompanhamento de treinos de natação. Reúne o planejament
 - Feedback com os mesmos treinos do histórico, com busca pelo título ou pela data
 - Botão "Gerar treinos": na primeira vez faz a anamnese do atleta (experiência, rotina, piscina, material, lesões e tempo nos 400 m), que fica guardada; toda vez pergunta a prova alvo da preparação (continuar a atual, escolher do calendário, cadastrar uma nova ou treinar sem prova) e mostra um resumo para conferir. Ao confirmar, gera os treinos das próximas duas semanas (primeira versão do gerador, em `server/generator.js`)
 - Nível do atleta calculado a partir das respostas (não é perguntado)
+- Treino de saúde / emagrecimento (objetivo "Saúde / emagrecimento" ou "Condicionamento + Saúde", escolhendo os dias de saúde ou alternando os treinos): intervalado extensivo e intensivo, fartlek e séries por tempo por nível, sem fases, velocidade em 5% dos treinos e o nado contínuo crescendo aos poucos (no iniciante, em partes). Séries e regras em `server/saude/` (veja `server/saude/LEIAME.md`)
+- Aviso ao clicar em "Gerar treinos" quando ainda há treinos para fazer: eles serão trocados pelos novos (com "Não avisar novamente", guardado no aparelho)
 - Perfil com o bloco "Meu treino" (preparação atual, nível e respostas, com edição), próxima competição, dados pessoais, pagamentos e suporte
 
 ## Tecnologias
@@ -122,7 +124,7 @@ Como funciona: o botão do Google entrega ao navegador um token assinado; o serv
 ## Perfil (conta)
 
 - **Treinos realizados e sequência sem falhar:** calculados pelos treinos do atleta. A sequência conta, do mais recente para trás, os treinos feitos; para na primeira falta ou no primeiro treino que passou da data sem resposta (o de hoje ainda não feito não quebra).
-- **Dados pessoais:** nome, telefone (com DDD) e data de nascimento editáveis; o email é o do login. **Trocar senha** pede a senha atual e encerra as outras sessões abertas.
+- **Dados pessoais:** nome e data de nascimento editáveis; o email é o do login. **Trocar senha** pede a senha atual e encerra as outras sessões abertas.
 - **Suporte:** "Entre em contato" guarda a mensagem (e manda para `SUPPORT_EMAIL`, se configurado). **Excluir conta** pede a senha e apaga a conta e tudo dela (treinos, testes, provas, respostas).
 - **Pagamentos:** por enquanto o app é gratuito; quando houver planos, a escolha e o pagamento entram aqui.
 - Backend: `server/account.js` (rotas `GET/PATCH/DELETE /api/account`, `POST /api/account/password`, `POST /api/support`).
@@ -151,7 +153,13 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `POST /api/auth/login` | Entra (`email`, `password`, `remember` opcional) |
 | `POST /api/auth/logout` | Encerra a sessão |
 | `GET /api/auth/me` | Devolve o usuário logado (com `tutorialSeen`: já viu o tutorial), ou 401 |
-| `POST /api/account/tutorial` | Marca o tutorial como visto (ele abre sozinho só na 1ª vez; depois, pelo Perfil → Suporte → "Ver o tutorial") |
+| `POST /api/account/tutorial` | Marca o tutorial como visto (ele abre sozinho só na 1ª vez; depois, pelo Perfil → Suporte → "Ver o tutorial"). O tutorial é no estilo dos jogos: a tela escurece, cada coisa fica em destaque e um balão com uma setinha explica o que ela faz (os elementos apontados têm `data-tour`, e os passos ficam em `src/components/Tutorial`) |
+
+**Relógios** (sem rota nova; usam `POST /api/tests` para salvar):
+- **Cronômetro do teste** (Desempenho → "⏱ Cronômetro" e o dia do teste no treino): Iniciar/Parar, Parcial, Zerar e "Salvar como teste".
+- **Relógio de saída** ("⏱ Relógio de saída" nas séries com a/c ou descanso): lê a série do card e avisa cada saída com bipe, vibração e contagem grande; com descanso, o atleta toca em "Cheguei". Mantém a tela acesa.
+- Os dois têm tela escura (fundo preto, números vermelhos) e clara (fundo branco, números pretos, para piscina aberta); o app lembra a escolha no aparelho.
+- Funcionam em pé e deitados (o app instalado gira com o celular: `orientation: any` no manifesto). Os números ocupam a largura da tela em pé e a altura deitado.
 | `POST /api/auth/forgot-password` | Pede o link para criar nova senha (`email`) |
 | `POST /api/auth/reset-password` | Troca a senha usando o link (`token`, `password`) |
 | `GET /api/tests` | Testes de tempo do usuário logado |
@@ -168,7 +176,7 @@ A API fica em `server/` e guarda os dados em um banco SQLite (`server/data/newav
 | `GET /api/preparations/current?today=AAAA-MM-DD` | Preparação atual (objetivo, prova alvo, `model` e se o Específico pode: `especifico`) |
 | `PATCH /api/preparations/current` | Troca o modelo de treino (`model`: `geral` ou `especifico`) e refaz os treinos que ainda não foram feitos |
 | `POST /api/trainings/generate?today=AAAA-MM-DD` | Gera os treinos das próximas duas semanas e substitui os agendados que não foram feitos |
-| `POST /api/preparations` | Nova preparação: `goal` e `competitionId` (prova do calendário) ou `competition` (prova nova), e `model` (`geral` ou `especifico`), e `withTest` (quer o teste de 400 m na periodização: true/false) |
+| `POST /api/preparations` | Nova preparação: `goal` e `competitionId` (prova do calendário) ou `competition` (prova nova), e `model` (`geral` ou `especifico`), e `withTest` (quer o teste de 400 m na periodização: true/false). Objetivo `misto` (condicionamento + saúde): `mix` = `{ modo: 'dias', dias: [1, 4] }` ou `{ modo: 'alternar', condicionamento: 2, saude: 1 }` |
 
 As rotas de testes e treinos exigem login, e cada usuário só vê e altera os próprios dados. O tempo é guardado em centésimos de segundo (5'32"45 = `33245`). O `today` é a data de hoje no aparelho do atleta, para o "hoje" não mudar por causa do fuso; sem ele, vale a data do servidor (UTC).
 

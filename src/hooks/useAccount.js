@@ -30,11 +30,3 @@ export function useAccount() {
     return { data, error }
 }
 
-// (11) 98765-4321 / (11) 3456-7890
-export const formatPhone = (digits) => {
-    if (!digits) return ''
-    const ddd = digits.slice(0, 2)
-    const resto = digits.slice(2)
-    const corte = resto.length === 9 ? 5 : 4
-    return `(${ddd}) ${resto.slice(0, corte)}-${resto.slice(corte)}`
-}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { formatPhone, useAccount } from '../../hooks/useAccount'
+import { useAccount } from '../../hooks/useAccount'
 import { api, notifyAccountChanged } from '../../services/api'
 import { todayIso } from '../../utils/format'
 import styles from './accountforms.module.css'
@@ -39,14 +39,13 @@ const Acoes = ({ onCancel, enviando, texto, perigo = false }) => (
 export const EditPersonalData = ({ account, onDone }) => {
     const { updateUser } = useAuth()
     const [name, setName] = useState(account.name)
-    const [phone, setPhone] = useState(formatPhone(account.phone))
     const [birthDate, setBirthDate] = useState(account.birthDate ?? '')
     const { enviando, erro, enviar } = useEnvio()
 
     const salvar = async (e) => {
         e.preventDefault()
         const resposta = await enviar(() => api(`/account?today=${todayIso()}`, {
-            method: 'PATCH', body: { name, phone, birthDate },
+            method: 'PATCH', body: { name, birthDate },
         }))
         if (!resposta) return
         updateUser({ name: resposta.account.name })
@@ -59,10 +58,6 @@ export const EditPersonalData = ({ account, onDone }) => {
             <label className={styles.field}>
                 <span>Nome</span>
                 <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={100} autoComplete='name' />
-            </label>
-            <label className={styles.field}>
-                <span>Telefone (com DDD)</span>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode='tel' placeholder='(11) 98765-4321' autoComplete='tel' />
             </label>
             <label className={styles.field}>
                 <span>Data de nascimento</span>

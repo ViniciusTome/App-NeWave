@@ -75,24 +75,23 @@ test('conta: os números do Perfil vêm dos treinos do atleta', async () => {
   for (const id of ids) await api(`/api/trainings/${id}/complete`, { method: 'POST', cookie, body: {} })
   const { body } = await api('/api/account?today=2026-11-23', { cookie })
   assert.deepEqual(body.stats, { realizados: 3, sequencia: 3 })
-  assert.equal(body.account.phone, null)
   assert.equal(body.support.emailConfigured, true)
 })
 
-test('conta: editar nome, telefone e nascimento (com validação)', async () => {
+test('conta: editar nome e nascimento (com validação); o telefone saiu', async () => {
   const { cookie } = await novoUsuario()
-  const ok = await api('/api/account?today=2026-11-23', { method: 'PATCH', cookie, body: { name: ' Maria Silva ', phone: '(11) 98765-4321', birthDate: '1990-05-20' } })
+  const ok = await api('/api/account?today=2026-11-23', { method: 'PATCH', cookie, body: { name: ' Maria Silva ', birthDate: '1990-05-20', phone: '(11) 98765-4321' } })
   assert.equal(ok.status, 200)
-  assert.deepEqual([ok.body.account.name, ok.body.account.phone, ok.body.account.birthDate], ['Maria Silva', '11987654321', '1990-05-20'])
+  assert.deepEqual([ok.body.account.name, ok.body.account.birthDate], ['Maria Silva', '1990-05-20'])
+  assert.equal('phone' in ok.body.account, false)
   // O nome novo vale no resto do app
   assert.equal((await api('/api/auth/me', { cookie })).body.user.name, 'Maria Silva')
-  for (const body of [{ phone: '1234' }, { birthDate: '2030-01-01' }, { birthDate: '1990-02-30' }, { name: 'A' }]) {
+  for (const body of [{ birthDate: '2030-01-01' }, { birthDate: '1990-02-30' }, { name: 'A' }]) {
     assert.equal((await api('/api/account?today=2026-11-23', { method: 'PATCH', cookie, body })).status, 400, JSON.stringify(body))
   }
   // Vazio apaga
-  const apagado = await api('/api/account', { method: 'PATCH', cookie, body: { phone: '' } })
-  assert.equal(apagado.body.account.phone, null)
-  assert.equal(apagado.body.account.birthDate, '1990-05-20')
+  const apagado = await api('/api/account', { method: 'PATCH', cookie, body: { birthDate: '' } })
+  assert.equal(apagado.body.account.birthDate, null)
 })
 
 test('conta: trocar a senha pede a atual; as outras sessões caem', async () => {

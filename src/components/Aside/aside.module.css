@@ -1,9 +1,15 @@
 .container {
     flex-shrink: 0;   /* impede de diminuir */
-    margin: 20px 20px 0 0;
+    margin: 20px 20px 20px 0;
+    padding-bottom: 16px;
     border-radius: 8px;
     text-align: center;
-    height: 100vh;
+    /* Cabe na altura da tela; se o menu não couber (notebook com tela baixa), a barra rola */
+    height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
     width: 177px;
     background-color: #171D1F;
     /* background-color: #193c47; */
@@ -12,8 +18,14 @@
     gap: 20px;
     align-items: center;
     position: sticky;
-    top: 0;
+    top: 20px;
+}
 
+/* Telas baixas (notebook): tudo mais junto, para o menu inteiro caber */
+@media screen and (min-width: 769px) and (max-height: 760px) {
+    .container {
+        gap: 10px;
+    }
 }
 
 .link {
@@ -38,6 +50,8 @@
         padding: 6px 12px;
         padding-top: calc(6px + env(safe-area-inset-top));
         border-radius: 0;
+        max-height: none;
+        overflow: visible;
         flex-direction: row;
         justify-content: space-between;
         gap: 8px;

@@ -36,3 +36,26 @@
     color: #6b829a;
     margin-top: 2px;
 }
+
+/* Botão que abre o relógio (relógio de saída da série ou cronômetro do teste) */
+.clock {
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    margin-top: 4px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid #1d6fb8;
+    background-color: #ffffff;
+    color: #1d6fb8;
+    cursor: pointer;
+}
+
+.clock:hover {
+    background-color: #eaf5fd;
+}
+
+.clock:focus-visible {
+    outline: 2px solid #0b2f57;
+    outline-offset: 2px;
+}

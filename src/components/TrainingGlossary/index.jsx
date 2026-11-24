@@ -26,7 +26,7 @@ export const TrainingGlossary = ({ training }) => {
     return (
         <>
             <button type='button' className={styles.button} onClick={() => setOpen(true)}
-                aria-label='Glossário deste treino'>
+                aria-label='Glossário deste treino' data-tour='glossario-treino'>
                 Glossário
             </button>
             <Modal open={open} onClose={() => setOpen(false)} title='O que quer dizer cada termo deste treino'>

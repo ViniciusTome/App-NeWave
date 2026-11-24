@@ -162,7 +162,7 @@ export function openDatabase(path) {
     db.exec('ALTER TABLE athlete_profiles ADD COLUMN best_stroke TEXT')
   }
 
-  // Dados pessoais (Perfil): telefone e data de nascimento chegaram depois
+  // Dados pessoais (Perfil): data de nascimento (o telefone chegou a existir e saiu; a coluna fica sem uso)
   const userColumns = db.prepare('PRAGMA table_info(users)').all().map((col) => col.name)
   if (!userColumns.includes('phone')) db.exec('ALTER TABLE users ADD COLUMN phone TEXT')
   if (!userColumns.includes('birth_date')) db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT')
@@ -184,6 +184,8 @@ export function openDatabase(path) {
   if (!preparationColumns.includes('model')) db.exec("ALTER TABLE preparations ADD COLUMN model TEXT NOT NULL DEFAULT 'geral'")
   // Teste de 400 m na periodização: 1 = o atleta quer, 0 = não quer, null = não perguntado (regra antiga)
   if (!preparationColumns.includes('with_test')) db.exec('ALTER TABLE preparations ADD COLUMN with_test INTEGER')
+  // Objetivo misto (condicionamento + saúde): como o atleta mistura (JSON)
+  if (!preparationColumns.includes('mix')) db.exec('ALTER TABLE preparations ADD COLUMN mix TEXT')
 
   // Mensagens para o suporte (Perfil -> Suporte -> Entre em contato)
   db.exec(`

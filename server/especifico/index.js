@@ -160,6 +160,37 @@ function adaptar(serie, { prova, poolLength }, regras) {
 
 const volumeDe = (s) => (s.vezes ?? 1) * s.blocos.reduce((t, b) => t + b.rep * b.dist, 0)
 
+// Séries de ritmo de prova fracionadas até a distância da prova (regra do treinador), em
+// 1, 2 ou 3 séries. Ex. no 200: 4 x 50, 3 x 50, 8 x 25, 6 x 25, 2 x 100, (2 x 50; 4 x 25)...
+// Na piscina de 50 m, só repetições de 50 m ou mais.
+export function fractionedSeries(regras, prova, poolLength = 25) {
+    const cfg = regras.fracionadas
+    const D = prova.distancia
+    if (!cfg || D > cfg.ateDistancia || D < 50) return []
+    const grupo = grupoDaProva(regras, D)
+    const menor = Math.max(25, D / 8, poolLength === 50 ? 50 : 25)
+    const formas = []
+    for (const d of [25, 50, 100, 200]) {
+        if (d < menor || d >= D) continue
+        const cheia = D / d
+        for (const rep of cheia <= 4 ? [cheia, cheia - 1] : [cheia]) if (rep >= 2 && Number.isInteger(rep)) formas.push([{ rep, dist: d }])
+    }
+    // Duas distâncias: metade em repetições de D/4 e metade em D/8 (no 200: 2 x 50; 4 x 25)
+    if (D / 8 >= menor) formas.push([{ rep: 2, dist: D / 4 }, { rep: 4, dist: D / 8 }])
+    else if (D === 100 && poolLength !== 50) formas.push([{ rep: 1, dist: 50 }, { rep: 2, dist: 25 }])
+    const series = []
+    for (const blocos of formas) {
+        for (const vezes of cfg.vezes) {
+            const nome = blocos.map((b) => `${b.rep}x${b.dist}`).join('+')
+            series.push({
+                id: `frac-${D}-${vezes}x-${nome}`, grupos: [grupo], fases: ['transicao', 'realizacao'], vezes, intervalo: cfg.intervalo,
+                blocos: blocos.map((b) => ({ ...b, ritmo: 'RP', descanso: 30 })), fracionada: true,
+            })
+        }
+    }
+    return series
+}
+
 // Valor da tabela pela distância da prova (chave = até essa distância)
 const pelaDistancia = (tabela, distancia) => {
     const chave = Object.keys(tabela).map(Number).sort((a, b) => a - b).find((k) => distancia <= k)
@@ -181,11 +212,25 @@ function ajustarRitmoDeProva(serie, prova, regras) {
         blocos: serie.blocos.map((b) => {
             if (!emRitmoDeProva(b) || b.quebrado) return b
             const tiro = ritmoDeProva(prova, b.dist) * (b.ritmo === 'max' ? regras.ritmos.max : 1)
-            const proporcional = Math.min(cfg.descanso.maximo, Math.max(cfg.descanso.minimo, de5em5(tiro * fator)))
+            // RP: 50% a mais de descanso (regra do treinador)
+            const aumento = b.ritmo === 'RP' ? cfg.descanso.aumentoNoRP ?? 1 : 1
+            const proporcional = Math.min(cfg.descanso.maximo * aumento, Math.max(cfg.descanso.minimo, de5em5(tiro * fator * aumento)))
             // Máximo: nunca menos que o descanso escrito na série (tiro forte descansa bem)
             return { ...b, descanso: b.ritmo === 'max' ? Math.max(b.descanso, proporcional) : proporcional }
         }),
-        ...((serie.vezes ?? 1) > 1 && { intervalo: Math.max(serie.intervalo ?? 0, cfg.intervaloMinimo ?? 0) }),
+    }
+    // Cada série em RP vai no máximo até a distância da prova (regra do treinador: no 200,
+    // (3x) 6 x 50 vira (3x) 4 x 50). Série única maior que a prova vira séries: 8 x 50 -> (2x) 4 x 50.
+    // (os tiros "máx", curtos e com descanso longo, ficam como estão)
+    const cabe = (b) => Math.max(1, Math.floor(prova.distancia / b.dist))
+    if (s.blocos.length === 1 && (s.vezes ?? 1) === 1 && s.blocos[0].ritmo === 'RP' && s.blocos[0].rep > cabe(s.blocos[0])) {
+        const b = s.blocos[0]
+        s = { ...s, vezes: Math.ceil(b.rep / cabe(b)), intervalo: s.intervalo ?? cfg.intervaloMinimo ?? 120, blocos: [{ ...b, rep: cabe(b) }] }
+    }
+    s = { ...s, blocos: s.blocos.map((b) => (b.ritmo === 'RP' && b.rep > cabe(b) ? { ...b, rep: cabe(b) } : b)) }
+    // Intervalo entre as séries com RP: pelo menos o mínimo, e 50% maior (regra do treinador)
+    if ((s.vezes ?? 1) > 1) {
+        s = { ...s, intervalo: de5em5(Math.max(s.intervalo ?? 0, cfg.intervaloMinimo ?? 0) * (cfg.aumentoDoIntervalo ?? 1)) }
     }
     // Volume em RP: menos séries; depois menos repetições no maior bloco em RP
     const maximo = pelaDistancia(cfg.volumeMaximo, prova.distancia)
@@ -198,6 +243,11 @@ function ajustarRitmoDeProva(serie, prova, regras) {
         if (s.blocos[i].rep > 1) s = { ...s, blocos: s.blocos.map((b, k) => (k === i ? { ...b, rep: b.rep - 1 } : b)) }
         else if (s.blocos.length > 1) s = { ...s, blocos: s.blocos.filter((_, k) => k !== i) }
         else break
+    }
+    // Uma repetição por série ("(5x) 1 x 75"): fica "5 x 75", com o intervalo como descanso
+    if ((s.vezes ?? 1) > 1 && s.blocos.length === 1 && s.blocos[0].rep === 1) {
+        const b = s.blocos[0]
+        s = { ...s, vezes: 1, intervalo: undefined, blocos: [{ ...b, rep: s.vezes, descanso: Math.max(b.descanso, s.intervalo ?? 0) }] }
     }
     return s
 }
@@ -250,13 +300,36 @@ export function textoDaSerie(s, prova, saida = null) {
 }
 
 const INTENSIDADE = { RP: 'A3', max: 'A3', A3: 'A3', A2: 'A2', A1: 'A1' }
+// Intensidade do próximo treino da Transição, pela proporção (ex.: A3 55%, A2 35%, A1 10%):
+// a que está mais atrás da sua parte até agora, sem depender de sorte. Um treino A2 ou A1
+// sempre vem depois de um A3 (nunca dois mais leves seguidos). Sem `estado`, sorteado.
+const INTENSIDADES = ['A3', 'A2', 'A1']
+function intensidadeDoTreino(proporcao, estado, random) {
+    if (!estado) {
+        let r = random()
+        for (const i of INTENSIDADES) {
+            r -= proporcao[i] ?? 0
+            if (r < 0) return i
+        }
+        return 'A3'
+    }
+    estado.contagem ??= { A3: 0, A2: 0, A1: 0 }
+    const feitos = INTENSIDADES.reduce((t, i) => t + estado.contagem[i], 0) + 1
+    let escolha = INTENSIDADES.reduce((melhor, i) =>
+        ((proporcao[i] ?? 0) * feitos - estado.contagem[i] > (proporcao[melhor] ?? 0) * feitos - estado.contagem[melhor] ? i : melhor), 'A3')
+    if (escolha !== 'A3' && estado.anterior && estado.anterior !== 'A3') escolha = 'A3'
+    estado.contagem[escolha]++
+    estado.anterior = escolha
+    return escolha
+}
+
 // A intensidade da série: a mais forte dos blocos (RP e máx contam como A3)
 const intensidadeDaSerie = (serie) => serie.blocos.map((b) => INTENSIDADE[b.ritmo]).sort().at(-1)
 
 // Troca a série principal do treino do Geral pela série da prova e respeita o limite
 // da prova (15x ou 10x a distância) no treino inteiro. Devolve as partes novas (ou as
 // mesmas, quando o Específico não vale nesse treino).
-export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null, saida = null, tecnica = null, estado = null }) {
+export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.random, recentes = null, saida = null, tecnica = null, estado = null, segundosPorTroca = 0 }) {
     const { regras, series } = esp
     const prova = athlete.prova
     if (athlete.modelo !== 'especifico' || !prova?.distancia || !prova.metaCentesimos) return partes
@@ -271,19 +344,16 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
     const sobra = () => limite - resto.reduce((s, p) => s + p.metros, 0)
 
     const grupo = grupoDaProva(regras, prova.distancia)
-    const todas = series
+    const todas = [...series, ...fractionedSeries(regras, prova, athlete.poolLength)]
         .filter((s) => s.grupos.includes(grupo) && s.fases.includes(athlete.fase))
         .filter((s) => !s.material || (athlete.equipment ?? []).includes(s.material))
         .map((s) => adaptar(s, { prova, poolLength: athlete.poolLength }, regras))
         .filter(Boolean)
         .map((s) => ajustarRitmoDeProva(s, prova, regras))
     if (todas.length === 0) return partes
-    // Transição (regra do treinador): 60% dos treinos em A3 e 40% em A2, na sequência
-    // A3, A2, A3, A2, A3 (de novo...). Sem a sequência (`estado`), sorteado.
+    // Transição (regra do treinador): 55% dos treinos em A3, 35% em A2 e 10% em A1
     const naTransicao = athlete.fase === 'transicao' ? regras.intensidadeNaTransicao : null
-    let alvo = null
-    if (naTransicao?.sequencia && estado) alvo = naTransicao.sequencia[(estado.transicao++) % naTransicao.sequencia.length]
-    else if (naTransicao) alvo = random() < naTransicao.A3 ? 'A3' : 'A2'
+    const alvo = naTransicao ? intensidadeDoTreino(naTransicao, estado, random) : null
     const daIntensidade = alvo ? todas.filter((s) => intensidadeDaSerie(s) === alvo) : []
     const candidatas = daIntensidade.length > 0 ? daIntensidade : todas
     const menor = Math.min(...candidatas.map(volumeDe))
@@ -328,8 +398,15 @@ export function aplicarEspecifico({ esp, partes, athlete, pace, random = Math.ra
     }
     recentes?.add(`esp:${escolhida.id}`)
     // Passou do tempo da aula (ex.: a técnica no aquecimento de uma aula curta): as outras partes ficam curtas
-    const minutosDaAula = (athlete.sessionMinutes ?? 60) * 1.1
+    // (menos o tempo morto das trocas entre as partes)
+    const trocas = Math.max(0, partes.filter((p) => p.parte !== 'hidratacao' && p.parte !== 'principal').length) * segundosPorTroca / 60
+    const minutosDaAula = ((athlete.sessionMinutes ?? 60) - trocas) * 1.1
     encurtar(() => resto.reduce((t, p) => t + p.minutos, 0) + segundosDe(escolhida, prova, pace, regras) / 60 > minutosDaAula)
+    // Ainda não cabe (aula curta): a série da prova diminui até caber
+    for (let menorAinda = diminuir(escolhida); menorAinda &&
+        resto.reduce((t, p) => t + p.minutos, 0) + segundosDe(escolhida, prova, pace, regras) / 60 > minutosDaAula; menorAinda = diminuir(escolhida)) {
+        escolhida = menorAinda
+    }
 
     const segundos = segundosDe(escolhida, prova, pace, regras)
     const intensidade = intensidadeDaSerie(escolhida)

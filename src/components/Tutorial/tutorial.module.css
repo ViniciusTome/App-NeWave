@@ -1,68 +1,143 @@
-.passo {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 12px;
-    padding: 8px 4px 4px;
-    color: #0b2f57;
+/* Tutorial no estilo dos jogos: a tela escurece, o elemento fica em destaque e um balão
+   com uma setinha explica o que ele faz. */
+
+.camada {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
 }
 
-.icone {
-    font-size: 44px;
-    line-height: 1;
+/* Fundo escuro, sem elemento em destaque (boas-vindas e fim) */
+.fundo {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(5, 20, 40, 0.72);
+}
+
+/* O "buraco" de luz em volta do elemento: a sombra enorme escurece o resto da tela */
+.destaque {
+    position: fixed;
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(5, 20, 40, 0.72);
+    outline: 3px solid #9EDDFF;
+    outline-offset: 0;
+    pointer-events: none;
+    transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+    animation: pulsar 1.6s ease-in-out infinite;
+}
+
+@keyframes pulsar {
+    50% {
+        outline-color: #ffffff;
+    }
+}
+
+/* O balão com a explicação */
+.balao {
+    position: fixed;
+    width: min(320px, calc(100vw - 24px));
+    background-color: #ffffff;
+    color: #0b2f57;
+    border-radius: 14px;
+    padding: 14px 16px 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    transition: top 0.25s ease, left 0.25s ease;
+}
+
+.centro {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(360px, calc(100vw - 32px));
+    text-align: center;
+}
+
+/* A setinha: um quadradinho girado, no lado que aponta para o elemento.
+   --seta = onde fica o meio do elemento, medido a partir da borda do balão */
+.balao::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background-color: #ffffff;
+    transform: rotate(45deg);
+}
+
+.centro::before {
+    display: none;
+}
+
+.direita::before {
+    left: -7px;
+    top: clamp(14px, calc(var(--seta) - 7px), calc(100% - 28px));
+}
+
+.esquerda::before {
+    right: -7px;
+    top: clamp(14px, calc(var(--seta) - 7px), calc(100% - 28px));
+}
+
+.embaixo::before {
+    top: -7px;
+    left: clamp(14px, calc(var(--seta) - 7px), calc(100% - 28px));
+}
+
+.emcima::before {
+    bottom: -7px;
+    left: clamp(14px, calc(var(--seta) - 7px), calc(100% - 28px));
+}
+
+.contador {
+    font-size: 12px;
+    font-weight: 700;
+    color: #4a6a8a;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
 }
 
 .titulo {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
+    margin-bottom: 6px;
 }
 
 .texto {
-    font-size: 15px;
-    line-height: 1.55;
+    font-size: 14px;
+    line-height: 1.5;
     color: #2c4a68;
-    max-width: 440px;
-    min-height: 120px;
-}
-
-.pontos {
-    display: flex;
-    gap: 8px;
-    margin: 4px 0;
-}
-
-.ponto,
-.pontoAtual {
-    width: 9px;
-    height: 9px;
-    padding: 0;
-    border-radius: 50%;
-    border: none;
-    background-color: #c9dff1;
-    cursor: pointer;
-}
-
-.pontoAtual {
-    width: 22px;
-    border-radius: 999px;
-    background-color: #1d6fb8;
 }
 
 .acoes {
     display: flex;
     justify-content: space-between;
-    width: 100%;
-    gap: 12px;
-    margin-top: 8px;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.navegar {
+    display: flex;
+    gap: 8px;
+}
+
+.pular {
+    font: inherit;
+    font-size: 14px;
+    background: none;
+    border: none;
+    padding: 6px 2px;
+    color: #4a6a8a;
+    text-decoration: underline;
+    cursor: pointer;
 }
 
 .primario,
 .secundario {
     font: inherit;
     font-weight: 700;
-    font-size: 15px;
-    padding: 10px 22px;
+    font-size: 14px;
+    padding: 8px 16px;
     border-radius: 999px;
     cursor: pointer;
 }
@@ -81,8 +156,15 @@
 
 .primario:focus-visible,
 .secundario:focus-visible,
-.ponto:focus-visible,
-.pontoAtual:focus-visible {
+.pular:focus-visible {
     outline: 2px solid #0b2f57;
     outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .destaque,
+    .balao {
+        transition: none;
+        animation: none;
+    }
 }

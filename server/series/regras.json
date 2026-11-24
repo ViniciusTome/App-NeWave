@@ -267,6 +267,10 @@
     "parteDaAula": 0.4,
     "ritmo": 1.15
   },
+  "tempoMorto": {
+    "_comentario": "Regra do treinador: entre uma parte e outra do treino (terminar a velocidade e começar o solto, terminar o solto e começar a série principal...) o atleta leva de 30 segundos a 1'30\". O app conta o meio (1 minuto) a cada troca: sai do tempo das séries e entra no tempo total do treino. A pausa de hidratação já é parada, não conta troca.",
+    "segundosPorTroca": 60
+  },
   "avisoComMaterial": {
     "_comentario": "Iniciante com pé de pato ou palmar: chega bem antes da saída. O aviso diz quanto descansar, pela distância da repetição (A1, A2 e A3; com material eles nadam mais forte que o A3). Chave = até essa distância.",
     "descanso": { "25": "de 20 segundos", "100": "de 20 a 30 segundos", "200": "de 40 a 50 segundos", "400": "de 1 minuto", "1500": "de 1 minuto" }

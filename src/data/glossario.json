@@ -66,7 +66,7 @@
       { "sigla": "sai/che", "nome": "Saída e chegada", "explicacao": "Nas repetições de 50 m: sai forte até a metade da piscina e depois desacelera; na volta, vai nadando até a metade da piscina e acelera até chegar na borda." },
       { "sigla": "POS", "nome": "Positivo", "explicacao": "O contrário do negativo: vai mais forte e volta nadando." },
       { "sigla": "75 NAD x 25 fo", "detectar": "\\d+ NAD x \\d+ fo", "nome": "Final forte", "explicacao": "Dentro de cada repetição, os primeiros metros nadando e os últimos 25 m forte. Ex.: num 100 m, 75 m nadando + 25 m forte; num 50 m, 25 nadando + 25 forte." },
-      { "sigla": "Tempo", "explicacao": "Repetição para marcar o seu tempo (valendo, o mais forte que conseguir)."  },
+      { "sigla": "Tempo", "explicacao": "Repetição para marcar o seu tempo (valendo, o mais forte que conseguir)." },
       { "sigla": "RP", "nome": "Ritmo de prova", "explicacao": "O ritmo da sua meta na prova alvo, dividido igualmente pela distância. Ex.: meta de 2'30\" nos 200 m = RP 37\"5 a cada 50 m e 1'15\" a cada 100 m. Nade cada repetição nesse tempo (modelo Específico da prova)." },
       { "sigla": "máx", "nome": "Máximo", "detectar": "· máx ·", "explicacao": "Tiro no máximo, mais rápido que o ritmo de prova, com descanso longo para chegar inteiro na próxima." }
     ]
@@ -80,6 +80,18 @@
       { "sigla": "SNK", "nome": "Snorkel", "explicacao": "Tubo de respiração frontal: você nada sem virar a cabeça para respirar." },
       { "sigla": "PARA", "nome": "Paraquedas", "explicacao": "Preso na cintura, cria resistência na água para treinar força." },
       { "sigla": "Prancha", "explicacao": "Usada nas séries de perna, para apoiar os braços." }
+    ]
+  },
+  {
+    "categoria": "Saúde / emagrecimento",
+    "termos": [
+      { "sigla": "Intervalado extensivo", "explicacao": "Muitas repetições em ritmo moderado, com descanso curto. Trabalha a resistência e gasta bastante energia." },
+      { "sigla": "Intervalado intensivo", "explicacao": "Menos repetições, mais fortes, com descanso maior para conseguir manter o ritmo." },
+      { "sigla": "Fartlek", "explicacao": "Variação de ritmo dentro da mesma série (ex.: 25 forte, 75 leve), como está escrito no treino." },
+      { "sigla": "3 x 3'", "detectar": "\\d+ x \\d+'(\\d+\")?", "nome": "Série por tempo", "explicacao": "Nade durante o tempo indicado, sem se preocupar com a metragem. Ex.: 3 x 3' D30\" = 3 vezes de 3 minutos nadando, com 30 segundos de descanso." },
+      { "sigla": "A1/A2", "detectar": "A1/A[23]", "nome": "Alternando ritmos", "explicacao": "A série mistura os dois ritmos, como está escrito (ex.: alternando 50 leve e 50 moderado)." },
+      { "sigla": "Progressivo", "detectar": "progressivo", "explicacao": "Cada parte (ou cada repetição) um pouco mais forte que a anterior." },
+      { "sigla": "Nado em partes", "explicacao": "O nado contínuo dividido em repetições curtas com descanso curto. Conforme fica fácil, a metragem aumenta aos poucos." }
     ]
   },
   {

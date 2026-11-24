@@ -163,20 +163,24 @@ test('ritmo de prova: pouco volume e descanso proporcional ao tiro (200 m: até 
     const vezes = Number(/^\((\d+)x\)/.exec(texto)?.[1] ?? 1)
     const rp = [...texto.matchAll(/(\d+) x (\d+) m[^·\n]*· (?:RP|máx) /g)].reduce((t, [, r, d]) => t + Number(r) * Number(d), 0) * vezes
     assert.ok(rp <= 600, `${rp} m em RP\n${texto}`)
-    // 50 m em 37"5 x 0,8 = 30" de descanso
-    for (const [, d] of texto.matchAll(/4 x 50 m · RP 37"5 · CO · D(\d+)"/g)) assert.equal(Number(d), 30)
+    // 50 m em 37"5 x 0,8 = 30", e no RP 50% a mais = 45" de descanso
+    for (const [, d] of texto.matchAll(/4 x 50 m · RP 37"5 · CO · D(\d+)"/g)) assert.equal(Number(d), 45)
   }
   assert.ok(textos.some((t) => /\((2|3)x\) 4 x 50 m · RP/.test(t)), 'sem 2 ou 3 x 4 x 50 RP')
 })
 
-test('Específico na Transição: 60% dos treinos em A3 e 40% em A2 (nunca dois A2 seguidos)', () => {
+test('Específico na Transição: 55% dos treinos em A3, 35% em A2 e 10% em A1 (nunca dois mais leves seguidos)', () => {
   for (const prova of PROVAS) {
     const naTransicao = gerar(prova).filter((t) => t.plano.fase === 'transicao' && t.partes.some((p) => p.especifico))
       .map((t) => t.partes.find((p) => p.especifico).intensidades.valores[0])
-    const a3 = naTransicao.filter((x) => x === 'A3').length / naTransicao.length
-    assert.ok(a3 >= 0.55 && a3 <= 0.67, `${prova.distancia}: ${naTransicao.join(' ')}`)
-    assert.ok(naTransicao.every((x, i) => !(x === 'A2' && naTransicao[i - 1] === 'A2')), naTransicao.join(' '))
-    // O plano do treino (a intensidade que a página de periodização mostra) acompanha
-    assert.ok(naTransicao.includes('A2'))
+    const n = naTransicao.length
+    const conta = (i) => naTransicao.filter((x) => x === i).length
+    for (const [i, alvo] of [['A3', 0.55], ['A2', 0.35], ['A1', 0.1]]) assert.ok(Math.abs(conta(i) - alvo * n) < 1, `${prova.distancia} ${i}: ${naTransicao.join(' ')}`)
+    assert.ok(naTransicao.every((x, k) => x === 'A3' || k === 0 || naTransicao[k - 1] === 'A3'), naTransicao.join(' '))
+    // A série A1 é toda em A1, no estilo da prova
+    for (const t of gerar(prova).filter((x) => x.plano.fase === 'transicao')) {
+      const p = t.partes.find((q) => q.especifico)
+      if (p?.intensidades.valores[0] === 'A1') assert.doesNotMatch(p.texto, /· (A2|A3|RP|máx) /, p.texto)
+    }
   }
 })

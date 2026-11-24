@@ -20,7 +20,7 @@ export const OPTIONS = {
   equipment: ['pe_de_pato', 'palmar', 'prancha', 'pull_buoy', 'snorkel', 'paraquedas'],
   modality: ['triatlo', 'maratona_aquatica', 'piscina_25', 'piscina_50'],
   priority: ['A', 'B', 'C'],
-  goal: ['competir', 'condicionamento', 'saude'],
+  goal: ['competir', 'condicionamento', 'saude', 'misto'],
 }
 
 const MIN_400 = 3 * 60 * 100 // 3 minutos
@@ -241,6 +241,28 @@ function parseEvents(row) {
   return row.distance ? [{ distance: row.distance, stroke: row.stroke, goalHundredths: row.goal_hundredths ?? null }] : []
 }
 
+// Objetivo misto (condicionamento + saúde). O atleta escolhe:
+// - { modo: 'dias', dias: [1, 4] }: os dias da semana de saúde (entre os dias de treino;
+//   pelo menos um de cada);
+// - { modo: 'alternar', condicionamento: 2, saude: 1 }: a sequência (de 1 a 3 de cada).
+function validateMix(body, profileRow) {
+  const dias = profileRow ? JSON.parse(profileRow.training_days) : []
+  if (body?.modo === 'dias') {
+    const escolhidos = [...new Set(Array.isArray(body.dias) ? body.dias : [])]
+    if (escolhidos.length === 0 || escolhidos.some((d) => !dias.includes(d))) {
+      throw new HttpError(400, 'Escolha os dias de saúde entre os seus dias de treino.')
+    }
+    if (escolhidos.length >= dias.length) throw new HttpError(400, 'Deixe pelo menos um dia para o condicionamento.')
+    return { modo: 'dias', dias: escolhidos.sort() }
+  }
+  if (body?.modo === 'alternar') {
+    const ok = (n) => Number.isInteger(n) && n >= 1 && n <= 3
+    if (!ok(body.condicionamento) || !ok(body.saude)) throw new HttpError(400, 'Escolha de 1 a 3 treinos de cada para alternar.')
+    return { modo: 'alternar', condicionamento: body.condicionamento, saude: body.saude }
+  }
+  throw new HttpError(400, 'Escolha como misturar: os dias de saúde ou alternando os treinos.')
+}
+
 function parseId(value) {
   const id = Number(value)
   if (!Number.isSafeInteger(id) || id <= 0) throw new HttpError(400, 'Competição inválida.')
@@ -368,7 +390,7 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
     SELECT * FROM preparations WHERE user_id = ? ORDER BY id DESC LIMIT 1
   `)
   const insertPreparation = db.prepare(`
-    INSERT INTO preparations (user_id, goal, competition_id, model, with_test, created_at) VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO preparations (user_id, goal, competition_id, model, with_test, mix, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
   `)
   const setModel = db.prepare('UPDATE preparations SET model = ? WHERE id = ? AND user_id = ?')
 
@@ -483,6 +505,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
         ...profile, level: level.level, recemIntermediario: level.recemIntermediario, nivelAntesDaParada: level.nivelAntesDaParada, time400, modalidade,
         // Modelo de treino e a prova alvo (distância, estilo e meta), para o Específico
         modelo: ativa?.model ?? 'geral',
+        // Objetivo (saúde e misto têm os treinos de saúde) e, no misto, como mistura
+        objetivo: ativa?.goal ?? null,
+        mistura: ativa?.mix ?? null,
         prova: ativa?.competition?.distance
           ? { distancia: ativa.competition.distance, estilo: ativa.competition.stroke, metaCentesimos: ativa.competition.goalHundredths, modalidade }
           : null,
@@ -562,6 +587,8 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
       competition,
       // Modelo de treino: Geral ou Específico da prova (só para quem pode usar)
       model: especifico.ok ? row.model : 'geral',
+      // Objetivo misto: como mistura condicionamento e saúde
+      mix: row.mix ? JSON.parse(row.mix) : null,
       // Quer o teste de 400 m nesta preparação? (null = não perguntado)
       withTest: row.with_test === null || row.with_test === undefined ? null : row.with_test === 1,
       especifico,
@@ -878,7 +905,9 @@ export function createAthleteRoutes({ db, requireUser, library, rules }) {
         }
         // (sem resposta, ex.: "Tornar prova alvo" no calendário: vale a da preparação anterior)
         const withTest = typeof body.withTest === 'boolean' ? Number(body.withTest) : findCurrentPreparation.get(user.id)?.with_test ?? null
-        insertPreparation.run(user.id, goal, competitionId, model, withTest, now)
+        // Misto: os dias de saúde (dias da semana do treino) ou alternando (ex.: 2 de condicionamento, 1 de saúde)
+        const mix = goal === 'misto' ? JSON.stringify(validateMix(body.mix, findProfile.get(user.id))) : null
+        insertPreparation.run(user.id, goal, competitionId, model, withTest, mix, now)
         db.exec('COMMIT')
       } catch (err) {
         db.exec('ROLLBACK')

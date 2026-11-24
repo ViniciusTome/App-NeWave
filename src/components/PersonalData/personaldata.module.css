@@ -21,14 +21,6 @@
     margin: 0px;
 }
 
-.phone{
-    width: 200px;
-    margin: 10px;
-}
-.phone p {
-    margin: 0px;
-}
-
 .password{
     width: 200px;
     margin: 10px;
@@ -98,7 +90,6 @@ label {
 @media screen and (max-width: 768px) {
     .name,
     .email,
-    .phone,
     .password,
     .birth {
         width: calc(50% - 20px);

@@ -670,6 +670,14 @@ Como entra no treino:
 - A técnica conta na metragem e no tempo do treino. Se o treino passaria do tempo (a série principal já no mínimo), sai a técnica do solto e, se precisar, a do aquecimento.
 - Com um tempo novo (teste), o treino é reescrito e a técnica continua igual.
 
+### Tempo morto entre as partes
+
+Regra do treinador (`regras.json` → `tempoMorto`): entre uma parte e outra do treino (terminar a velocidade e começar o solto, terminar o solto e começar a série principal...) o atleta leva de 30 segundos a 1'30". O app conta **1 minuto por troca**:
+- sai do tempo das séries (a série principal fica com o que sobra depois das trocas);
+- entra no tempo total do treino ("~X min" no card e na periodização).
+
+A pausa de hidratação já é parada e não conta troca. Se mesmo assim o treino passar do tempo da aula, saem nesta ordem: a técnica (solto, depois aquecimento), a perna e o solto do meio do treino. No Específico, a série da prova diminui até caber.
+
 ### Séries de teste (o atleta vê "Nado contínuo")
 
 Só para o treinador: o atleta não sabe que é um teste.
@@ -709,9 +717,12 @@ O modelo **Específico da prova** fica separado do Geral, na pasta `server/espec
 - **O que muda no treino** (só na **Transição** e na **Realização**; a Acumulação e a semana de recuperação ficam iguais às do Geral, e o dia do teste também):
   - A **série principal** vira a **série da prova** (`series.json`), pelo grupo da distância (50, 100, 200, 400, fundo 800/1500, águas abertas até 10 km e maratona até 25 km) e pela fase (Transição: força e resistência específica; Realização: ritmo de prova).
   - **No estilo da prova** (medley em repetições curtas: estilo a estilo, `BO|CO|PE|CR`). Borboleta: repetições até 100 m. Piscina de 50 m: 25 m vira 50 m e as séries de 75 m ficam de fora.
-  - **Intensidade na Transição** (regra do treinador, `regras.json` → `intensidadeNaTransicao`): **60% dos treinos em A3** (séries com ritmo de prova, máximo ou A3) e **40% em A2** (séries só em A2), na sequência A3, A2, A3, A2, A3 (repete), nunca dois A2 seguidos. Cada distância tem séries em A2 no estilo da prova (ex.: 200 m: 8 x 100 A2, 4 x 200 A2, 3 x 300 A2).
+  - **Intensidade na Transição** (regra do treinador, `regras.json` → `intensidadeNaTransicao`): **55% dos treinos em A3** (séries com ritmo de prova, máximo ou A3), **35% em A2** e **10% em A1** (séries só nessa intensidade). A conta é feita ao longo da Transição (sem depender de sorte; com 9 treinos: 5 A3, 3 A2 e 1 A1), e um treino A2 ou A1 sempre vem depois de um A3. Cada distância tem séries em A2 e em A1 no estilo da prova (ex.: 200 m: 8 x 100 A2, 4 x 200 A2, 3 x 300 A2, 8 x 50 A1, 6 x 100 A1).
   - **Pouco volume em ritmo de prova** (regra do treinador, `regras.json` → `ritmoDeProva`): metros em RP e máx no treino até 200 m (prova de 50), 400 m (100), 600 m (200), 800 m (400) e a própria distância nas de fundo. Se a série passa, perde séries e depois repetições (ex.: no 200, 2 ou 3 x 4 x 50 RP, e não 10 x 100 RP).
-  - **Descanso proporcional ao tiro** no RP e no máx: o tempo da repetição x o fator da prova (50: 3x; 100: 1,5x; 200: 0,8x; 400: 0,5x; fundo: 0,25x; águas abertas: 0,15x), de 5 em 5 segundos, entre 15" e 3'. Ex.: 200 m costas em 2'30" -> 4 x 50 RP 37"5 D30". No máx, nunca menos que o descanso escrito na série. Entre as séries, pelo menos 2'.
+  - **Cada série em RP vai no máximo até a distância da prova** (regra do treinador): no 200, `(3x) 6 x 50` vira `(3x) 4 x 50`, e o número de séries fica. Uma série única maior que a prova vira séries (`8 x 50` -> `(2x) 4 x 50`). Uma repetição por série vira repetições com o intervalo como descanso (`(5x) 1 x 75` -> `5 x 75 · D3'`). Os tiros "máx" (curtos, com descanso longo) ficam como estão.
+  - **Séries fracionadas** (`regras.json` → `fracionadas`, provas até 400 m): o app monta as séries de RP fracionadas até a distância da prova, em 1, 2 ou 3 séries. Ex. no 200: 4 x 50, 3 x 50, 8 x 25, 2 x 100, (2 x 50; 4 x 25). No 100: 4 x 25, 3 x 25, 2 x 50, (1 x 50; 2 x 25). No 400: 8 x 50, 4 x 100, 3 x 100, 2 x 200, (2 x 100; 4 x 50). Na piscina de 50 m, só repetições de 50 m ou mais.
+  - **Intervalo entre as séries com RP:** pelo menos 2', e 50% maior (`aumentoDoIntervalo`): 2' vira 3'; 3' vira 4'30".
+  - **Descanso proporcional ao tiro** no RP e no máx: o tempo da repetição x o fator da prova (50: 3x; 100: 1,5x; 200: 0,8x; 400: 0,5x; fundo: 0,25x; águas abertas: 0,15x), de 5 em 5 segundos, entre 15" e 3'. **No RP, o descanso é 50% maior** (`aumentoNoRP`). Ex.: 200 m costas em 2'30" -> 4 x 50 RP 37"5 D45" (37"5 x 0,8 = 30", + 50%). No máx, nunca menos que o descanso escrito na série. Entre as séries, pelo menos 2'.
   - **RP (ritmo de prova):** a meta dividida igualmente pela distância (200 m em 2'30" = **RP 37"5** a cada 50 m). Embaixo da série vai a explicação.
   - **Limite da prova:** o treino inteiro até **15x** a distância nos 50 e 100 m e **10x** nas outras. Quando não cabe, nesta ordem: sai a perna; o aquecimento, o solto e a soltura ficam curtos (sem a técnica); a velocidade fica curta (ela continua em todas as provas); a série da prova diminui.
   - A série também cabe no **tempo** da série principal do Geral (que já cai na Realização).
