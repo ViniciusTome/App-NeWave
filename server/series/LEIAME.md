@@ -122,12 +122,31 @@ As séries ficam "brutas", sem material. As regras dizem como montar o treino co
 
 O iniciante faz aquecimento → principal → solto em qualquer tempo de aula.
 
-### Mistura de nados nas séries com (3x), (4x)
+### Estilo da prova na preparação toda
+
+```json
+"estiloDaProva": {
+  "principal": { "prova": 0.4, "crawl": 0.4, "outros": 0.2 },
+  "velocidade": { "pesoDaProva": 4 },
+  "perna": { "pesoDaProva": 4, "bonusSemPeDePato": 600, "pesoSemPeDePato": 10 }
+}
+```
+
+Regra do treinador: quando a prova alvo (ou outra prova importante, prioridade B) é num estilo, esse estilo entra na **preparação toda**, também na Acumulação (para ganhar resistência no nado), não só na Transição.
+
+- **Série principal:** cerca de `prova` dos treinos com a série inteira no estilo da prova (ex.: 40% de peito), `crawl` de crawl e `outros` em outros estilos (a série num estilo ou os estilos misturados), se o atleta nada outros estilos. Se ele só nada o crawl e o estilo da prova, a parte dos outros vai para a prova. Os treinos seguem uma ordem que mantém as proporções (ex.: peito, crawl, outros, peito, crawl...), pelo número do treino. Num treino com duas principais, a 2ª segue a regra da 2ª série principal (uma de crawl, outra de estilo).
+- **Velocidade e perna:** o estilo da prova tem `pesoDaProva` vezes a chance de um estilo qualquer (o crawl tem 2).
+- **Prova de peito ou medley:** a perna vai de preferência sem pé de pato (com ele não dá a pernada de peito).
+- **Prova de crawl** (livre, triatlo, águas abertas): nada muda, a principal é de crawl.
+- **Modelo Específico:** na Transição e na Realização a série principal continua sendo a da prova; a velocidade e a perna seguem esta regra.
+
+### Mistura de nados nas séries com (2x), (3x), (4x)
 
 ```json
 "misturaDeNados": {
   "partes": ["principal"],
-  "minimoDeSeries": 3,
+  "minimoDeSeries": 2,
+  "chance": 0.5,
   "formatos": ["igual", "espelhado", "diferentes"],
   "pesoMelhorEstilo": 2
 }

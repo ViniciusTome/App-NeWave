@@ -9,7 +9,7 @@
 // - quanto do tempo de aula vai para cada parte;
 // - intensidade e fase da temporada das séries principais (ainda ignoradas);
 // - o valor usado dentro das faixas de descanso (o meio da faixa).
-import { describe, fitsSession } from './series/index.js'
+import { canSwimInStroke, describe, fitsSession } from './series/index.js'
 import {
     allowedAsSecondMain, drawMixedStrokes, effortFor, intensityName, intervalBetweenSets, intervalRangeFor,
     partsForLevel, pauseOf, repSeconds, restFor, seriesVariations, timeTable, usesIntensityRest,
@@ -352,7 +352,10 @@ const comPeDePato = (material) => (material ?? []).includes('pe_de_pato')
 export function withSpeedStroke(rules, variation, athlete, random = Math.random) {
     if (variation.nado !== 'livre' || variation.nados || variation.porSerie || variation.nadoAbrev) return variation
     const pesoCrawl = rules.saidas?.velocidade?.pesoDoCrawl ?? 2
-    const nados = (athlete.strokes?.length ? athlete.strokes : ['crawl']).map((n) => ({ item: n, peso: n === 'crawl' ? pesoCrawl : 1 }))
+    // Prova num estilo: o estilo da prova com bem mais chance (regras.estiloDaProva)
+    const pesoDaProva = rules.estiloDaProva?.velocidade?.pesoDaProva ?? 1
+    const daProva = (n) => (athlete.estilosDaProva ?? []).includes(n)
+    const nados = (athlete.strokes?.length ? athlete.strokes : ['crawl']).map((n) => ({ item: n, peso: daProva(n) ? pesoDaProva : n === 'crawl' ? pesoCrawl : 1 }))
     const nado = weightedPick(nados, random)
     return { ...variation, nadoAbrev: NADO_ABREV[nado] ?? nado }
 }
@@ -372,7 +375,9 @@ export function withLegStroke(rules, variation, athlete, random = Math.random) {
     const pode = (n) => !(comPe && temPeito(n))
     const nados = (athlete.strokes?.length ? athlete.strokes : ['crawl']).filter(pode)
     if (nados.length === 0) return { ...variation, nadoAbrev: 'CR' }
-    const pesoDo = (n) => (n === 'crawl' ? cfg.pesoDoCrawl ?? 1 : 1)
+    // Prova num estilo: a perna do estilo da prova com bem mais chance (regras.estiloDaProva)
+    const pesoDaProva = rules.estiloDaProva?.perna?.pesoDaProva ?? 1
+    const pesoDo = (n) => ((athlete.estilosDaProva ?? []).includes(n) ? pesoDaProva : n === 'crawl' ? cfg.pesoDoCrawl ?? 1 : 1)
     const um = () => weightedPick(nados.map((n) => ({ item: n, peso: pesoDo(n) })), random)
     const distancia = variation._distancia ?? null
     const piscina = athlete.poolLength ?? 25
@@ -766,6 +771,65 @@ export function athleteForMain(athlete) {
     }
 }
 
+// ---------- Estilo da prova na preparação toda ----------
+
+// Estilos das provas (alvo e importantes) que o atleta treina além do crawl. Medley só se ele
+// nada os quatro. Prova de crawl (livre, triatlo, águas abertas): nenhum.
+export function raceStrokes(athlete) {
+    const provas = athlete.provas?.length ? athlete.provas : athlete.prova ? [athlete.prova] : []
+    const nada = new Set(athlete.strokes ?? [])
+    const quatro = ['crawl', 'costas', 'peito', 'borboleta'].every((e) => nada.has(e))
+    return [...new Set([...provas.map((p) => p.estilo), ...(athlete.estilosImportantes ?? [])])]
+        .filter((e) => e && e !== 'crawl' && (e === 'medley' ? quatro : nada.has(e)))
+}
+
+// Foco da série principal de cada treino com prova num estilo (regra do treinador): ~40% no
+// estilo da prova, ~40% de crawl e ~20% de outros estilos (se o atleta nada outros). Sai na
+// ordem que mantém as proporções (o que está mais atrasado entra primeiro).
+export function styleFocusSchedule(rules, athlete, total) {
+    const cfg = rules.estiloDaProva
+    const estilos = raceStrokes(athlete)
+    if (!cfg || estilos.length === 0) return Array(total).fill(null)
+    const outros = (athlete.strokes ?? []).some((e) => e !== 'crawl' && !estilos.includes(e))
+    const alvo = { prova: cfg.principal.prova + (outros ? 0 : cfg.principal.outros), crawl: cfg.principal.crawl, outros: outros ? cfg.principal.outros : 0 }
+    const feitos = { prova: 0, crawl: 0, outros: 0 }
+    return Array.from({ length: total }, (_, i) => {
+        const cat = Object.keys(alvo).filter((k) => alvo[k] > 0)
+            .sort((a, b) => (alvo[b] * (i + 1) - feitos[b]) - (alvo[a] * (i + 1) - feitos[a]))[0]
+        feitos[cat]++
+        return { categoria: cat, estilos }
+    })
+}
+
+const ehCrawl = (v) => v.nado === 'livre' && !v.nados && !v.porSerie && !v.nadoAbrev
+// As variações da série para o foco do treino ('prova', 'crawl' ou 'outros'). Vazia: a série
+// não serve para esse foco.
+function variationsForFocus(rules, parte, serie, athlete, foco, variations, random) {
+    const comEstilo = (estilos) => {
+        if (!canSwimInStroke(serie.blocos)) return []
+        const comoEstilo = { ...serie, outrosNados: [...new Set([...(serie.outrosNados ?? []), 'estilo'])] }
+        const nadador = { ...athlete, strokes: ['crawl', ...estilos] }
+        return seriesVariations(rules, parte, comoEstilo, nadador).filter((v) => estilos.includes(v.nado) && variationFits(v, athlete))
+    }
+    if (foco.categoria === 'crawl') return variations.filter(ehCrawl)
+    if (foco.categoria === 'prova') {
+        const simples = foco.estilos.filter((e) => e !== 'medley')
+        const daProva = comEstilo(simples)
+        if (foco.estilos.includes('medley')) {
+            // Prova de medley: o medley (individual ou alternado) ou os estilos misturados
+            const medley = seriesVariations(rules, parte, { ...serie, outrosNados: ['medley'] }, athlete).filter((v) => /medley/.test(v.nado) && variationFits(v, athlete))
+            const mistura = drawMixedStrokes(rules, parte, serie, { ...athlete, strokes: athlete.estilosDoAtleta ?? athlete.strokes }, random)
+            return [...daProva, ...medley, ...(mistura && variationFits(mistura, athlete) ? [mistura] : [])]
+        }
+        return daProva
+    }
+    // Outros estilos: a série num estilo que não é o da prova, ou os estilos misturados
+    const todos = athlete.estilosDoAtleta ?? athlete.strokes ?? []
+    const outros = todos.filter((e) => e !== 'crawl' && !foco.estilos.includes(e))
+    const mistura = drawMixedStrokes(rules, parte, serie, { ...athlete, strokes: todos }, random)
+    return [...comEstilo(outros), ...(mistura && variationFits(mistura, athlete) ? [mistura] : [])]
+}
+
 // O atleta pode fazer essa série? (distância sem parar, estilos, piscina, tempo de aula)
 function seriesFits(serie, athlete) {
     if (!serie.usos.includes('treino')) return false
@@ -808,9 +872,11 @@ function pickForPart(args) {
     // principal, não repetir vale mais que alternar crawl e estilo: se só a série de
     // ontem serve como estilo, vai outra (sem repetir), mesmo sem alternar.
     const semRepetir = (rules.naoRepetirNoTreinoSeguinte?.partes ?? []).includes(parte) && bloqueadas?.size > 0
-    return (semRepetir && pickAmong(args, bloqueadas)) ||
-        (semRepetir && args.primeiraPrincipal && pickAmong({ ...args, semAlternar: true }, bloqueadas)) ||
-        pickAmong(args, null)
+    const escolher = (a) => (semRepetir && pickAmong(a, bloqueadas)) ||
+        (semRepetir && a.primeiraPrincipal && pickAmong({ ...a, semAlternar: true }, bloqueadas)) ||
+        pickAmong(a, null)
+    // Com o foco de estilo do treino (prova num estilo); sem série que sirva, sem o foco
+    return (args.focoDeEstilo && escolher(args)) || escolher({ ...args, focoDeEstilo: null })
 }
 
 // Séries (2x), (3x), (4x)...: as opções de quantas séries o atleta faz (a escrita
@@ -840,7 +906,7 @@ export function setOptions(rules, parte, serie, level, sessionMinutes = null) {
     return opcoes
 }
 
-function pickAmong({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal, semAlternar = false }, evitar) {
+function pickAmong({ rules, library, parte, budget, athlete, pace, random, recentes, primeiraPrincipal, semAlternar = false, focoDeEstilo = null }, evitar) {
     const candidatas = []
     // Passar do tempo é pior que ficar um pouco abaixo (a aula tem hora para acabar)
     const foraDoTempo = (segundos) => (segundos > budget ? 1.5 : 1) * Math.abs(segundos - budget)
@@ -865,6 +931,11 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
         if (parte === 'principal') variations = butterflyRule(rules, serie, variations)
         const mistura = drawMixedStrokes(rules, parte, serie, athlete, random)
         if (mistura && serve(mistura)) variations.push(mistura)
+        // Prova num estilo: o foco do treino (estilo da prova, crawl ou outros estilos)
+        if (focoDeEstilo) {
+            variations = variationsForFocus(rules, parte, serie, athlete, focoDeEstilo, variations, random).filter(serve)
+            if (parte === 'principal') variations = butterflyRule(rules, serie, variations)
+        }
         if (primeiraPrincipal && !semAlternar) {
             variations = variations.filter((variation) =>
                 allowedAsSecondMain(rules, primeiraPrincipal, { serie, variation }, athlete.strokes))
@@ -884,8 +955,12 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     // ou palmar + pull buoy, sem pé de pato (para os braços empurrarem mais água)
     const foco = parte === 'principal' ? athlete.foco : null
     const comPalmar = (v) => v.material.includes('palmar') && !v.material.includes('pe_de_pato')
+    // Prova de peito (ou medley): a perna sem pé de pato (com ele não dá a pernada de peito)
+    const pernaDePeito = parte === 'perna' && (athlete.estilosDaProva ?? []).some((e) => e === 'peito' || e === 'medley')
+    const semPe = (v) => !v.material.includes('pe_de_pato')
     const bonus = (c) => (foco === 'respiracao' && c.serie.maiorDistancia <= 50 ? 90 : 0) +
-        (foco === 'forca' && c.variations.some(comPalmar) ? 90 : 0)
+        (foco === 'forca' && c.variations.some(comPalmar) ? 90 : 0) +
+        (pernaDePeito && c.variations.some(semPe) ? (rules.estiloDaProva?.perna?.bonusSemPeDePato ?? 0) : 0)
     // (o solto e a soltura podem repetir: lá, só o tempo conta)
     const variar = (rules.naoRepetirNoTreinoSeguinte?.partes ?? []).includes(parte)
     const distancia = (c) => foraDoTempo(c.segundos) - bonus(c) + (variar ? 60 * (recentes.vezes(c.serie.id) +
@@ -901,7 +976,9 @@ function pickAmong({ rules, library, parte, budget, athlete, pace, random, recen
     const chanceDaMistura = rules.misturaDeNados?.chance
     const outras = escolhida.variations.filter((v) => v !== misturada || chanceDaMistura === undefined)
     const variation = misturada && (outras.length === 0 || (chanceDaMistura !== undefined && random() < chanceDaMistura)) ? misturada
-        : weightedPick(outras.map((v) => ({ item: v, peso: (v.peso ?? 1) * (foco === 'forca' && comPalmar(v) ? 4 : 1) })), random)
+        : weightedPick(outras.map((v) => ({
+            item: v, peso: (v.peso ?? 1) * (foco === 'forca' && comPalmar(v) ? 4 : 1) * (pernaDePeito && semPe(v) ? rules.estiloDaProva?.perna?.pesoSemPeDePato ?? 1 : 1),
+        })), random)
     const segundos = estimateSeconds(rules, parte, escolhida.serie, variation, athlete, pace)
     return { serie: escolhida.serie, variation, segundos }
 }
@@ -941,7 +1018,7 @@ const especificoDoApp = () => (especificoPadrao ??= loadEspecifico())
 let saudePadrao = null
 const saudeDoApp = () => (saudePadrao ??= loadSaude())
 
-function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1, tecnica = null, estadoTecnica = null }) {
+function buildTraining({ rules, library, athlete, pace, random, recentes, proibidas = [], bloqueadas, fatorPrincipal = 1, tecnica = null, estadoTecnica = null, focoDoEstilo = null }) {
     const leve = soRitmoLeve(rules, athlete) || Boolean(athlete.soLeve)
     let estrutura = partsForLevel(rules, athlete.level, athlete.sessionMinutes).filter((p) => !leve || p !== 'velocidade')
     // Com o nado contínuo (série de teste), ele fica no lugar da 2ª série principal
@@ -959,13 +1036,16 @@ function buildTraining({ rules, library, athlete, pace, random, recentes, proibi
     const escolhas = new Map() // posição na estrutura -> escolha
     // A série principal segue a prova alvo: prova no crawl (triatlo, águas abertas, livre)
     // só crawl; prova num estilo: ele é o "melhor estilo" da principal
-    const daPrincipal = athleteForMain(athlete)
+    // (com os estilos que ele nada, para os "outros estilos" do foco do treino)
+    const daPrincipal = { ...athleteForMain(athlete), estilosDoAtleta: athlete.strokes }
     // Triatlo e maratona aquática: o aquecimento e a velocidade também são de crawl
     const soCrawl = NO_CRAWL.includes(athlete.modalidade) ? { ...athlete, strokes: ['crawl'], bestStroke: null } : athlete
     const doAtleta = (parte) => (parte === 'principal' ? daPrincipal : ['aquecimento', 'velocidade'].includes(parte) ? soCrawl : athlete)
     const escolher = (i, budget, primeiraPrincipal = null) => {
         const parte = estrutura[i]
-        const escolha = pickForPart({ rules, library, parte, budget, athlete: doAtleta(parte), pace, random, recentes, primeiraPrincipal, bloqueadas })
+        // Prova num estilo: a 1ª série principal segue o foco do treino (prova, crawl ou outros)
+        const focoDeEstilo = parte === 'principal' && !primeiraPrincipal ? focoDoEstilo : null
+        const escolha = pickForPart({ rules, library, parte, budget, athlete: doAtleta(parte), pace, random, recentes, primeiraPrincipal, bloqueadas, focoDeEstilo })
         if (escolha) {
             escolhas.set(i, escolha)
             recentes.add(escolha.serie.id)
@@ -1663,6 +1743,9 @@ export function generateTrainings({
     const ajuste = feedbackAdjustment(rules, athlete, historico, fatorDoProximo)
     athlete = { ...athlete, foco: ajuste.foco }
     const condicionamento = inConditioning(rules, athlete)
+    // Prova num estilo (alvo e importantes): o estilo entra na preparação toda (série principal,
+    // velocidade e perna), não só na Transição
+    athlete = { ...athlete, estilosDaProva: raceStrokes(athlete) }
     const recentes = recentWindow(4) // séries dos últimos 4 treinos perdem prioridade
     // Técnica: continua do passo em que o atleta parou (saídas, viradas)
     const estadoTecnica = estadoDaTecnica(historico)
@@ -1711,6 +1794,8 @@ export function generateTrainings({
     let a3SeguidoPermitido = null
 
     const datas = trainingDates(today, athlete.trainingDays, totalDeDias)
+    // Foco de estilo de cada treino (pelo número do treino: continua igual ao gerar de novo)
+    const focoDe = styleFocusSchedule(rules, athlete, (periodizacao?.numeroInicial ?? 1) - 1 + datas.length)
     const totalDeSemanas = new Set(datas.map(semanaDe)).size
     // Volume da etapa: fixo (ex.: 85%) ou caindo treino a treino ([85%, 60%] na Realização)
     const etapaDeCada = faseDe ? datas.map((d) => faseDe(d).etapa) : []
@@ -1798,7 +1883,10 @@ export function generateTrainings({
         if (testeNaTransicao) testeDaPeriodizacao = true
         const doGeral = testeSemTempo || testeNaTransicao
             ? buildTestTraining({ rules, library, athlete: doDia, pace, random, recentes })
-            : buildTraining({ rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas, fatorPrincipal, tecnica, estadoTecnica })
+            : buildTraining({
+                rules: rulesVoltando(rules, athlete, inicioDosTreinos, date), library, athlete: doDia, pace, random, recentes, proibidas, bloqueadas,
+                fatorPrincipal, tecnica, estadoTecnica, focoDoEstilo: deSaude ? null : focoDe[numero - 1],
+            })
         // Específico da prova: na Transição e na Realização, a série principal é a da prova
         // (estilo e ritmo da prova) e o treino inteiro fica dentro do limite (15x ou 10x a prova)
         const partes = especifico ? aplicarEspecifico({

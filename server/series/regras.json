@@ -59,6 +59,12 @@
       }
     }
   },
+  "estiloDaProva": {
+    "_comentario": "Regra do treinador: prova num estilo (alvo e as importantes) entra na preparação toda, não só na Transição. Série principal: 'prova' dos treinos com a série inteira no estilo da prova, 'crawl' de crawl e 'outros' em outros estilos (série num estilo ou misturados), se o atleta nada outros (senão a parte dos outros vai para a prova). Velocidade e perna: o estilo da prova com 'pesoDaProva' vezes a chance de um estilo qualquer (crawl tem 2). Prova de peito ou medley: perna de preferência sem pé de pato ('bonusSemPeDePato' segundos de vantagem na escolha da série), já que com ele não dá a pernada de peito. No Específico, a Transição e a Realização continuam com a série da prova.",
+    "principal": { "prova": 0.4, "crawl": 0.4, "outros": 0.2 },
+    "velocidade": { "pesoDaProva": 4 },
+    "perna": { "pesoDaProva": 4, "bonusSemPeDePato": 600, "pesoSemPeDePato": 10 }
+  },
   "segundaPrincipal": {
     "alternarCrawlEEstilo": true
   },
